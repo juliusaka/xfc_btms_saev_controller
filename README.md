@@ -6,6 +6,9 @@ Developement of a controller for an extreme-fast-charging (XFC) depot with behin
 
 this framework was developed using python 3.10. There is an Andaconda-Image, which can be used to import a fitting environment. Please make sure, that this environment is used.
 
+*first, I couldn't run python with anaconda on my PC. I then added path variables like described in this [video](https://www.youtube.com/watch?v=3Wt00qGlh3s). I also had to change the execution policy of Windows Powershell to RemoteSigned (Open PowerShell, Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser*
+
 below, there is a list of important used packages:
 
 - **dask**: used for processing the large output-csv for the independent controller developement framework
+- **numpy**
