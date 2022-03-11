@@ -1,90 +1,109 @@
 # %%
-# the line above is used to start the interactive mode. with ctrl + T you will open the interactive window on the right
-#%pylab inline # this should help with plotting inline, but it isnt recommended.
-
-# import required modules
-from datetime import date
-print("\n new Run\n - - - - - \n ")
 import pandas as pd
 import numpy as np
 import time
-import dask
 from dask import dataframe as df1
+import dask
+path = "C:/Users/akaju/Documents/project thesis/Beam Output Data/vehicletypes-Base_2035_20210204_updated.csv"
 
-# change this to the location of where you stored the output file:
-path = "C:/Users/akaju/Documents/project thesis/Beam Output Data/archive/0.events.csv/0.events.csv"
-columns_inFile = {
-       'person', 'link', 'facility', 'actType', 'time', 'type', 'departTime',
-       'startX', 'startY', 'endX', 'endY', 'driver', 'vehicle', 'parkingTaz', 
-       'chargingPointType', 'pricingModel', 'parkingType', 'locationY',       
-       'locationX', 'cost', 'legMode', 'primaryFuelLevel',
-       'secondaryFuelLevel', 'price', 'score', 'mode', 'currentTourMode',     
-       'expectedMaximumUtility', 'availableAlternatives', 'location',
-       'personalVehicleAvailable', 'length', 'tourIndex', 'vehicleType',      
-       'links', 'numPassengers', 'primaryFuel', 'riders', 'toStopIndex',      
-       'fromStopIndex', 'seatingCapacity', 'tollPaid', 'capacity',
-       'arrivalTime', 'departureTime', 'linkTravelTime', 'secondaryFuel',     
-       'secondaryFuelType', 'primaryFuelType', 'shiftStatus', 'parkingZoneId',       'fuel', 'duration', 'incentive', 'tollCost', 'netCost', 'reason'
-}
-# specify columns we want to load
-usecols = [
-       'person','actType', 'time', 'type', 'departTime',
-       'startX', 'startY', 'endX', 'endY', 'driver', 'vehicle', 'parkingTaz', 
-       'chargingPointType', 'pricingModel', 'parkingType', 'locationY',       
-       'locationX', 'cost', 'legMode', 'primaryFuelLevel',
-       'secondaryFuelLevel', 'price', 'score', 'mode', 'currentTourMode',     
-       'expectedMaximumUtility', 'availableAlternatives', 'location',
-       'personalVehicleAvailable', 'length', 'tourIndex', 'vehicleType',      
-       'links', 'numPassengers', 'primaryFuel', 'riders', 'toStopIndex',      
-       'fromStopIndex', 'seatingCapacity', 'tollPaid', 'capacity',
-       'arrivalTime', 'departureTime', 'linkTravelTime', 'secondaryFuel',     
-       'secondaryFuelType', 'primaryFuelType', 'shiftStatus', 'parkingZoneId',       'fuel', 'duration', 'incentive', 'tollCost', 'netCost', 'reason'
-]
-# state without selecting cols
-dtype={'actType': 'string',
-       'availableAlternatives': 'string',
-       'chargingPointType': 'string',
-       'currentTourMode': 'string',
-       'driver': 'string',
-       'linkTravelTime': 'string',
-       'links': 'string',
-       'mode': 'string',
-       'person' : 'string',
-       'personalVehicleAvailable' : 'string',
-       'parkingTaz': 'string',
-       'parkingType': 'string',
-       'parkingZoneId': 'string',
-       'pricingModel': 'string',
-       'primaryFuelType': 'string',
-       'reason': 'string',
-       'riders': 'string',
+# %%
+print("\n loading vehicletypes file from "+ path + "\n")
+
+dtype={'automationLevel': 'float64',
+       'primaryFuelCapacityInJoule': 'float64',
+       'primaryFuelConsumptionInJoulePerMeter': 'float64',
        'secondaryFuelType': 'string',
-       'vehicleType': 'string'}
+       'secondaryVehicleEnergyFile': 'string'}
+usecols = ['vehicleTypeId', 'primaryFuelType',
+       'primaryFuelConsumptionInJoulePerMeter', 'primaryFuelCapacityInJoule',
+       'secondaryFuelType','secondaryFuelConsumptionInJoulePerMeter',
+       'rechargeLevel2RateLimitInWatts','rechargeLevel3RateLimitInWatts',
+       'vehicleCategory','sampleProbabilityWithinCategory', 
+       'sampleProbabilityString', 'chargingCapability', 'RH_prob']
+#all columns : ['vehicleTypeId', 'seatingCapacity', 'standingRoomCapacity', 'lengthInMeter', 'primaryFuelType',
+    #    'primaryFuelConsumptionInJoulePerMeter', 'primaryFuelCapacityInJoule',
+    #    'primaryVehicleEnergyFile', 'secondaryFuelType',
+    #    'secondaryFuelConsumptionInJoulePerMeter', 'secondaryVehicleEnergyFile',
+    #    'secondaryFuelCapacityInJoule', 'automationLevel', 'maxVelocity',
+    #    'passengerCarUnit', 'rechargeLevel2RateLimitInWatts',
+    #    'rechargeLevel3RateLimitInWatts', 'vehicleCategory',
+    #    'sampleProbabilityWithinCategory', 'sampleProbabilityString',
+    #    'chargingCapability', 'RH_prob']
+df_vehicles = df1.read_csv(path, dtype = dtype, usecols = usecols)
 
-print("\n loading BEAM-output-File from "+ path + "\n")
+df_vehicles.head(10)
 
-s_time_dask = time.time()
-dask_df = df1.read_csv(path, dtype = dtype)
-e_time_dask = time.time()
-  
-print("Read with dask: ", (e_time_dask-s_time_dask), "seconds")
-  
-# data
-print(dask_df.columns)
-dask_df.info()
-# print(dask_df.columns[30])
-dask_df.head(500)
-
-#dask_df.loc[:3, :].to_csv("beam_output.csv")
-
-df = dask_df.loc[:5, :]
-df2 = df["person"]
-df2[0]
-
+# %%
+path = "C:/Users/akaju/Documents/project thesis/Beam Output Data/archive/0.events.csv/0.events.csv"
+# for testing
+#path = 'test_data/beam1/beam_output20-006.csv'
+print("\n loading simulation results file from "+ path + "\n")
+all_cols = ['person', 'link', 'facility', 'actType', 'time', 'type', 'departTime',
+       'startX', 'startY', 'endX', 'endY', 'driver', 'vehicle', 'parkingTaz',
+       'chargingPointType', 'pricingModel', 'parkingType', 'locationY',
+       'locationX', 'cost', 'legMode', 'primaryFuelLevel',
+       'secondaryFuelLevel', 'price', 'score', 'mode', 'currentTourMode',
+       'expectedMaximumUtility', 'availableAlternatives', 'location',
+       'personalVehicleAvailable', 'length', 'tourIndex', 'vehicleType',
+       'links', 'numPassengers', 'primaryFuel', 'riders', 'toStopIndex',
+       'fromStopIndex', 'seatingCapacity', 'tollPaid', 'capacity',
+       'arrivalTime', 'departureTime', 'linkTravelTime', 'secondaryFuel',
+       'secondaryFuelType', 'primaryFuelType', 'shiftStatus', 'parkingZoneId',
+       'fuel', 'duration', 'incentive', 'tollCost', 'netCost', 'reason']
 usecols = ['time', 'type', 'vehicle', 'parkingTaz',
-       'chargingPointType', 'primaryFuelLevel', 'mode', 'currentTourMode', 'vehicleType', 'primaryFuel', 'arrivalTime',
+       'chargingPointType', 'primaryFuelLevel', 'mode', 'currentTourMode', 'vehicleType', 'arrivalTime',
        'departureTime', 'linkTravelTime', 'primaryFuelType', 
-       'parkingZoneId', ]
+       'parkingZoneId', 'fuel', 'duration' ]
        # vehicle seems like it is the vehicle identifier
-
+       # , 'primaryFuel' doesnt seem needed
        # departTime doesnt seem used, discarded
+dtype = {
+       'time': 'float64', 
+       'type': 'category', 
+       'vehicle': 'string', 
+       'parkingTaz': 'category', #
+       'chargingPointType': 'category', 
+       'primaryFuelLevel': 'float64', #
+       'mode': 'category', 
+       'currentTourMode': 'category', 
+       'vehicleType': 'category', 
+       'arrivalTime': 'float64', #
+       'departureTime': 'float64', # 
+       'linkTravelTime': 'string', 
+       'primaryFuelType': 'category', 
+       'parkingZoneId': 'category',
+       'duration': 'float64' #
+}
+df_sim = df1.read_csv(path, dtype = dtype, usecols = usecols) #, blocksize = 12e6)
+
+#set index, not necessary.
+#df_sim.set_index('time', sorted = True)
+
+#df_sim.head(20)
+
+# %%
+# choose new rows with events which are interesting and delte df_sim
+df_sim_new = df_sim.loc[
+    df_sim['type'].isin(['RefuelSessionEvent', 'ChargingPlugOutEvent', 'ChargingPlugInEvent']) &
+    df_sim['chargingPointType'].str.contains('DC', na=False)
+    , : ]
+#del df_sim
+
+# %%
+#repartion to save storage. partion_size might be expensive
+print("old number of partitions: " + str(df_sim_new.npartitions))
+df_sim_new = df_sim_new.repartition(partition_size="100MB").persist() # might be expensive, can put also npartitions # added persist to let this stay in memory
+#df_sim_new.compute()
+print("new number of partitions: " + str(df_sim_new.npartitions))
+df_sim_new.info()
+#df_sim_new.head(16)
+
+# %%
+# print out number of rows
+df_sim_new.shape[0].compute()
+
+# %%
+#save data to csv. parquet might be better, but need to downgrade python for that.
+df_sim_new.to_csv('test_data/beam1/beam1-*.csv')
+
+
