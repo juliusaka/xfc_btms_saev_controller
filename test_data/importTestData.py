@@ -105,5 +105,3 @@ df_sim_new.shape[0].compute()
 # %%
 #save data to csv. parquet might be better, but need to downgrade python for that.
 df_sim_new.to_csv('test_data/beam1/beam1-*.csv')
-
-

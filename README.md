@@ -1,6 +1,6 @@
 # xfc-btms-saev-controller
 
-Developement of a controller for an extreme-fast-charging (XFC) depot with behind-the-meter storage (BTMS) for shared autonomous electric vehicle (SAEV) fleets in the project GEMINI-XFC with the transportation simulation software BEAM. This controller can be connected with HELICS to BEAM, PyDSS etc. 
+Developement of a controller for an extreme-fast-charging (XFC) depot with behind-the-meter storage (BTMS) for shared autonomous electric vehicle (SAEV) fleets in the project GEMINI-XFC with the transportation simulation software BEAM. This controller can be connected with HELICS to BEAM, PyDSS etc.
 
 ## python environment
 
@@ -12,3 +12,22 @@ below, there is a list of important used packages:
 
 - **dask**: used for processing the large output-csv for the independent controller developement framework
 - **numpy**
+
+## components
+
+*include here description of the object oriented approach*
+
+the components folder contains all objects which are necessary for the object oriented approach.
+
+### ChargingStation
+
+This is the class for the chargingStation
+
+#### Properties:
+- BTMS: Size, C-Rating, minSOC, maxSOC 
+
+(could add min/max SOC for planning and for operation differently)
+- Charging Bays (ChBa)
+
+(could initialize charging bays also with opening parking file, maybe add this later)
+
