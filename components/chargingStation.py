@@ -1,16 +1,19 @@
 class ChargingStation:
     
-    def __init__(self, BtmsSize = 100, BtmsC = 1, BtmsMaxSoc = 0.8, BtmsMinSOC = 0.2, ChBaNum = 2, ChBaMaxPower = [200, 200], ChBaParkingZoneId = ["xxx1", "xxx2"], calcBtmsGridProp = False, GridPowerMax_Nom = 200 ):
+    def __init__(self, BtmsSize = 100, BtmsC = 1, BtmsMaxSoc = 0.8, BtmsMinSOC = 0.2, BtmsSoc0 = 0.50, ChBaNum = 2, ChBaMaxPower = [200, 200], ChBaParkingZoneId = ["xxx1", "xxx2"], calcBtmsGridProp = False, GridPowerMax_Nom = 200 ):
 
-        '''BTMS properties'''
+        '''BTMS'''
+        # properties
         if calcBtmsGridProp:
             self.BtmsSize       = sum(ChBaMaxPower)/2 #empirical formula (check with literature)
         else:
-            self.BtmsSize       = BtmsSize        # size of the BTMS in kWh
-        self.BtmsC              = BtmsC           # C-Rating of BTMS (1C is a complete charge an hour)
-        self.BtmsMaxSoc         = BtmsMaxSoc      # maximal allowed SOC of BTMS
-        self.BtmsMinSoc         = BtmsMinSOC      # minimal allowed SOC of BTMS
-
+            self.BtmsSize       = BtmsSize          # size of the BTMS in kWh
+        self.BtmsC              = BtmsC             # C-Rating of BTMS (1C is a complete charge an hour)
+        self.BtmsMaxSoc         = BtmsMaxSoc        # maximal allowed SOC of BTMS
+        self.BtmsMinSoc         = BtmsMinSOC        # minimal allowed SOC of BTMS
+        #variables:
+        self.BtmsEn             = BtmsSoc0 * BtmsSize # start BTMS energy content at initialization [kWh]
+        self.BtmsSOC            = BtmsSoc0          # start SOC at initialization [-]
         '''Charging Bays'''
         #properties
         self.ChBaNum            = ChBaNum           # number of charging bays
@@ -22,7 +25,7 @@ class ChargingStation:
         self.ChBaVehicleDesEnd  = []                # list of desired end times of charging
         self.ChBaVehicleEn      = []                # list for Energy State of vehicles [kWh]
         self.ChBaVehicleDesEn   = []                # list of desired Energy State of vehicles [kWh]
-        self.ChBaVehicleSoc     = []                # list of SOC of vehicles [%]
+        self.ChBaVehicleSoc     = []                # list of SOC of vehicles [-]
         self.ChBaVehicleMaxEn   = []                # list of maximal energy state of vehicles [kWh]
 
         if (ChBaNum != len(ChBaMaxPower)):
@@ -51,6 +54,8 @@ class ChargingStation:
 
     def step():
         # class method to perform control action for the next simulation step.
+
+        # TODO: update here the SOC of BTMS
         pass
 
         
