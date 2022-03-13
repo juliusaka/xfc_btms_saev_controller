@@ -1,6 +1,6 @@
 class ChargingStation:
     
-    def __init__(self, BtmsSize = 100, BtmsC = 1, BtmsMaxSoc = 0.8, BtmsMinSOC = 0.2, BtmsSoc0 = 0.50, ChBaNum = 2, ChBaMaxPower = [200, 200], ChBaParkingZoneId = ["xxx1", "xxx2"], calcBtmsGridProp = False, GridPowerMax_Nom = 200 ):
+    def __init__(self, BtmsSize = 100, BtmsC = 1, BtmsMaxSoc = 0.8, BtmsMinSOC = 0.2, BtmsSoc0 = 0.50, ChBaNum = 2, ChBaMaxPower = [200, 200], ChBaParkingZoneId = ["xxx1", "xxx2"], calcBtmsGridProp = False, GridPowerMax_Nom = 200, GridPowerLower = -1, GridPowerUpper = 1):
 
         '''BTMS'''
         # properties
@@ -34,22 +34,31 @@ class ChargingStation:
             self.GridPowerMax_Nom   = sum(ChBaMaxPower)/2 # empirical formula (check with literature)
         else:
             self.GridPowerMax_Nom   = GridPowerMax_Nom  # maximum power withdrawal from grid, nominal value (can be time-varying)
-        self.GridPowerLower         = NaN               # will be assigned in step function
-        self.GridPowerUpper         = NaN               # will be assigned in step function
+        self.GridPowerLower         = GridPowerLower  # will be assigned in step function
+        self.GridPowerUpper         = GridPowerUpper  # will be assigned in step function
 
         '''charging depot infrastructure'''
         #variables
         self.QueueVehicles          = []                # list for Vehicles objects, which are in the queue.
 
-    def dayPlanning():
+        '''controller'''
+        #properties
+        self.Controller             = 0                 # add here Controller Object.
+
+    def dayPlanning(self):
         # class method to perform day planning
         pass
 
-    def arrival():
+    def arrival(self, *vehicles):
         # class method to let vehicles arrive
         pass
 
-    def step():
+    def release(self):
+        # class method to release vehicles
+
+        return 0
+
+    def step(self):
         # class method to perform control action for the next simulation step.
 
         # TODO: update here the SOC of BTMS
