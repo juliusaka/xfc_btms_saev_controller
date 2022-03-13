@@ -20,13 +20,7 @@ class ChargingStation:
         self.ChBaMaxPower       = ChBaMaxPower      # list of maximum power for each charging bay in kW
         self.ChBaParkingZoneId  = ChBaParkingZoneId # list of parking zone ids associated with max power list
         #variables
-        self.ChBaVehicle        = []                # vehicles IDs, which are currently charging in a bay
-        self.ChBaVehicleArrival = []                # list for arrival time of vehicles
-        self.ChBaVehicleDesEnd  = []                # list of desired end times of charging
-        self.ChBaVehicleEn      = []                # list for Energy State of vehicles [kWh]
-        self.ChBaVehicleDesEn   = []                # list of desired Energy State of vehicles [kWh]
-        self.ChBaVehicleSoc     = []                # list of SOC of vehicles [-]
-        self.ChBaVehicleMaxEn   = []                # list of maximal energy state of vehicles [kWh]
+        self.ChBaVehicles       = []                # list for Vehicles objects, which are in charging bays.
 
         if (ChBaNum != len(ChBaMaxPower)):
             raise ValueError(' number of charging bays doesnt equals size of list with maximal plug power')
@@ -40,9 +34,12 @@ class ChargingStation:
             self.GridPowerMax_Nom   = sum(ChBaMaxPower)/2 # empirical formula (check with literature)
         else:
             self.GridPowerMax_Nom   = GridPowerMax_Nom  # maximum power withdrawal from grid, nominal value (can be time-varying)
+        self.GridPowerLower         = NaN               # will be assigned in step function
+        self.GridPowerUpper         = NaN               # will be assigned in step function
 
         '''charging depot infrastructure'''
-        self.Queue                  = []                # list for vehicles, which are currently in the queue, waiting for a free charging site
+        #variables
+        self.QueueVehicles          = []                # list for Vehicles objects, which are in the queue.
 
     def dayPlanning():
         # class method to perform day planning

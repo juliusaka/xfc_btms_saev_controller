@@ -31,3 +31,5 @@ This is the class for the chargingStation
 
 (could initialize charging bays also with opening parking file, maybe add this later)
 
+### Vehicle
+an object, as a datastructure for all the vehicle information. Has also methods to addEngy and addPower (give Power and duration). can be used in lists to code the queue and charging bays.
