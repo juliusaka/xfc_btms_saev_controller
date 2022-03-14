@@ -1,2 +1,2 @@
-from .ChargingStation import ChargingStation
+from .ChaDepParent import ChaDepParent
 from .Vehicle import Vehicle
