@@ -40,7 +40,7 @@ class SimBroker:
             self.i      +=1
         df_slice = self.SimRes.iloc[i_old:self.i , :]
 
-        ## Add Vehicles to Charging Station
+        ## generate and add Vehicles to Charging Station
         ChargingStation.arrival()
 
 

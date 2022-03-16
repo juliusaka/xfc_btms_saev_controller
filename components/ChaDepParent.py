@@ -79,7 +79,6 @@ class ChaDepParent:
             # function OUTPUTS: Power from Grid, from BTMS
 
 
-        # TODO: update here the SOC of BTMS
         pass
 
         
