@@ -41,14 +41,9 @@ class ChaDepParent:
         self.GridPowerUpper         = GridPowerUpper  # will be assigned in step function
 
 
-        '''charging depot infrastructure'''
+        '''Queue of Vehicles'''
         #variables
         self.QueueVehicles          = []                # list for Vehicles objects, which are in the queue.
-
-        '''controller'''
-        #properties
-        self.Controller             = 0                 # add here Controller Object.
-
 
 
     def dayPlanning(self):
@@ -64,21 +59,18 @@ class ChaDepParent:
     def release(self):
         # class method to release vehicles
         # TODO will this be done by the chargingStation itself?
-
-        return 0
+        pass
 
     def step(self, timestep):
         # class method to perform control action for the next simulation step.
         '''Requirements:'''
-            # release vehicles when fuel from charging bays
+            # release vehicles when full from charging bays
             # repark vehicles from queue to charging bays if possible
             # update control action from last step with new results for SOC, P_total, P_Btms
             # perform controller action
             # function INPUTS: Grid Limits, Revised SOC of Storage, 
             #                  Revised power withdrawals from last step
             # function OUTPUTS: Power from Grid, from BTMS
-
-
         pass
 
         
