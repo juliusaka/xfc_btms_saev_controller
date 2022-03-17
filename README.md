@@ -35,11 +35,17 @@ please look in the source code for a complete lis of this.
 #### subclasses:
 
 - ChaDepLimCon: Charging Depot with Limit Controller
+- ChaDepMPC: 
 
 
 ### Vehicle
 
 an object, as a datastructure for all the vehicle information. Has also methods to addEngy and addPower (give Power and duration). can be used in lists to code the queue and charging bays.
+
+
+### VehicleGenerator:
+
+generates vehicles objects based on the outputs of the SimBroker. Links vehicleType with their maximum energy. Implemented like this, so that vehicle-properties-file isn't loaded repeatedly 
 
 ### Sim Broker
 Object, which provides the BEAM-simulation results to charging station simulation.

@@ -8,6 +8,10 @@ class Vehicle:
         self.VehicleDesEngy = VehicleDesEngy                # desired Energy State of vehicles [kWh]
         self.VehicleSoc     = VehicleEngy / VehicleMaxEngy  # SOC of vehicles [-]
         self.VehicleMaxEngy = VehicleMaxEngy                # maximal energy state of vehicles [kWh]
+    
+    def __str__(self):
+        # print method
+        return ("Vehicle with the following properties: \nVehicleId: " + str(self.VehicleId) + " VehicleType: " + str(self.VehicleType) + " Arrival: " + str(self.VehicleArrival) + " Desired End Time: " + str(self.VehicleDesEnd) + " Vehicle Energy: " + str(self.VehicleEngy) + " Desired Energy: " + str(self.VehicleDesEngy) + " SOC: " + str(self.VehicleSoc) + " Maximal Energy: " + str(self.VehicleMaxEngy))
         
     def addEngy(self, addedEngy):
         #addedEngy in kWh
