@@ -23,6 +23,7 @@ class ChaDepParent:
         #properties
         self.ChBaNum            = ChBaNum           # number of charging bays
         self.ChBaMaxPower       = ChBaMaxPower      # list of maximum power for each charging bay in kW
+        self.ChBaMaxPower_abs   = max(ChBaMaxPower) # maximum value from list above
         self.ChBaParkingZoneId  = ChBaParkingZoneId # list of parking zone ids associated with max power list
         #variables
         self.ChBaVehicles       = []                # list for Vehicles objects, which are in charging bays.
@@ -49,6 +50,9 @@ class ChaDepParent:
         self.Queue                  = []                # list for Vehicles objects, which are in the queue.
         self.QueuePower             = []                # list for the associated power of queue vehicles, should be later set to 0 when returning data.
 
+        '''Simulation Data'''
+        self.t_act                  = float("NaN")
+
 
     def dayPlanning(self):
         # class method to perform day planning
@@ -59,16 +63,27 @@ class ChaDepParent:
         self.Queue.append(vehicle)
 
     def repark(self):
-        # class method to repark the vehicles, based on their charging need
-        
+        # class method to repark the vehicles, based on their charging desire
+        # calculate charging desire for every vehicle in the bays and the queue
         pass
+
+    def chargingDesire(self, v: Vehicle):
+        if v.VehicleDesEnd <= self.t_act:
+            P_max = min([self.ChBaMaxPower, v.VehicleMaxPower])
+            f1 = v.VehicleDesEngy - v.VehicleEngy # fraction part 1
+            f2 = (v.VehicleDesEnd - self.t_act) * P_max
+            CD = float("inf")
+        else:
+            CD = f1/f2
+        return CD
 
     def release(self):
         # class method to release vehicles
         # TODO will this be done by the chargingStation itself?
         pass
     
-    def step(self, timestep):
+    def step(self, timestep, t_act): # call with t_act = SimBroker.t_act
+        self.t_act = t_act
         # class method to perform control action for the next simulation step.
         '''Requirements:'''
             # release vehicles when full from charging bays
