@@ -42,13 +42,20 @@ please look in the source code for a complete lis of this.
 
 an object, as a datastructure for all the vehicle information. Has also methods to addEngy and addPower (give Power and duration). can be used in lists to code the queue and charging bays.
 
+### VehicleGenerator
 
-### VehicleGenerator:
+generates vehicles objects based on the outputs of the SimBroker. Links vehicleType with their maximum energy. Implemented like this, so that vehicle-properties-file isn't loaded repeatedly. three major dataframes:
 
-generates vehicles objects based on the outputs of the SimBroker. Links vehicleType with their maximum energy. Implemented like this, so that vehicle-properties-file isn't loaded repeatedly 
+- Simulation Results SimRes: used to determine the following RefuelSessionEvent ot ChargingPlugInEvent (loaded from csv)
+- Vehicle Data Base: Contains the Vehicle Data Base (loaded from csv)
+- Vehicle Dataframe: Connects VehicleIds with the Vehicle Type
 
 ### Sim Broker
 Object, which provides the BEAM-simulation results to charging station simulation.
 
 - with the initialization, the SimBroker looks for the first line after the start time
 - for every call of step, the index of the rows from the last simulation time to the next simulation time is determined and a dataframe-slice with all the events happening in between given back. 
+
+## Adaption to use within GEMINI-XFC
+
+- change VehicleGenerator, such that the vehicle population with their properites is directly passed, with no need to reconstruct them. Need for implementation for interaction with Beam.

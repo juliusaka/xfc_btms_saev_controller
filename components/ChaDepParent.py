@@ -1,3 +1,4 @@
+from components import Vehicle
 class ChaDepParent:
     
     def __init__(self, BtmsSize = 100, BtmsC = 1, BtmsMaxSoc = 0.8, BtmsMinSOC = 0.2, BtmsSoc0 = 0.50, ChBaNum = 2, ChBaMaxPower = [200, 200], ChBaParkingZoneId = ["xxx1", "xxx2"], calcBtmsGridProp = False, GridPowerMax_Nom = 200, GridPowerLower = -1, GridPowerUpper = 1):
@@ -43,18 +44,16 @@ class ChaDepParent:
 
         '''Queue of Vehicles'''
         #variables
-        self.QueueVehicles          = []                # list for Vehicles objects, which are in the queue.
+        self.Queue                  = []                # list for Vehicles objects, which are in the queue.
 
 
     def dayPlanning(self):
         # class method to perform day planning
         pass
 
-    def arrival(self, *vehicles):
+    def arrival(self, vehicle: Vehicle):
         # class method to let vehicles arrive
-        '''Requirements: '''
-            # put vehicles to the Queue
-        pass
+        self.Queue.append(vehicle)
 
     def release(self):
         # class method to release vehicles
