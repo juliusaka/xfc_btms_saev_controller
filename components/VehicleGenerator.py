@@ -47,6 +47,13 @@ class VehicleGenerator:
         VehicleArrival      = df_slice.name
         VehicleEngy         = df_slice["primaryFuelLevel"]/3.6e6 # conversion to kWh
         VehicleMaxEngy      = self.DataBase.loc[VehicleType, "primaryFuelCapacityInJoule"] / 3.6e6 # conversion to kWh
+        # generate here the maximum power of the vehicle:
+        chargingCap = self.DataBase.loc[VehicleType, "chargingCapability"]
+        s1 = chargingCap.find("(")
+        s2 = chargingCap.find("|")
+        VehicleMaxPower     = float(chargingCap[s1+1:s2])
+        if VehicleMaxPower > 1000 or VehicleMaxPower< 10:
+            print("Warning: There could be a vehicle max power reading mistake")
 
         #for desired end and desired energy, we need to find the corresponding RefuelSessionEvent
         # this is after ChargingPlugInEvent.
@@ -54,10 +61,11 @@ class VehicleGenerator:
         try:
             RefuelSessionEvent = self.SimRes[np.logical_and(np.logical_and(self.SimRes.index > VehicleArrival, self.SimRes.type == "RefuelSessionEvent"), self.SimRes.vehicle == VehicleId)].iloc[0]
             VehicleDesEnd       = RefuelSessionEvent.name # this is the time at which refuel session event is finished
-            VehicleDesEngy      = RefuelSessionEvent.fuel / 3.6e6 # conversion to kWh, this is the refilled fuel
+            VehicleDesEngy      = RefuelSessionEvent.fuel / 3.6e6 + VehicleEngy # this is the desired state of energy at the end of the charging event
         except: # if we are at the end of the file, we don't want errors from events which aren't finished.
             VehicleDesEnd       = 0
-            VehicleDesEngy      = 0 / 3.6e6 # conversion to kWh
-        Vehicle=components.Vehicle(VehicleId, VehicleType, VehicleArrival, VehicleDesEnd, VehicleEngy, VehicleDesEngy, VehicleMaxEngy)
+            VehicleDesEngy      = 0 
+        
+        Vehicle=components.Vehicle(VehicleId, VehicleType, VehicleArrival, VehicleDesEnd, VehicleEngy, VehicleDesEngy, VehicleMaxEngy, VehicleMaxPower)
 
         return Vehicle

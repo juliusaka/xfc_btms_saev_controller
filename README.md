@@ -6,7 +6,7 @@ This code is set up so that it can be tested in a stand-alone version (without c
 
 ## python environment
 
-this framework was developed using python 3.10. There is an Andaconda-Image, which can be used to import a fitting environment. Please make sure, that this environment is used.
+this framework was developed using python 3.7.11. There is an Andaconda-Image, which can be used to import a fitting environment. Please make sure, that this environment is used.
 
 *first, I couldn't run python with anaconda on my PC. I then added path variables like described in this [video](https://www.youtube.com/watch?v=3Wt00qGlh3s). I also had to change the execution policy of Windows Powershell to RemoteSigned (Open PowerShell, Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser*
 
@@ -37,7 +37,15 @@ please look in the source code for a complete lis of this.
 - ChaDepLimCon: Charging Depot with Limit Controller
 - ChaDepMPC: 
 
+#### methods:
 
+- *repark()*: reparks the vehicles based on their need to charge. The charging desire of a vehicle can be calculated as
+
+     $ \text{CD} = \frac{E_\text{necessary}}{E_\text{possible}} = \frac{E_{\text{desired,Vehicle}(t_\text{end})} - E_{\text{Vehicle}(t)}} { (t_\text{end} - t) \quad P_\text{max}}$
+     
+     with 
+
+     $P_\text{max} = \text{min}(P_\text{Charging Depot, max} , P_\text{Vehicle, max})$
 ### Vehicle
 
 an object, as a datastructure for all the vehicle information. Has also methods to addEngy and addPower (give Power and duration). can be used in lists to code the queue and charging bays.
@@ -50,11 +58,13 @@ generates vehicles objects based on the outputs of the SimBroker. Links vehicleT
 - Vehicle Data Base: Contains the Vehicle Data Base (loaded from csv)
 - Vehicle Dataframe: Connects VehicleIds with the Vehicle Type
 
+The VehicleGenerator automaticall determines in generateVehicleSO the maximum charging power based on strings like "FC(150.0|DC)", "XFC(400.0|DC)" the maximum charging power, it therefore searches for the symbols "(" and "|)". If you change this format, the function must also be changed.
+
 ### Sim Broker
 Object, which provides the BEAM-simulation results to charging station simulation.
 
 - with the initialization, the SimBroker looks for the first line after the start time
-- for every call of step, the index of the rows from the last simulation time to the next simulation time is determined and a dataframe-slice with all the events happening in between given back. 
+- for every call of *.step()*, the index of the rows from the last simulation time to the next simulation time is determined and a dataframe-slice with all the events happening in between given back. 
 
 ## Adaption to use within GEMINI-XFC
 

@@ -1,4 +1,6 @@
 from components import Vehicle
+import numpy as np
+
 class ChaDepParent:
     
     def __init__(self, BtmsSize = 100, BtmsC = 1, BtmsMaxSoc = 0.8, BtmsMinSOC = 0.2, BtmsSoc0 = 0.50, ChBaNum = 2, ChBaMaxPower = [200, 200], ChBaParkingZoneId = ["xxx1", "xxx2"], calcBtmsGridProp = False, GridPowerMax_Nom = 200, GridPowerLower = -1, GridPowerUpper = 1):
@@ -45,6 +47,7 @@ class ChaDepParent:
         '''Queue of Vehicles'''
         #variables
         self.Queue                  = []                # list for Vehicles objects, which are in the queue.
+        self.QueuePower             = []                # list for the associated power of queue vehicles, should be later set to 0 when returning data.
 
 
     def dayPlanning(self):
@@ -55,11 +58,16 @@ class ChaDepParent:
         # class method to let vehicles arrive
         self.Queue.append(vehicle)
 
+    def repark(self):
+        # class method to repark the vehicles, based on their charging need
+        
+        pass
+
     def release(self):
         # class method to release vehicles
         # TODO will this be done by the chargingStation itself?
         pass
-
+    
     def step(self, timestep):
         # class method to perform control action for the next simulation step.
         '''Requirements:'''
