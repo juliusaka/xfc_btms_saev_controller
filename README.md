@@ -48,6 +48,9 @@ please look in the source code for a complete lis of this.
      $P_\text{max} = \text{min}(P_\text{Charging Depot, max} , P_\text{Vehicle, max})$
 
      with an excemption: if $t_\text{end} <= t$, then $\text{CD} = \text{inf}$
+
+     the repark process assumes that all charging bays have the same charging capability.
+
 ### Vehicle
 
 an object, as a datastructure for all the vehicle information. Has also methods to addEngy and addPower (give Power and duration). can be used in lists to code the queue and charging bays.

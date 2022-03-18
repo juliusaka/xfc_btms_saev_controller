@@ -1,9 +1,17 @@
 from components import Vehicle
 import numpy as np
 
+from components.ResultWriter import ResultWriter
+
 class ChaDepParent:
     
-    def __init__(self, BtmsSize = 100, BtmsC = 1, BtmsMaxSoc = 0.8, BtmsMinSOC = 0.2, BtmsSoc0 = 0.50, ChBaNum = 2, ChBaMaxPower = [200, 200], ChBaParkingZoneId = ["xxx1", "xxx2"], calcBtmsGridProp = False, GridPowerMax_Nom = 200, GridPowerLower = -1, GridPowerUpper = 1):
+    def __init__(self, ChargingStationId, ResultWriter: ResultWriter, BtmsSize = 100, BtmsC = 1, BtmsMaxSoc = 0.8, BtmsMinSOC = 0.2, BtmsSoc0 = 0.50, ChBaNum = 2, ChBaMaxPower = [200, 200], ChBaParkingZoneId = ["xxx1", "xxx2"], calcBtmsGridProp = False, GridPowerMax_Nom = 200, GridPowerLower = -1, GridPowerUpper = 1):
+
+        '''ChargingStationIdentity'''
+        self.ChargingStationId  = ChargingStationId
+
+        '''Result Writer'''
+        self.ResultWriter       = ResultWriter
 
         '''BTMS'''
         # properties
@@ -61,10 +69,34 @@ class ChaDepParent:
     def arrival(self, vehicle: Vehicle):
         # class method to let vehicles arrive
         self.Queue.append(vehicle)
+        self.ResultWriter.arrivalEvent(self.t_act, vehicle, self.ChargingStationId)
 
     def repark(self):
         # class method to repark the vehicles, based on their charging desire
         # calculate charging desire for every vehicle in the bays and the queue
+        CD_Queue = []
+        CD_Bays  = []
+        for vehicle in self.Queue:
+            CD_Queue.append(self.chargingDesire(vehicle))
+        for vehicle in self.ChBaVehicles:
+            CD_Bays.append(self.chargingDesire(vehicle))
+        # change only, when vehicles in Bay have higher charging demand
+        if len(CD_Queue) == 0:
+            CD_Queue = [0]
+        if len(CD_Bays) == 0:
+            CD_Bays = [0]
+        # sorting, so that the vehicles with highest charging desire are in Bays.
+            # doesnt take charging speed capabilites into account
+        while max(CD_Queue) > min(CD_Bays):
+            i_Queue = np.argmax(CD_Queue)
+            i_Bay   = np.argmin(CD_Bays)
+            Queue_out = self.Queue.pop(i_Queue)
+            Bay_out   = self.ChBaVehicles.pop(i_Bay)
+            self.Queue.insert(i_Queue, Bay_out)
+            self.ChBaVehicles.insert(i_Bay, Queue_out)
+            # add repark events to ResultWriter
+            self.ResultWriter.reparkEvent(self.t_act, Queue_out, self.ChargingStationId, "Bay", self.ChBaMaxPower[i_Bay])
+            self.ResultWriter.reparkEvent(self.t_act, Bay_out, self.ChargingStationId, "Queue", 0)
         pass
 
     def chargingDesire(self, v: Vehicle):
@@ -75,11 +107,13 @@ class ChaDepParent:
             CD = float("inf")
         else:
             CD = f1/f2
+        v.CharginDesire = CD
         return CD
 
-    def release(self):
+    def release(self,):
         # class method to release vehicles
         # TODO will this be done by the chargingStation itself?
+        #self.ResultWriter.releaseEvent(self.t_act, )
         pass
     
     def step(self, timestep, t_act): # call with t_act = SimBroker.t_act

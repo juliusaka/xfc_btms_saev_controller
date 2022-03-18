@@ -9,6 +9,7 @@ class Vehicle:
         self.VehicleSoc     = VehicleEngy / VehicleMaxEngy  # SOC of vehicles [-]
         self.VehicleMaxEngy = VehicleMaxEngy                # maximal energy state of vehicles [kWh]
         self.VehicleMaxPower= VehicleMaxPower               # maximal charging power of vehicles
+        self.ChargingDesire = 0                             # charging desire of vehicle, assigned during control steps
     
     def __str__(self):
         # print method
