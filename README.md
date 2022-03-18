@@ -66,10 +66,19 @@ generates vehicles objects based on the outputs of the SimBroker. Links vehicleT
 The VehicleGenerator automaticall determines in generateVehicleSO the maximum charging power based on strings like "FC(150.0|DC)", "XFC(400.0|DC)" the maximum charging power, it therefore searches for the symbols "(" and "|)". If you change this format, the function must also be changed.
 
 ### Sim Broker
+
 Object, which provides the BEAM-simulation results to charging station simulation.
 
 - with the initialization, the SimBroker looks for the first line after the start time
 - for every call of *.step()*, the index of the rows from the last simulation time to the next simulation time is determined and a dataframe-slice with all the events happening in between given back. 
+
+### Result Writer
+
+opens 3 pandas data frames and writes charging station states, vehicle states and events regularily in it. 
+
+Finally, the data frames are saved as .csv files.
+
+*not finished*
 
 ## Adaption to use within GEMINI-XFC
 
