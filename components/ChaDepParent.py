@@ -56,7 +56,6 @@ class ChaDepParent:
         '''Queue of Vehicles'''
         #variables
         self.Queue                  = []                # list for Vehicles objects, which are in the queue.
-        self.QueuePower             = []                # list for the associated power of queue vehicles, should be later set to 0 when returning data.
 
         '''Simulation Data'''
         self.t_act                  = float("NaN")

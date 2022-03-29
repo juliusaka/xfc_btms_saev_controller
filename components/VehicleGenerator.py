@@ -11,7 +11,7 @@ class VehicleGenerator:
         self.SimRes     = self.SimRes.sort_index()  # make sure that inputs are ascending
         length     = len(self.SimRes)     # save length of pd dataframe
 
-        self.vehicles = pd.DataFrame(columns = ["vehicle", "vehicleType"])
+        self.vehicles = pd.DataFrame(columns = ["vehicle", "vehicleType"]) # create empty dataframe for vehicles
         # only RefuelSessionEvents contain this data:
         idx = self.SimRes["type"] == "RefuelSessionEvent"
         for i in range(0, length):

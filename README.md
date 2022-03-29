@@ -1,6 +1,6 @@
 # xfc-btms-saev-controller
 
-Developement of a controller for an extreme-fast-charging (XFC) depot with behind-the-meter storage (BTMS) for shared autonomous electric vehicle (SAEV) fleets in the project GEMINI-XFC with the transportation simulation software BEAM. This controller can be connected with HELICS to BEAM, PyDSS etc.
+Developement of a controller for an extreme-fast-charging (XFC) depot with behind-the-meter storage (BTMS) for shared autonomous electric vehicle (SAEV) fleets in the project GEMINI-XFC with the transportation simulation software BEAM. This controller can be connected with HELICS to BEAM, PyDSS etc. Within the GEMINI-XFC project, we talk about Site Power Management Controllers (SPMC). Their task is to control charging power of a BTMS and the charging power of vehicles with low grid impact and high speed, constrained by grid power limits. The major difference of a SPMC for a SAEV-fleet compared to a SPMC for normal EVs is that its control strategy can influence the availability of ride-hailing services and should therefore work differently than a normal SPMC for private EVs.
 
 This code is set up so that it can be tested in a stand-alone version (without connection to other parts of the GEMINI-XFC framework), and also implemented in the GEMINI-XFC framework. The reason for this is, that the stand-alone version shall allow the user to quickly test changes of the control scheme, without waiting for results of the long-lasting BEAM simulation.
 
@@ -17,13 +17,11 @@ below, there is a list of important used packages:
 
 ## components
 
-*include here description of the object oriented approach*
-
-the components folder contains all objects which are necessary for the object oriented approach.
+the components folder contains all objects which are necessary for the object oriented approach. All this objects are generated and used together in a main skript file.
 
 ### ChaDepParent
 
-This is the parent class for Charging Depots. You can inherit subclasses from this, in which you implement the different Controllers
+This is the parent class for Charging Depots. You can inherit subclasses from this, in which you implement the different controllers.
 
 #### Properties / parts:
 please look in the source code for a complete lis of this.
@@ -53,17 +51,17 @@ please look in the source code for a complete lis of this.
 
 ### Vehicle
 
-an object, as a datastructure for all the vehicle information. Has also methods to addEngy and addPower (give Power and duration). can be used in lists to code the queue and charging bays.
+an object as a datastructure for all the vehicle information. Has also methods to addEngy and addPower (give Power and duration). can be used in lists to represent the queue and charging bays.
 
 ### VehicleGenerator
 
-generates vehicles objects based on the outputs of the SimBroker. Links vehicleType with their maximum energy. Implemented like this, so that vehicle-properties-file isn't loaded repeatedly. three major dataframes:
+generates vehicles objects based on the outputs (a pandas dataframe slice) of the SimBroker. Links vehicleType with their maximum energy. Implemented as an object, so that vehicle-properties-file isn't loaded repeatedly. three major dataframes:
 
-- Simulation Results SimRes: used to determine the following RefuelSessionEvent ot ChargingPlugInEvent (loaded from csv)
+- Simulation Results SimRes: used to determine the following RefuelSessionEvent of ChargingPlugInEvent (loaded from csv)
 - Vehicle Data Base: Contains the Vehicle Data Base (loaded from csv)
 - Vehicle Dataframe: Connects VehicleIds with the Vehicle Type
 
-The VehicleGenerator automaticall determines in generateVehicleSO the maximum charging power based on strings like "FC(150.0|DC)", "XFC(400.0|DC)" the maximum charging power, it therefore searches for the symbols "(" and "|)". If you change this format, the function must also be changed.
+The VehicleGenerator automatically determines in the method generateVehicles the maximum charging power based on strings like "FC(150.0|DC)", "XFC(400.0|DC)" the maximum charging power, it therefore searches for the symbols "(" and "|)". If you change this format, the function must also be changed.
 
 ### Sim Broker
 
@@ -76,7 +74,28 @@ Object, which provides the BEAM-simulation results to charging station simulatio
 
 opens 3 pandas data frames and writes charging station states, vehicle states and events regularily in it. 
 
+#### ChargingStationStates:
+
+    "time", "ChargingStationID", "BaysVehicleIds", "BaysChargingPower", "BaysChargingDesire","BaysNumberOfVehicles", "QueueVehicleIds", "QueueChargingDesire", "QueueNumberOfVehicles", "TotalChargingPowerDesire", "BtmsChargingPowerDesire", "BtmsPower"
+
+    BaysChargingPower: Actual Charging Power of each vehicle in the charging bays.
+    TotalChargingDesire: Desire of power delivery from grid to charge vehicles (+/-)
+    BtmsChargingPowerDesire: Desire of charging power to charge BTMS
+    BtmsPower: Actual charging power of BTMS (+/-)
+
+#### Events: 
+
+    "time", "Event", "ChargingStationId", "VehicleId", "QueueOrBay", "ChargingDesire", "VehicleType", "VehicleArrival", "VehicleDesiredEnd", "VehicleEnergy", "VehicleDesiredEnergy", "VehicleSoc", "VehicleMaxEnergy", "VehicleMaxPower", "ChargingStationMaxPower"
+
+#### VehicleState:
+    "time", "VehicleId", "ChargingStationId", "QueueOrBay", "ChargingPower", "ChargingDesire", "VehicleDesiredEnd", "VehicleEnergy", "VehicleDesiredEnergy", "VehicleSoc", 
+
+            
 Finally, the data frames are saved as .csv files.
+
+- *arrivalEvent*: writes states at vehicle arrival into events dataframe
+- *reparkEvent*: writes states when vehicle change from queue to charging bay (bay to queue) into events dataframe
+- *releaseEvent*: writes states when vehicle is released from station into events dataframe
 
 *not finished*
 

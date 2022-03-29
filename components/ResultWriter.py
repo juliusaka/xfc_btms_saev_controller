@@ -7,15 +7,15 @@ import pandas as pd
 from components.Vehicle import Vehicle
 class ResultWriter:
 
-    def __init__(self, filename: string, t_act, iterations_save: int = 36, format: string = ".csv") -> None:
-        self.iterations_save                = iterations_save # number of iterations, after which results are saved. 
+    def __init__(self, filename: string, t_act, iterations_save: int = 12, format: string = ".csv") -> None:
+        self.iterations_save                = iterations_save # number of iterations, after which results are saved (backup for crashs). Not used so far
         self.ChargingStationState_Filename  = filename + "-ChargingStationState" + format
         self.Events_Filename         = filename +"-Events" + format
         self.VehicleState_Filename          = filename + "-VehicleStates" + format
 
         '''initialize pandas dataframes'''
         self.ChargingStationStates          = pd.DataFrame(columns= [
-            "time", "ChargingStationID", "BaysVehicleIds", "BaysChargingPower", "BaysChargingDesire","BaysNumberOfVehicles", "QueueVehicleIds", "QueueChargingDesire", "QueueNumberOfVehicles"
+            "time", "ChargingStationID", "BaysVehicleIds", "BaysChargingPower", "BaysChargingDesire","BaysNumberOfVehicles", "QueueVehicleIds", "QueueChargingDesire", "QueueNumberOfVehicles", "TotalChargingPowerDesire", "BtmsChargingPowerDesire", "BtmsPower"
         ])
         self.Events                         = pd.DataFrame(columns=[
             "time", "Event", "ChargingStationId", "VehicleId", "QueueOrBay", "ChargingDesire", "VehicleType", "VehicleArrival", "VehicleDesiredEnd", "VehicleEnergy", "VehicleDesiredEnergy", "VehicleSoc", "VehicleMaxEnergy", "VehicleMaxPower", "ChargingStationMaxPower"
@@ -29,7 +29,7 @@ class ResultWriter:
         saveDataFrames = [self.ChargingStationStates, self.Events, self.VehicleState]
         saveFileNames  = [self.ChargingStationState_Filename, self.Events_Filename, self.VehicleState_Filename] 
         for i in range(0,3):
-            pd.DataFrame.to_csv( saveDataFrames[i].set_index("time") , saveFileNames[i])
+            pd.DataFrame.to_csv( saveDataFrames[i].set_index("time") , saveFileNames[i]) # the index is just set to time before saving.
 
     # add now all the events which could happen and assign the entries to the differnt dataframes
 
