@@ -7,7 +7,7 @@ import pandas as pd
 from components.Vehicle import Vehicle
 class ResultWriter:
 
-    def __init__(self, filename: string, t_act, iterations_save: int = 12, format: string = ".csv") -> None:
+    def __init__(self, filename: string, iterations_save: int = 12, format: string = ".csv") -> None:
         self.iterations_save                = iterations_save # number of iterations, after which results are saved (backup for crashs). Not used so far
         self.ChargingStationState_Filename  = filename + "-ChargingStationState" + format
         self.Events_Filename         = filename +"-Events" + format

@@ -1,4 +1,4 @@
-import ChaDepParent
+from components import ChaDepParent
 
 class ChaDepLimCon(ChaDepParent):
 
