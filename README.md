@@ -15,6 +15,12 @@ below, there is a list of important used packages:
 - **dask**: used for processing the large output-csv for the independent controller developement framework
 - **numpy**
 
+## Units
+
+- time is in seconds [s]
+- energy is in kilowatthours [kWh] - Beam is in J, must be convert with 3.6e6 J/kWh
+- power is in kilowatt [kW]
+
 ## components
 
 the components folder contains all objects which are necessary for the object oriented approach. All this objects are generated and used together in a main skript file.
@@ -24,11 +30,42 @@ the components folder contains all objects which are necessary for the object or
 This is the parent class for Charging Depots. You can inherit subclasses from this, in which you implement the different controllers.
 
 #### Properties / parts:
-please look in the source code for a complete lis of this.
-- BTMS properties
-- Charging Bays properties; also a list for Vehicle Objects which are in charging Bays
-- Grid Constraints; nomial variables for grid power limits
+
+- ChargingStationId
+- ResultWriter: Reference to ResultWriter Object
+- BTMS properties:
+    -parameters:
+        - BtmsSize
+        - BtmsC: BTMS-C rating (e.g. 2C = max. charging speed is two full charges in one hour)
+        - BtmsMaxPower = BtmsC*BtmsSize
+        - BtmsMaxSoc, BtmsMinSoc
+    -Variables:
+        - BtmsEn: BTMS Energy Content, initialized with Btms0*BtmsSize
+        - (BTMS SOC can be obtained by calling .BtmsSoc())
+- Charging Bays properties:
+    - parameters:
+        - ChBaNum: Number of Charging Bays
+        - ChBaMaxPower: list of maximum power for each charging bay
+        - ChBaMaxPower_abs: maximum value from list above
+        - ChBaParkingZoneId: ParkingZoneId associated with charging bays and maximum power withdrawal
+    -Variables:
+        -a list for Vehicle Objects which are in charging Bays
+- Grid Constraints
+    - Parameters: 
+        - GridPowerMax_Nom: nominal maximum grid power withdrawel of the whole charging station
+    - Variables: 
+        - GridPowerLower
+        - GridPowerUpper
 - Queue: for vehicles, if charging station is full.
+    - Variables:
+        - Queue: list for vehicles
+-Simulation Data:
+    - SimBroker: Reference to SimBroker object to obtain actual time.
+
+if calcBtmsGridProp = True when you create the chargingStationObject, BtmsSize and GridPowerMax_Nom are determined on heuristics. If you don't specify all variables and parameters, standard values are used.
+
+before the first step, an initilization function can be called:
+    def initialize(self, t_start, GridPowerLower, GridPowerUpper):
 
 #### subclasses:
 
@@ -69,6 +106,7 @@ Object, which provides the BEAM-simulation results to charging station simulatio
 
 - with the initialization, the SimBroker looks for the first line after the start time
 - for every call of *.step()*, the index of the rows from the last simulation time to the next simulation time is determined and a dataframe-slice with all the events happening in between given back. 
+- the Sim Broker also performs the time handling, the reference should therefore be passed to every object of the simulation which needs it.
 
 ### Result Writer
 
@@ -98,6 +136,39 @@ Finally, the data frames are saved as .csv files.
 - *releaseEvent*: writes states when vehicle is released from station into events dataframe
 
 *not finished*
+
+### Physiscs Simulation Dummy (PhySimDummy)
+
+likewise to the Signal-Flow chart we produced, this is a dummy for the grid simulation and the Colocated Energy Storage (CES) Simulation.
+
+- INPUTS from SPMC:
+    - Net Load = observed charging load + CES charge power
+    - CES charging power command
+- OUTPUTS to SPMC:
+    - SOC of CES
+
+This dummy must take from each charging station inputs and provide outputs as well.
+
+must be created after all charging stations are created, because it builds up based on them
+
+adds normal distributed noise on the storage charging command
+
+### DERMS Dummy (DermsDummy)
+
+likewise to the signal flow chart we produced, this is a dummy for the Distributed Energy Resources Manager.
+
+- INPUTS from SPMC: 
+    - Desired Charging Power
+- OUTPUTS to SPMC:
+    - Site net power limits (upper and lower bound)
+
+This dummy must take from each charging station inputs and provide outputs as well.
+
+adds normal distributed noise on grid power limits
+
+### BEAM Dummy
+
+this is the Simulation Broker. The simulation broker has the other task to distribute the time to each element.
 
 ## Adaption to use within GEMINI-XFC
 

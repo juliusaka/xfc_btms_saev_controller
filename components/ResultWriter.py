@@ -1,10 +1,8 @@
 
 import string
-
-
 import pandas as pd
-
 from components.Vehicle import Vehicle
+
 class ResultWriter:
 
     def __init__(self, filename: string, iterations_save: int = 12, format: string = ".csv") -> None:
