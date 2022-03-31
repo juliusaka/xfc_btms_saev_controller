@@ -35,7 +35,7 @@ class VehicleGenerator:
 
         pass
 
-    def generateVehicleSO(self, df_slice:pd.DataFrame):
+    def generateVehicleSO(self, df_slice: pd.DataFrame):
         # for the Stand-Alone (SO) version
         # generate here the vehicle, based on the df_slice with "ChargingPlugInEvent"
         # (the slice of the event) which is given by the SimBroker.
@@ -50,12 +50,7 @@ class VehicleGenerator:
         # generate here the maximum power of the vehicle:
         chargingCap = self.DataBase.loc[VehicleType, "chargingCapability"]
         VehicleMaxPower = components.chargingCapFromString(chargingCap)
-        # s1 = chargingCap.find("(")
-        # s2 = chargingCap.find("|")
-        # VehicleMaxPower     = float(chargingCap[s1+1:s2])
-        if VehicleMaxPower > 1000 or VehicleMaxPower< 10:
-            print("Warning: There could be a vehicle max power reading mistake")
-
+        
         #for desired end and desired energy, we need to find the corresponding RefuelSessionEvent
         # this is after ChargingPlugInEvent.
         # therfore: time must be greater equals than VehicleArrival Time, type must be RefuelSessionEvent, VehicleId must be the same. Furthermore, this must be the first entry. 

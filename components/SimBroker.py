@@ -44,3 +44,7 @@ class SimBroker:
             self.i      +=1
         df_slice = self.SimRes.iloc[i_old:self.i , :]
         return df_slice
+    
+    def eol(self):
+        #determine, if we reached the end of the simulation
+        return self.i >= len(self.SimRes)
