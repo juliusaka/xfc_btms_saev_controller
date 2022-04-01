@@ -90,6 +90,9 @@ before the first step, an initilization function can be called:
 
 an object as a datastructure for all the vehicle information. Has also methods to addEngy and addPower (give Power and duration). can be used in lists to represent the queue and charging bays.
 
+- Vehicle Energy: the energy level of the vehicle
+- desired Energy: the desired energy level of the vehicle (not the energy to be refilled)
+
 ### VehicleGenerator
 
 generates vehicles objects based on the outputs (a pandas dataframe slice) of the SimBroker. Links vehicleType with their maximum energy. Implemented as an object, so that vehicle-properties-file isn't loaded repeatedly. three major dataframes:
