@@ -47,7 +47,7 @@ class SimBroker:
                 break
         if not stop:
             self.i += 1 # to also catch last element
-        df_slice = self.SimRes.iloc[i_old:self.i , :]
+        df_slice = self.SimRes.iloc[i_old : self.i , :]
         return df_slice
     
     def eol(self):

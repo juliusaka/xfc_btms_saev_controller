@@ -64,8 +64,10 @@ class ChaDepParent:
 
     def arrival(self, vehicle: Vehicle):
         # class method to let vehicles arrive
+        # calculate charging desire
+        vehicle.ChargingDesire = self.chargingDesire(vehicle)
         self.Queue.append(vehicle)
-        self.ResultWriter.arrivalEvent(self.t_act, vehicle, self.ChargingStationId)
+        self.ResultWriter.arrivalEvent(self.SimBroker.t_act, vehicle, self.ChargingStationId)
 
     def repark(self):
         # class method to repark the vehicles, based on their charging desire
@@ -91,34 +93,41 @@ class ChaDepParent:
             self.Queue.insert(i_Queue, Bay_out)
             self.ChBaVehicles.insert(i_Bay, Queue_out)
             # add repark events to ResultWriter
-            self.ResultWriter.reparkEvent(self.t_act, Queue_out, self.ChargingStationId, "Bay", self.ChBaMaxPower[i_Bay])
-            self.ResultWriter.reparkEvent(self.t_act, Bay_out, self.ChargingStationId, "Queue", 0)
+            self.ResultWriter.reparkEvent(self.SimBroker.t_act, Queue_out, self.ChargingStationId, "Bay", self.ChBaMaxPower[i_Bay])
+            self.ResultWriter.reparkEvent(self.SimBroker.t_act, Bay_out, self.ChargingStationId, "Queue", 0)
         pass
 
     def chargingDesire(self, v: Vehicle):
-        if v.VehicleDesEnd <= self.t_act:
-            P_max = min([self.ChBaMaxPower, v.VehicleMaxPower])
+        if not self.SimBroker.t_act >= v.VehicleDesEnd:
+            P_max = min([self.ChBaMaxPower_abs, v.VehicleMaxPower])
             f1 = v.VehicleDesEngy - v.VehicleEngy # fraction part 1
-            f2 = (v.VehicleDesEnd - self.t_act) * P_max
-            CD = float("inf")
-        else:
+            f2 = (v.VehicleDesEnd - self.SimBroker.t_act) * P_max / 3.6e3
             CD = f1/f2
-        v.CharginDesire = CD
+        else:
+            CD = float("inf")
+        v.ChargingDesire = CD
         return CD
 
     def release(self,):
         # class method to release vehicles
         # TODO will this be done by the chargingStation itself?
-        #self.ResultWriter.releaseEvent(self.t_act, )
+        #self.ResultWriter.releaseEvent(self.SimBroker.t_act, )
         pass
     
-    def initialize(self, t_start, GridPowerLower, GridPowerUpper):
-        self.t_act = t_start
+    def initialize(self, GridPowerLower, GridPowerUpper):
+        self.GridPowerLower = GridPowerLower
+        self.GridPowerUpper = GridPowerUpper
+    
+    def updateFromDerms(self, GridPowerLower: float, GridPowerUpper: float) -> None:
         self.GridPowerLower = GridPowerLower
         self.GridPowerUpper = GridPowerUpper
 
+    def updateFromPhySim(self, CesSoc: float):
+        pass
+        #self.BtmsEn = self.BtmsSize * CesSoc
+
     def step(self, timestep, t_act): # call with t_act = SimBroker.t_act
-        self.t_act = t_act
+        self.SimBroker.t_act = t_act
         # class method to perform control action for the next simulation step.
         '''Requirements:'''
             # release vehicles when full from charging bays

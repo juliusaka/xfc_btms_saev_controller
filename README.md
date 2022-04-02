@@ -82,9 +82,13 @@ before the first step, an initilization function can be called:
 
      $P_\text{max} = \text{min}(P_\text{Charging Depot, max} , P_\text{Vehicle, max})$
 
-     with an excemption: if $t_\text{end} <= t$, then $\text{CD} = \text{inf}$
+     with an excemption: if $t >= t_\text{end} $, then $\text{CD} = \text{inf}$
 
      the repark process assumes that all charging bays have the same charging capability.
+
+- updateFromDerms: updates the Grid Power Limit based on DERMS output
+
+- updateFromPhySim: updates the CES Soc based on the output of the physical Simulation. *not used so far to prevent mistakes for debugging*
 
 ### Vehicle
 
@@ -126,7 +130,7 @@ opens 3 pandas data frames and writes charging station states, vehicle states an
 
 #### Events: 
 
-    "time", "Event", "ChargingStationId", "VehicleId", "QueueOrBay", "ChargingDesire", "VehicleType", "VehicleArrival", "VehicleDesiredEnd", "VehicleEnergy", "VehicleDesiredEnergy", "VehicleSoc", "VehicleMaxEnergy", "VehicleMaxPower", "ChargingStationMaxPower"
+    "time", "Event", "ChargingStationId", "VehicleId", "QueueOrBay", "ChargingDesire", "VehicleType", "VehicleArrival", "VehicleDesiredEnd", "VehicleEnergy", "VehicleDesiredEnergy", "VehicleSoc", "VehicleMaxEnergy", "VehicleMaxPower", "ChargingBayMaxPower"
 
 #### VehicleState:
     "time", "VehicleId", "ChargingStationId", "QueueOrBay", "ChargingPower", "ChargingDesire", "VehicleDesiredEnd", "VehicleEnergy", "VehicleDesiredEnergy", "VehicleSoc", 
