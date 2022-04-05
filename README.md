@@ -67,10 +67,14 @@ if calcBtmsGridProp = True when you create the chargingStationObject, BtmsSize a
 before the first step, an initilization function can be called:
     def initialize(self, t_start, GridPowerLower, GridPowerUpper):
 
-#### subclasses:
+### subclasses of ChaDepParent:
 
-- ChaDepLimCon: Charging Depot with Limit Controller
-- ChaDepMPC: 
+### ChaDepLimCon
+Charging Depot with Limit Controller
+
+
+
+### ChaDepMPC: 
 
 #### methods:
 

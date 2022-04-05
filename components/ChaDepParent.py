@@ -19,7 +19,7 @@ class ChaDepParent:
             self.BtmsSize       = sum(ChBaMaxPower)/2 #empirical formula (check with literature)
         else:
             self.BtmsSize       = BtmsSize          # size of the BTMS in kWh
-        self.BtmsC              = BtmsC             # C-Rating of BTMS (1C is a complete charge an hour)
+        self.BtmsC              = BtmsC             # C-Rating of BTMS (1C is a complete charge an hour) C= [1/h]
         self.BtmsMaxPower       = BtmsC * self.BtmsSize
         self.BtmsMaxSoc         = BtmsMaxSoc        # maximal allowed SOC of BTMS
         self.BtmsMinSoc         = BtmsMinSOC        # minimal allowed SOC of BTMS
@@ -83,6 +83,8 @@ class ChaDepParent:
             CD_Queue = [0]
         if len(CD_Bays) == 0:
             CD_Bays = [0]
+        # add vehicles to charging bays if possible
+        '''please add this!'''
         # sorting, so that the vehicles with highest charging desire are in Bays.
             # doesnt take charging speed capabilites into account
         while max(CD_Queue) > min(CD_Bays):
@@ -126,8 +128,7 @@ class ChaDepParent:
         pass
         #self.BtmsEn = self.BtmsSize * CesSoc
 
-    def step(self, timestep, t_act): # call with t_act = SimBroker.t_act
-        self.SimBroker.t_act = t_act
+    def step(self, timestep): # call with t_act = SimBroker.t_act
         # class method to perform control action for the next simulation step.
         '''Requirements:'''
             # release vehicles when full from charging bays
