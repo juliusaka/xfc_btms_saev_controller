@@ -25,6 +25,7 @@ class ChaDepParent:
         self.BtmsMinSoc         = BtmsMinSOC        # minimal allowed SOC of BTMS
         #variables:
         self.BtmsEn             = BtmsSoc0 * self.BtmsSize # start BTMS energy content at initialization [kWh]
+        self.BtmsPower       = 0                    # actual charging power of the btms
 
         '''Charging Bays'''
         #properties
@@ -34,9 +35,10 @@ class ChaDepParent:
         self.ChBaParkingZoneId  = ChBaParkingZoneId # list of parking zone ids associated with max power list
         #variables
         self.ChBaVehicles       = []                # list for Vehicles objects, which are in charging bays.
-
         if (len(ChBaMaxPower) != len(ChBaParkingZoneId)):
             raise ValueError(' size of list with maximal plug power doesnt equals size of list with parking zone ids')
+        # variables
+        self.ChBaPower          = []                # this is the variable to which charging power for each bay is assigned.
         
 
         '''Grid Constraints'''
@@ -58,6 +60,10 @@ class ChaDepParent:
     def BtmsSoc(self):
         return self.BtmsEn/self.BtmsSize
 
+    def BtmsAddPower(self, power, timestep):
+        # power in kW and timestep in s
+        self.BtmsEn += power * timestep/3.6e3
+
     def dayPlanning(self):
         # class method to perform day planning
         pass
@@ -68,6 +74,8 @@ class ChaDepParent:
         vehicle.ChargingDesire = self.chargingDesire(vehicle)
         self.Queue.append(vehicle)
         self.ResultWriter.arrivalEvent(self.SimBroker.t_act, vehicle, self.ChargingStationId)
+        self.ResultWriter.updateVehicleStates(t_act = SimBroker.t_act, vehicle=vehicle, ChargingStationId=self.ChargingStationId, QueueOrBay=True, ChargingPower=0)
+        
 
     def repark(self):
         # class method to repark the vehicles, based on their charging desire
@@ -84,20 +92,51 @@ class ChaDepParent:
         if len(CD_Bays) == 0:
             CD_Bays = [0]
         # add vehicles to charging bays if possible
-        '''please add this!'''
-        # sorting, so that the vehicles with highest charging desire are in Bays.
-            # doesnt take charging speed capabilites into account
-        while max(CD_Queue) > min(CD_Bays):
-            i_Queue = np.argmax(CD_Queue)
-            i_Bay   = np.argmin(CD_Bays)
-            Queue_out = self.Queue.pop(i_Queue)
-            Bay_out   = self.ChBaVehicles.pop(i_Bay)
-            self.Queue.insert(i_Queue, Bay_out)
-            self.ChBaVehicles.insert(i_Bay, Queue_out)
-            # add repark events to ResultWriter
-            self.ResultWriter.reparkEvent(self.SimBroker.t_act, Queue_out, self.ChargingStationId, "Bay", self.ChBaMaxPower[i_Bay])
-            self.ResultWriter.reparkEvent(self.SimBroker.t_act, Bay_out, self.ChargingStationId, "Queue", 0)
-        pass
+        while len(self.ChBaVehicles) < self.ChBaNum:
+            self.ChBaVehicles.append(self.Queue.pop(0))
+            CD_Bays.append(CD_Queue.pop(0))
+            self.ResultWriter.reparkEvent(SimBroker.t_act, self.ChBaVehicles[-1], self.ChargingStationId, True, self.ChBaMaxPower[len(self.ChBaVehicles)-1])
+        
+        ''' sorting approach 2'''
+        # sort vehicles based on their charging desire and add them to charging bays or queue. Make sure, that you don't shuffle vehicles within the charging bays.
+        CD_merged = CD_Bays + CD_Queue 
+        allVehicles = self.ChBaVehicles + self.Queue
+        if len(CD_merged) > self.ChBaNum: # we only need to sort, if we have more cars then plugs.
+            for i in range(0,len(CD_merged)):# change sign to make list descending
+                CD_merged[i] = -1* CD_merged[i]
+            idx_sorted = np.argsort(CD_merged, kind= 'stable') [::-1] # [::-1] reverses the list to have it descending
+            n = self.ChBaNum
+            idx_Bay_new = idx_sorted[:n]    #this are the vehicles, which should be plugged in
+            idx_Bay_newStable = []          #this is a stable indice list of vehicles which are plugged in
+            idx_Bay_old = range(0,n)        #this is a indice list of vehicles which have been charging before
+            idx = np.isin(element = idx_Bay_old, test_elements=idx_Bay_new) # if true, the vehicle in the old list of vehicles in charging bays is also in the new
+            idx_inv = np.isin(element = idx_Bay_new, test_elements=idx_Bay_old) # if false, the vehicle of the new list of vehicles in the charging bays have not been in the old (and should be added)
+            j = 0   # variable, read index in idx_inv
+            for i in range(0, n):
+                if idx[i]:
+                    idx_Bay_newStable.append(i)
+                else:
+                    while idx_inv[j] == True:
+                        j+=1
+                    idx_inv[j] = True
+                    idx_Bay_newStable.append(idx_Bay_new[j])
+                    num = idx_Bay_new[j]
+                    self.ResultWriter.reparkEvent(SimBroker.t_act, allVehicles[num], self.ChargingStationId, False, self.ChBaMaxPower[num])
+            idx_Queue_new_bool = np.isin(element = range(0,len(CD_merged)), test_elements = idx_Bay_newStable, invert=True) # these are the vehicles which are now in the queue
+            idx_Queue_new = [] # this is a list to save their indices
+            for i in range(0, len(idx_Queue_new_bool)):
+                if idx_Queue_new_bool[i]:
+                    idx_Queue_new.append(i)
+
+            idx_from_Bay_to_Queue = np.isin(element = idx_Queue_new, test_elements = range(0, len(self.ChBaVehicles))) # this is to determine if a vehicle was reparked from Bay to Queue
+            self.ChBaVehicles = []
+            self.Queue = []
+            for i in idx_Bay_newStable:
+                self.ChBaVehicles.append(allVehicles[i])
+            for i in range(0,idx_Queue_new):
+                self.Queue.append(allVehicles[i])
+                if idx_from_Bay_to_Queue[i]:
+                    self.ResultWriter.reparkEvent(SimBroker.t_act, allVehicles[num], self.ChargingStationId, True, self.ChBaMaxPower[num])
 
     def chargingDesire(self, v: Vehicle):
         if not self.SimBroker.t_act >= v.VehicleDesEnd:

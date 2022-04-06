@@ -1,43 +1,75 @@
+from time import time
 from components import ChaDepParent
+import numpy as np
+
+from components.SimBroker import SimBroker
 
 class ChaDepLimCon(ChaDepParent):
 
     def step(self, timestep):
         # class method to perform control action for the next simulation step.
-
-        # repark vehicles from queue to charging bays if possible
-        '''update that method!'''
+        '''repark vehicles based on their charging desire with the parent method'''
         self.repark()
-            # include ResultWriter
 
-        # control action
-
-            # if SOC < SOC_min
-                # P_max = GridUpper (choose middle value for intermediate)
-            # else P_Max = GridUpper + P_BTMS
-
-            # while vehicles in ChargingBays
-                # if sum(P_ChargingBays) < P_max - P_OneChargingBay:
-                    # assign power values for vehicles in the order of the charging desire
-                # else 
-                    # for last vehicle P_chargingBay = P_max - sum(Pchargingbays)
-                # if len(chargingBays) > No of Stalls:
-                    #break
-
-            # if SOC > SOC_max
-                # P_BTMS = 0
-            # elseif: 
-                # add intermediate solution
-            # else
-                # P_BTMS = P_Grid - sum(P_chargingBays)
-
-        # calculate new SOC BTMS, vehicles and update vehicle states
-        # SOC_BTMS = BTMS_EN + P_BTMS * timestep
-        # for vehicles in chargingbays:
-            # vehicle.addEngy(P, timestep)
+        ''' control action'''
+        '''# calculate maximum summed charging power, for 3 different cases'''
+        if self.BtmsSoc() < self.BtmsMinSoc:
+            P_max = self.GridPowerUpper
+        # if Btms energy content is large enough to power for the next timestep full discharge rating
+        elif self.BtmsEn - timestep/3.6e3 * self.BtmsMaxPower > self.BtmsSize * self.BtmsMinSoc:
+            P_max = self.GridPowerUpper + self.BtmsMaxPower
+        # this is the intermediate case and the chargingPower to reach the minimum SOC
+        else:
+            P_max = self.GridPowerUpper + (self.BtmsEn - self.BtmsEn * self.BtmsMinSoc) / (timestep/3.6e3)
+        
+        '''# now assign the charging powers to each vehicle, prioritized by their charging desire'''
+        self.ChBaPower = [] # delete charging power of previous timestep
+        CD_Bays = [] # list of charging desire of the vehicles in bays
+        for x in self.ChBaVehicles:
+            self.ChBaPower.append(0) # make list of charging power with corresponding size
+            CD_Bays.append(-1* x.ChargingDesire) # multiply with -1 to have an descending list
+        idx_Bays = np.argsort(CD_Bays)
+        for i in range(0, len(self.ChBaVehicles)): # go through charging bays sorted by their charging desire
+            j = idx_Bays[i] # save index of current charging bay in j
+            maxPower = min([self.ChBaMaxPower[j], self.ChBaVehicles[j]]) # the maximum power of the current bay is the minimum of the chargingbay max power and the vehicle max power
+            sumPowers = sum(self.ChBaPower)
+            if  sumPowers <= P_max - maxPower: # test if maxPower of current bay can be fully added
+                self.ChBaPower[j] = maxPower
+            elif sumPowers < P_max: # test if intermediate value can be added
+                self.ChBaPower[j] = P_max - sumPowers
+            else: # if no power adding is possible, we can leave this loop.
+                break
+        
+        '''# now find out how to charge or discharge BTMS''' 
+        sumPowers = sum(self.ChBaPower)
+        # if sum of charging power is greater than grid power limit, the btms must be discharged
+        if sumPowers >= self.GridPowerUpper:
+            self.BtmsPower = self.GridPowerUpper - sumPowers # result is negative
+        # if that is not the case, we might be able to charge with full power for one timestep
+        elif self.BtmsEn <= self.BtmsSize - self.BtmsPower * timestep/3.6e3:
+            self.BtmsPower = self.BtmsMaxPower
+        # if that doesn't work, we can charge with an intermediate value:
+        elif self.BtmsEn < self.BtmsSize:
+            self.BtmsPower = (self.BtmsSize - self.BtmsEn) / (timestep/3.6e3)
+        # if that doesn't work, it seems like Btms is full, then charging power is 0.
+        else:
+            self.BtmsPower = 0
+        
+        '''# update SOC values'''
+        # BTMS
+        self.BtmsAddPower(self.BtmsPower, timestep)
+        # Vehicles
+        for i in range(0, len(self.ChBaVehicles)):
+            self.ChBaVehicles[i].addPower(self.ChBaPower[i], timestep)
         
         # result Writer for chargingStation states and vehicle states
+        for i in range(0, len(self.ChBaVehicles))
+            self.ResultWriter.updateVehicleStates(t_act = SimBroker.t_act + timestep, vehicle=self.ChBaVehicles[i], ChargingStationId=self.ChargingStationId, QueueOrBay=False, ChargingPower=self.ChBaPower[i])
+        for i in range(0, len(self.Queue))
+            self.ResultWriter.updateVehicleStates(t_act = SimBroker.t_act + timestep, vehicle=self.Queue[i], ChargingStationId=self.ChargingStationId, QueueOrBay=True, ChargingPower=0)
 
+        '''release vehicles when full'''
         # release vehicles when full from charging bays - add epsilon!
             # determine also max power to reach SOC_target
+        '''add class method release'''
     pass
