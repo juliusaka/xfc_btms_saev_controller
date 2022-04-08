@@ -1,8 +1,8 @@
 
 import string
 import pandas as pd
-from components.ChaDepParent import ChaDepParent
-from components.Vehicle import Vehicle
+from components import ChaDepParent
+from components import Vehicle
 
 class ResultWriter:
 
@@ -22,7 +22,16 @@ class ResultWriter:
         self.VehicleStates                   = pd.DataFrame(columns=[
             "time", "VehicleId", "ChargingStationId", "QueueOrBay", "ChargingPower", "ChargingDesire", "VehicleDesiredEnd", "VehicleEnergy", "VehicleDesiredEnergy", "VehicleSoc", 
         ])
+    def reset(self):
+        list1 = self.ChargingStationStates.columns
+        list2 = self.Events.columns
+        list3 = self.VehicleStates.columns
 
+        self.ChargingStationStates = pd.DataFrame(columns=list1)
+        self.Events = pd.DataFrame(columns=list2)
+        self.VehicleStates = pd.DataFrame(columns=list3)
+
+        
     def save(self):
         # save the three DataFrames
         saveDataFrames = [self.ChargingStationStates, self.Events, self.VehicleState]

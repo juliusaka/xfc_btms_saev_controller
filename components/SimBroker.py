@@ -56,3 +56,4 @@ class SimBroker:
     
     def reset(self):
         self.i = 0
+        self.t_act      = self.SimRes.index[self.i]

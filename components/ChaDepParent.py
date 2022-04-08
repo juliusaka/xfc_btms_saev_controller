@@ -35,11 +35,12 @@ class ChaDepParent:
         self.ChBaMaxPower_abs   = max(ChBaMaxPower) # maximum value from list above
         self.ChBaParkingZoneId  = ChBaParkingZoneId # list of parking zone ids associated with max power list
         #variables
-        self.ChBaVehicles       = []                # list for Vehicles objects, which are in charging bays.
+        self.ChBaVehicles       = self.chBaInit(self.ChBaNum) # list for Vehicles objects, which are in charging bays.
         if (len(ChBaMaxPower) != len(ChBaParkingZoneId)):
             raise ValueError(' size of list with maximal plug power doesnt equals size of list with parking zone ids')
         # variables
         self.ChBaPower          = []                # this is the variable to which charging power for each bay is assigned.
+        
         
 
         '''Grid Constraints'''
@@ -84,14 +85,18 @@ class ChaDepParent:
     def chBaAdd(self, vehicle):
         # add a vehicle to the charging Bay
         did_add = False
-        for i in len(self.ChBaVehicles):
+        for i in range(0, len(self.ChBaVehicles)):
             if self.ChBaVehicles[i] == False:
                 self.ChBaVehicles.insert(i, vehicle)
                 did_add = True
+                j = i
+                break # can leave after adding
         if did_add == False:
-            raise Error('The Vehicle couldnt be added')
+            print(vehicle)
+            print(self.ChargingStationId)
+            pass #raise ValueError('The Vehicle couldnt be added')
         #returns the positions  where vehicle was added.
-        return i
+        return j
 
     def sortVehicleOut(self, threshold, list):
         # threshold gives a threshold of desired energy, after which vehicle can be released.
@@ -125,17 +130,17 @@ class ChaDepParent:
         vehicle.ChargingDesire = self.chargingDesire(vehicle)
         self.Queue.append(vehicle)
         self.ResultWriter.arrivalEvent(self.SimBroker.t_act, vehicle, self.ChargingStationId)
-        self.ResultWriter.updateVehicleStates(t_act = SimBroker.t_act, vehicle=vehicle, ChargingStationId=self.ChargingStationId, QueueOrBay=True, ChargingPower=0)
+        self.ResultWriter.updateVehicleStates(t_act = self.SimBroker.t_act, vehicle=vehicle, ChargingStationId=self.ChargingStationId, QueueOrBay=True, ChargingPower=0)
         
 
     def repark(self):
         # class method to repark the vehicles, based on their charging desire
 
         # add vehicles to charging bays if possible
-        while self.chBaActiveCharges < self.ChBaNum and len(self.Queue) > 0:
+        while self.chBaActiveCharges() < self.ChBaNum and len(self.Queue) > 0:
             add = self.Queue.pop(0)
             pos = self.chBaAdd(add)
-            self.ResultWriter.reparkEvent(SimBroker.t_act, add, self.ChargingStationId, True, self.ChBaMaxPower[pos])
+            self.ResultWriter.reparkEvent(self.SimBroker.t_act, add, self.ChargingStationId, True, self.ChBaMaxPower[pos])
 
         # update charging desire for every vehicle in the bays and the queue
         CD_Queue = []
