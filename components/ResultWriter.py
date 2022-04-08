@@ -1,6 +1,7 @@
 
 import string
 import pandas as pd
+from components.ChaDepParent import ChaDepParent
 from components.Vehicle import Vehicle
 
 class ResultWriter:
@@ -13,7 +14,7 @@ class ResultWriter:
 
         '''initialize pandas dataframes'''
         self.ChargingStationStates          = pd.DataFrame(columns= [
-            "time", "ChargingStationID", "BaysVehicleIds", "BaysChargingPower", "BaysChargingDesire","BaysNumberOfVehicles", "QueueVehicleIds", "QueueChargingDesire", "QueueNumberOfVehicles", "TotalChargingPowerDesire", "BtmsChargingPowerDesire", "BtmsPower"
+            "time", "ChargingStationID", "BaysVehicleIds", "BaysChargingPower", "TotalChargingPower", "BaysChargingDesire","BaysNumberOfVehicles", "QueueVehicleIds", "QueueChargingDesire", "QueueNumberOfVehicles", "BtmsPower", "TotalChargingPowerDesire", "GridPowerUpper", "GridPowerLower"
         ])
         self.Events                         = pd.DataFrame(columns=[
             "time", "Event", "ChargingStationId", "VehicleId", "QueueOrBay", "ChargingDesire", "VehicleType", "VehicleArrival", "VehicleDesiredEnd", "VehicleEnergy", "VehicleDesiredEnergy", "VehicleSoc", "VehicleMaxEnergy", "VehicleMaxPower", "ChargingBayMaxPower"
@@ -58,3 +59,20 @@ class ResultWriter:
         self.VehicleStates = self.VehicleStates.append(
             {"time": t_act, "VehicleId": vehicle.VehicleId, "ChargingStationId": ChargingStationId, "QueueOrBay": QueueOrBay , "ChargingPower": ChargingPower, "ChargingDesire": vehicle.ChargingDesire, "VehicleDesiredEnd": vehicle.VehicleDesEnd, "VehicleEnergy": vehicle.VehicleEngy, "VehicleDesiredEnergy": vehicle.VehicleDesEngy, "VehicleSoc": vehicle.VehicleSoc
             }, ignore_index=True)
+    
+    def updateChargingStationState(self, t_act, ChargingStation: ChaDepParent):
+        CD_Bays = []
+        numVehiclesBays = 0
+        for x in ChargingStation.ChBaVehicles:
+            if type(x) == Vehicle:
+                CD_Bays.append(x.ChargingDesire)
+                numVehiclesBays += 1
+            else:
+                CD_Bays.append(float('nan'))
+        CD_Queue = []
+        for x in ChargingStation.Queue:
+            CD_Queue.append(x.ChargingDesire)
+
+        self.ChargingStationStates = self.ChargingStationStates.append({
+            "time": t_act, "ChargingStationID": ChargingStation.ChargingStationId, "BaysVehicleIds":ChargingStation.ChBaVehicles, "BaysChargingPower": ChargingStation.ChBaPower, "TotalChargingPower": sum(ChargingStation.ChBaPower), "BaysChargingDesire": CD_Bays,"BaysNumberOfVehicles": numVehiclesBays, "QueueVehicleIds": ChargingStation.Queue, "QueueChargingDesire": CD_Queue, "QueueNumberOfVehicles": len(CD_Queue), "BtmsPower": ChargingStation.BtmsPower, "TotalChargingPowerDesire": ChargingStation.PowerDesire, "GridPowerUpper": ChargingStation.GridPowerUpper, "GridPowerLower": ChargingStation.GridPowerLower
+        }, ignore_index=True)

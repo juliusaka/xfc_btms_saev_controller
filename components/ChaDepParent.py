@@ -1,3 +1,4 @@
+from msilib.schema import Error
 from components import Vehicle
 from components import ResultWriter
 from components import SimBroker
@@ -49,6 +50,8 @@ class ChaDepParent:
         self.GridPowerLower         = GridPowerLower  # will be assigned in step function
         self.GridPowerUpper         = GridPowerUpper  # will be assigned in step function
 
+        '''Power Desire'''
+        self.PowerDesire            = 0               # Power Desire to DERMS
 
         '''Queue of Vehicles'''
         #variables
@@ -63,7 +66,55 @@ class ChaDepParent:
     def BtmsAddPower(self, power, timestep):
         # power in kW and timestep in s
         self.BtmsEn += power * timestep/3.6e3
+    
+    def chBaInit(self, ChBaNum):
+        # initialize the list of ChargingBay Vehicles with False for no vehicles parked
+        ChBaVehicles = []
+        for i in range(0, ChBaNum):
+            ChBaVehicles.append(False)
+        return ChBaVehicles
 
+    def chBaActiveCharges(self):
+        num_Charges = 0
+        for x in self.ChBaVehicles:
+            if not x == False:
+                num_Charges +=1
+        return num_Charges
+    
+    def chBaAdd(self, vehicle):
+        # add a vehicle to the charging Bay
+        did_add = False
+        for i in len(self.ChBaVehicles):
+            if self.ChBaVehicles[i] == False:
+                self.ChBaVehicles.insert(i, vehicle)
+                did_add = True
+        if did_add == False:
+            raise Error('The Vehicle couldnt be added')
+        #returns the positions  where vehicle was added.
+        return i
+
+    def sortVehicleOut(self, threshold, list):
+        # threshold gives a threshold of desired energy, after which vehicle can be released.
+        pop = []
+        out = []
+        for i in range(0, len(list)):
+            # find out which indices need to be popped out
+            if type(list[i]) == Vehicle:
+                if list[i].VehicleEngy > threshold * list[i].VehicleDesEngy:
+                    pop.append(i)
+        # pop this indices out
+        for i in range(0, len(pop)):
+            out.append(list.pop(pop[i]-i)) # to make up the loss of popped out elements before
+        return out, list
+
+    def chBaReleaseThreshold(self, threshold = 0.9999):
+        (out, self.ChBaVehicles) = self.sortVehicleOut(threshold, self.ChBaVehicles)
+        return out
+    
+    def queueReleaseThreshold(self, threshold = 0.9999):
+        (out, self.Queue) = self.sortVehicleOut(threshold, self.Queue)
+        return out
+ 
     def dayPlanning(self):
         # class method to perform day planning
         pass
@@ -79,29 +130,30 @@ class ChaDepParent:
 
     def repark(self):
         # class method to repark the vehicles, based on their charging desire
-        # calculate charging desire for every vehicle in the bays and the queue
+
+        # add vehicles to charging bays if possible
+        while self.chBaActiveCharges < self.ChBaNum and len(self.Queue) > 0:
+            add = self.Queue.pop(0)
+            pos = self.chBaAdd(add)
+            self.ResultWriter.reparkEvent(SimBroker.t_act, add, self.ChargingStationId, True, self.ChBaMaxPower[pos])
+
+        # update charging desire for every vehicle in the bays and the queue
         CD_Queue = []
         CD_Bays  = []
         for vehicle in self.Queue:
             CD_Queue.append(self.chargingDesire(vehicle))
         for vehicle in self.ChBaVehicles:
-            CD_Bays.append(self.chargingDesire(vehicle))
-        # change only, when vehicles in Bay have higher charging demand
-        if len(CD_Queue) == 0:
-            CD_Queue = [0]
-        if len(CD_Bays) == 0:
-            CD_Bays = [0]
-        # add vehicles to charging bays if possible
-        while len(self.ChBaVehicles) < self.ChBaNum:
-            self.ChBaVehicles.append(self.Queue.pop(0))
-            CD_Bays.append(CD_Queue.pop(0))
-            self.ResultWriter.reparkEvent(SimBroker.t_act, self.ChBaVehicles[-1], self.ChargingStationId, True, self.ChBaMaxPower[len(self.ChBaVehicles)-1])
-        
+            if type(vehicle) == Vehicle:
+                CD_Bays.append(self.chargingDesire(vehicle))
+            else:
+                CD_Bays.append(-float('inf')) # shouldn't be used at all later
+
         ''' sorting approach 2'''
         # sort vehicles based on their charging desire and add them to charging bays or queue. Make sure, that you don't shuffle vehicles within the charging bays.
-        CD_merged = CD_Bays + CD_Queue 
-        allVehicles = self.ChBaVehicles + self.Queue
-        if len(CD_merged) > self.ChBaNum: # we only need to sort, if we have more cars then plugs.
+        if len(self.Queue) > 0: # we only need to sort, if we have cars which are not plugged in. If that is the case, every entry in the self.ChBaVehicles list should be of type Vehicle
+            CD_merged = CD_Bays + CD_Queue 
+            allVehicles = self.ChBaVehicles + self.Queue
+
             for i in range(0,len(CD_merged)):# change sign to make list descending
                 CD_merged[i] = -1* CD_merged[i]
             idx_sorted = np.argsort(CD_merged, kind= 'stable') [::-1] # [::-1] reverses the list to have it descending

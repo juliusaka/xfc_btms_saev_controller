@@ -67,18 +67,11 @@ if calcBtmsGridProp = True when you create the chargingStationObject, BtmsSize a
 before the first step, an initilization function can be called:
     def initialize(self, t_start, GridPowerLower, GridPowerUpper):
 
-### subclasses of ChaDepParent:
-
-### ChaDepLimCon
-Charging Depot with Limit Controller
-
-
-
-### ChaDepMPC: 
-
 #### methods:
 
-- *repark()*: reparks the vehicles based on their need to charge. The charging desire of a vehicle can be calculated as
+- *repark()*: 
+    Adds first vehicles to the charging bays until capacity is reached.
+    Then, it reparks the vehicles based on their need to charge. The charging desire of a vehicle can be calculated as
 
      $ \text{CD} = \frac{E_\text{necessary}}{E_\text{possible}} = \frac{E_{\text{desired,Vehicle}(t_\text{end})} - E_{\text{Vehicle}(t)}} { (t_\text{end} - t) \quad P_\text{max}}$
      
@@ -88,11 +81,24 @@ Charging Depot with Limit Controller
 
      with an excemption: if $t >= t_\text{end} $, then $\text{CD} = \text{inf}$
 
-     the repark process assumes that all charging bays have the same charging capability.
+    The underlying sorting algorithm sorts the vehicles based on their charging desire and makes sure in the same vein, that vehicle in the charging bays don't unnecessarily switch postions. It throws an repark event each time a vehicle changes its position from charging bay to queue and reversed. The repark process assumes that all charging bays have the same charging capability.
 
 - updateFromDerms: updates the Grid Power Limit based on DERMS output
 
 - updateFromPhySim: updates the CES Soc based on the output of the physical Simulation. *not used so far to prevent mistakes for debugging*
+
+- chBaInit, chBaActiveCharges, chBaAdd, chBaReleaseThreshold: This are classes to handle the fact, that a list with the same length than number of charging plugs is needed. ChBaInit initializes this array and sets all elements to False, which means that no vehicle is present. ChBaAdd adds an vehicle to the first available charging bay, chBaReleaseThreshold releases vehicles which are fully charged.
+
+
+### subclasses of ChaDepParent:
+
+### ChaDepLimCon
+Charging Depot with Limit Controller
+
+
+
+### ChaDepMPC: 
+
 
 ### Vehicle
 
