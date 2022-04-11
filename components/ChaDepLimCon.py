@@ -29,14 +29,14 @@ class ChaDepLimCon(ChaDepParent):
         for x in self.ChBaVehicles:
             self.ChBaPower.append(0) # make list of charging power with corresponding size
             if type(x) == Vehicle:
-                CD_Bays.append(-1* x.ChargingDesire) # multiply with -1 to have an descending list
+                CD_Bays.append(-1* x.ChargingDesire) # multiply with -1 to have an sorted descending list
             else:
                 CD_Bays.append(float('nan')) # add nan if no vehicle is in Bay
         idx_Bays = np.argsort(CD_Bays)
         for i in range(0, len(self.ChBaVehicles)): # go through charging bays sorted by their charging desire
             j = idx_Bays[i] # save index of current charging bay in j
             if type(self.ChBaVehicles[j]) == Vehicle: # only assign charging power, if a vehicle is in the bay
-                maxPower = min([self.ChBaMaxPower[j], self.ChBaVehicles[j].VehicleMaxPower]) # the maximum power of the current bay is the minimum of the chargingbay max power and the vehicle max power
+                maxPower = min([self.ChBaMaxPower[j], self.ChBaVehicles[j].getMaxChargingPower(timestep)]) # the maximum power of the current bay is the minimum of the chargingbay max power and the vehicle max power
                 sumPowers = sum(self.ChBaPower)
                 if  sumPowers + maxPower <= P_max: # test if maxPower of current bay can be fully added
                     self.ChBaPower[j] = maxPower
@@ -44,7 +44,7 @@ class ChaDepLimCon(ChaDepParent):
                     self.ChBaPower[j] = P_max - sumPowers
                 else: # if no power adding is possible, we can leave this loop.
                     break
-        
+
         '''# now find out how to charge or discharge BTMS''' 
         sumPowers = sum(self.ChBaPower)
         # if sum of charging power is greater than grid power limit, the btms must be discharged
@@ -76,14 +76,6 @@ class ChaDepLimCon(ChaDepParent):
         for i in range(0, len(self.Queue)):
             self.ResultWriter.updateVehicleStates(t_act = self.SimBroker.t_act + timestep, vehicle=self.Queue[i], ChargingStationId=self.ChargingStationId, QueueOrBay=True, ChargingPower=0)
 
-        '''release vehicles when full'''
-        r1 = self.chBaReleaseThreshold()
-        r2 = self.queueReleaseThreshold()
-        released_Vehicles = r1 + r2
-        # add release events
-        for x in released_Vehicles:
-            self.ResultWriter.releaseEvent(self.SimBroker.t_act, x, self.ChargingStationId)
-
         '''add power desires'''
         PowerDesire = 0
         for i in range(0,len(self.ChBaVehicles)):
@@ -94,4 +86,16 @@ class ChaDepLimCon(ChaDepParent):
 
         '''Write chargingStation states in ResultWriter'''
         self.ResultWriter.updateChargingStationState(self.SimBroker.t_act, self)
+
+        '''release vehicles when full'''
+        r1 = self.chBaReleaseThreshold()
+        r2 = self.queueReleaseThreshold()
+        released_Vehicles = r1 + r2
+        # add release events
+        for x in released_Vehicles:
+            self.ResultWriter.releaseEvent(self.SimBroker.t_act, x, self.ChargingStationId)
+
+        '''checks'''
+        if len(self.ChBaVehicles)!=self.ChBaNum:
+            raise ValueError("Size of ChargingBay List shouldn't change")
         

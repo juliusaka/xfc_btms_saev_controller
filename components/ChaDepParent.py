@@ -46,7 +46,7 @@ class ChaDepParent:
 
         '''Grid Constraints'''
         if calcBtmsGridProp:
-            self.GridPowerMax_Nom   = sum(ChBaMaxPower)/2 # empirical formula (check with literature)
+            self.GridPowerMax_Nom   = 0.5*sum(ChBaMaxPower) # empirical formula (check with literature)
         else:
             self.GridPowerMax_Nom   = GridPowerMax_Nom  # maximum power withdrawal from grid, nominal value (can be time-varying)
         self.GridPowerLower         = GridPowerLower  # will be assigned in step function
@@ -88,37 +88,38 @@ class ChaDepParent:
         did_add = False
         for i in range(0, len(self.ChBaVehicles)):
             if self.ChBaVehicles[i] == False:
-                self.ChBaVehicles.insert(i, vehicle)
+                self.ChBaVehicles[i] = vehicle
                 did_add = True
                 j = i
                 break # can leave after adding
         if did_add == False:
-            print(vehicle)
-            print(self.ChargingStationId)
-            pass #raise ValueError('The Vehicle couldnt be added')
+            raise ValueError('The Vehicle couldnt be added')
         #returns the positions  where vehicle was added.
         return j
 
-    def sortVehicleOut(self, threshold, list):
-        # threshold gives a threshold of desired energy, after which vehicle can be released.
-        pop = []
-        out = []
-        for i in range(0, len(list)):
-            # find out which indices need to be popped out
-            if type(list[i]) == components.Vehicle:
-                if list[i].VehicleEngy > threshold * list[i].VehicleDesEngy:
-                    pop.append(i)
-        # pop this indices out
-        for i in range(0, len(pop)):
-            out.append(list.pop(pop[i]-i)) # to make up the loss of popped out elements before
-        return out, list
-
     def chBaReleaseThreshold(self, threshold = 0.9999):
-        (out, self.ChBaVehicles) = self.sortVehicleOut(threshold, self.ChBaVehicles)
+        # threshold gives a threshold of desired energy, after which vehicle can be released.
+        out = []
+        for i in range(0, len(self.ChBaVehicles)):
+            # find sufficient charged vehicle, put them in the out array and replace them with false
+            if type(self.ChBaVehicles[i]) == components.Vehicle:
+                if self.ChBaVehicles[i].VehicleEngy > threshold * self.ChBaVehicles[i].VehicleDesEngy:
+                    out.append(self.ChBaVehicles[i])
+                    self.ChBaVehicles[i] = False
         return out
     
     def queueReleaseThreshold(self, threshold = 0.9999):
-        (out, self.Queue) = self.sortVehicleOut(threshold, self.Queue)
+        # threshold gives a threshold of desired energy, after which vehicle can be released.
+        pop = []
+        out = []
+        for i in range(0, len(self.Queue)):
+            # find out which indices need to be popped out
+            if type(self.Queue[i]) == components.Vehicle:
+                if self.Queue[i].VehicleEngy > threshold * self.Queue[i].VehicleDesEngy:
+                    pop.append(i)
+        # pop this indices out
+        for i in range(0, len(pop)):
+            out.append(self.Queue.pop(pop[i]-i)) # to make up the loss of popped out elements before
         return out
  
     def dayPlanning(self):
@@ -162,7 +163,7 @@ class ChaDepParent:
 
             for i in range(0,len(CD_merged)):# change sign to make sorting descending
                 CD_merged[i] = -1* CD_merged[i]
-            idx_sorted = np.argsort(CD_merged, kind= 'stable') 
+            idx_sorted = np.argsort(CD_merged, kind= 'stable')
             n = self.ChBaNum
             idx_Bay_new = idx_sorted[:n]    #this are the vehicles, which should be plugged in
             idx_Bay_newStable = []          #this is a stable indice list of vehicles which are plugged in
@@ -190,11 +191,14 @@ class ChaDepParent:
             idx_from_Bay_to_Queue = np.isin(element = idx_Queue_new, test_elements = range(0, len(self.ChBaVehicles))) # this is to determine if a vehicle was reparked from Bay to Queue
             self.ChBaVehicles = []
             self.Queue = []
+
             for i in idx_Bay_newStable:
                 self.ChBaVehicles.append(allVehicles[i])
+
             for i in range(0, len(idx_Queue_new)):
-                if type(allVehicles[i]) == Vehicle:
-                    self.Queue.append(allVehicles[i])
+                j = idx_Queue_new[i]
+                if allVehicles[j] != False:
+                    self.Queue.append(allVehicles[j])
                     if idx_from_Bay_to_Queue[i]:
                         self.ResultWriter.reparkEvent(self.SimBroker.t_act, allVehicles[num], self.ChargingStationId, True, 0)
 

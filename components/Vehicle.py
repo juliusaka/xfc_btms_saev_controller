@@ -14,6 +14,11 @@ class Vehicle:
     def __str__(self):
         # print method
         return ("Vehicle with the following properties: \nVehicleId: " + str(self.VehicleId) + " VehicleType: " + str(self.VehicleType) + " Arrival: " + str(self.VehicleArrival) + " Desired End Time: " + str(self.VehicleDesEnd) + " Vehicle Energy: " + str(self.VehicleEngy) + " Desired Energy: " + str(self.VehicleDesEngy) + " SOC: " + str(self.VehicleSoc) + " Maximal Energy: " + str(self.VehicleMaxEngy) + " Max Charging Power: "  + str(self.VehicleMaxPower))
+
+    def getMaxChargingPower(self, timestep):
+        maxPowerVehicle = self.VehicleMaxPower
+        maxPowerForDesEngy = max([0, (self.VehicleDesEngy - self.VehicleEngy)/(timestep/3.6e3)]) # maximum power should be no less than 0
+        return min([maxPowerVehicle, maxPowerForDesEngy]) # the smaller value is the max power.
         
     def addEngy(self, addedEngy):
         #addedEngy in kWh

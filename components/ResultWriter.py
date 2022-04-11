@@ -75,16 +75,18 @@ class ResultWriter:
         VehicleIds = []
         numVehiclesBays = 0
         for x in ChargingStation.ChBaVehicles:
-            if type(x) == components.Vehicle:
+            if x != False:
                 CD_Bays.append(x.ChargingDesire)
                 VehicleIds.append(x.VehicleId)
                 numVehiclesBays += 1
             else:
                 CD_Bays.append(float('nan'))
         CD_Queue = []
+        VehicleIdsQueue = []
         for x in ChargingStation.Queue:
             CD_Queue.append(x.ChargingDesire)
+            VehicleIdsQueue.append(x.VehicleId)
 
         self.ChargingStationStates = self.ChargingStationStates.append({
-            "time": t_act, "ChargingStationID": ChargingStation.ChargingStationId, "BaysVehicleIds":VehicleIds, "BaysChargingPower": ChargingStation.ChBaPower, "TotalChargingPower": sum(ChargingStation.ChBaPower), "BaysChargingDesire": CD_Bays,"BaysNumberOfVehicles": numVehiclesBays, "QueueVehicleIds": ChargingStation.Queue, "QueueChargingDesire": CD_Queue, "QueueNumberOfVehicles": len(CD_Queue), "BtmsPower": ChargingStation.BtmsPower,"BtmsSoc": ChargingStation.BtmsSoc(), "BtmsEnergy": ChargingStation.BtmsEn, "TotalChargingPowerDesire": ChargingStation.PowerDesire, "GridPowerUpper": ChargingStation.GridPowerUpper, "GridPowerLower": ChargingStation.GridPowerLower
+            "time": t_act, "ChargingStationID": ChargingStation.ChargingStationId, "BaysVehicleIds":VehicleIds, "BaysChargingPower": ChargingStation.ChBaPower, "TotalChargingPower": sum(ChargingStation.ChBaPower), "BaysChargingDesire": CD_Bays,"BaysNumberOfVehicles": numVehiclesBays, "QueueVehicleIds": VehicleIdsQueue, "QueueChargingDesire": CD_Queue, "QueueNumberOfVehicles": len(CD_Queue), "BtmsPower": ChargingStation.BtmsPower,"BtmsSoc": ChargingStation.BtmsSoc(), "BtmsEnergy": ChargingStation.BtmsEn, "TotalChargingPowerDesire": ChargingStation.PowerDesire, "GridPowerUpper": ChargingStation.GridPowerUpper, "GridPowerLower": ChargingStation.GridPowerLower
         }, ignore_index=True)
