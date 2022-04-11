@@ -36,7 +36,7 @@ class ChaDepLimCon(ChaDepParent):
         for i in range(0, len(self.ChBaVehicles)): # go through charging bays sorted by their charging desire
             j = idx_Bays[i] # save index of current charging bay in j
             if type(self.ChBaVehicles[j]) == Vehicle: # only assign charging power, if a vehicle is in the bay
-                maxPower = min([self.ChBaMaxPower[j], self.ChBaVehicles[j]]) # the maximum power of the current bay is the minimum of the chargingbay max power and the vehicle max power
+                maxPower = min([self.ChBaMaxPower[j], self.ChBaVehicles[j].VehicleMaxPower]) # the maximum power of the current bay is the minimum of the chargingbay max power and the vehicle max power
                 sumPowers = sum(self.ChBaPower)
                 if  sumPowers + maxPower <= P_max: # test if maxPower of current bay can be fully added
                     self.ChBaPower[j] = maxPower
@@ -52,10 +52,10 @@ class ChaDepLimCon(ChaDepParent):
             self.BtmsPower = self.GridPowerUpper - sumPowers # result is negative
         # if that is not the case, we might be able to charge with full power for one timestep, if we don't exceed BtmsMaxSOC with this
         elif self.BtmsEn <= self.BtmsSize * self.BtmsMaxSoc - self.BtmsMaxPower * timestep/3.6e3:
-            self.BtmsPower = self.BtmsMaxPower
+            self.BtmsPower = min([self.BtmsMaxPower, self.GridPowerUpper - sumPowers])
         # if that doesn't work, we can charge with an intermediate value:
         elif self.BtmsEn < self.BtmsSize * self.BtmsMaxSoc:
-            self.BtmsPower = (self.BtmsSize * self.BtmsMaxSoc - self.BtmsEn) / (timestep/3.6e3)
+            self.BtmsPower = min([self.BtmsMaxPower, (self.BtmsSize * self.BtmsMaxSoc - self.BtmsEn) / (timestep/3.6e3), self.GridPowerUpper - sumPowers])
         # if that doesn't work, it seems like Btms is full, then charging power is 0.
         else:
             self.BtmsPower = 0
@@ -65,15 +65,16 @@ class ChaDepLimCon(ChaDepParent):
         self.BtmsAddPower(self.BtmsPower, timestep)
         # Vehicles
         for i in range(0, len(self.ChBaVehicles)):
-            if type(self.ChBaVehicles) == Vehicle:
+            if type(self.ChBaVehicles[i]) == Vehicle:
+                #print('updateSOC')
                 self.ChBaVehicles[i].addPower(self.ChBaPower[i], timestep)
         
         # result Writer for chargingStation states and vehicle states
         for i in range(0, len(self.ChBaVehicles)):
-            if type(self.ChBaVehicles) == Vehicle:
-                self.ResultWriter.updateVehicleStates(t_act = SimBroker.t_act + timestep, vehicle=self.ChBaVehicles[i], ChargingStationId=self.ChargingStationId, QueueOrBay=False, ChargingPower=self.ChBaPower[i])
+            if type(self.ChBaVehicles[i]) == Vehicle:
+                self.ResultWriter.updateVehicleStates(t_act = self.SimBroker.t_act + timestep, vehicle=self.ChBaVehicles[i], ChargingStationId=self.ChargingStationId, QueueOrBay=False, ChargingPower=self.ChBaPower[i])
         for i in range(0, len(self.Queue)):
-            self.ResultWriter.updateVehicleStates(t_act = SimBroker.t_act + timestep, vehicle=self.Queue[i], ChargingStationId=self.ChargingStationId, QueueOrBay=True, ChargingPower=0)
+            self.ResultWriter.updateVehicleStates(t_act = self.SimBroker.t_act + timestep, vehicle=self.Queue[i], ChargingStationId=self.ChargingStationId, QueueOrBay=True, ChargingPower=0)
 
         '''release vehicles when full'''
         r1 = self.chBaReleaseThreshold()
@@ -85,9 +86,9 @@ class ChaDepLimCon(ChaDepParent):
 
         '''add power desires'''
         PowerDesire = 0
-        for x in self.ChBaVehicles:
-            if type(x) == Vehicle:
-                PowerDesire += x.VehicleMaxPower
+        for i in range(0,len(self.ChBaVehicles)):
+            if type(self.ChBaVehicles[i]) == Vehicle:
+                PowerDesire += min([self.ChBaVehicles[i].VehicleMaxPower, self.ChBaMaxPower[i]])
 
         self.PowerDesire = PowerDesire
 

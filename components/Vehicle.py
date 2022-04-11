@@ -23,14 +23,14 @@ class Vehicle:
 
     def addPower(self, power, ts):
         # power in kW, ts in hours
-        self.VehicleEngy    = self.VehicleEngy + ts * power # add energy 
+        self.VehicleEngy    = self.VehicleEngy + ts * power/3.6e3 # add energy 
         self.VehicleSoc     = self.VehicleEngy / self. VehicleMaxEngy # update SOC
         self.SOC_warning()
         self.power_warning(power)
 
     def SOC_warning(self):
         if self.VehicleEngy > self.VehicleMaxEngy:
-            print("Warning: Vehicle " + self.VehicleId + " exceeds Vehicle Max SOC. Vehicle Energy " + str(self.VehicleEngy))
+            print("Warning: Vehicle " + str(self.VehicleId) + " exceeds Vehicle Max SOC. Vehicle Energy " + str(self.VehicleEngy) + ", Vehicle Max Energy " + str(self.VehicleMaxEngy))
     
     def power_warning(self, power):
         if power > self.VehicleMaxPower:

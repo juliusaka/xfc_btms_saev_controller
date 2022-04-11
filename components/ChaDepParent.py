@@ -2,6 +2,7 @@ from msilib.schema import Error
 from components import Vehicle
 from components import ResultWriter
 from components import SimBroker
+import components
 import numpy as np
 
 class ChaDepParent:
@@ -104,7 +105,7 @@ class ChaDepParent:
         out = []
         for i in range(0, len(list)):
             # find out which indices need to be popped out
-            if type(list[i]) == Vehicle:
+            if type(list[i]) == components.Vehicle:
                 if list[i].VehicleEngy > threshold * list[i].VehicleDesEngy:
                     pop.append(i)
         # pop this indices out
@@ -140,7 +141,7 @@ class ChaDepParent:
         while self.chBaActiveCharges() < self.ChBaNum and len(self.Queue) > 0:
             add = self.Queue.pop(0)
             pos = self.chBaAdd(add)
-            self.ResultWriter.reparkEvent(self.SimBroker.t_act, add, self.ChargingStationId, True, self.ChBaMaxPower[pos])
+            self.ResultWriter.reparkEvent(self.SimBroker.t_act, add, self.ChargingStationId, False, self.ChBaMaxPower[pos])
 
         # update charging desire for every vehicle in the bays and the queue
         CD_Queue = []
@@ -159,9 +160,9 @@ class ChaDepParent:
             CD_merged = CD_Bays + CD_Queue 
             allVehicles = self.ChBaVehicles + self.Queue
 
-            for i in range(0,len(CD_merged)):# change sign to make list descending
+            for i in range(0,len(CD_merged)):# change sign to make sorting descending
                 CD_merged[i] = -1* CD_merged[i]
-            idx_sorted = np.argsort(CD_merged, kind= 'stable') [::-1] # [::-1] reverses the list to have it descending
+            idx_sorted = np.argsort(CD_merged, kind= 'stable') 
             n = self.ChBaNum
             idx_Bay_new = idx_sorted[:n]    #this are the vehicles, which should be plugged in
             idx_Bay_newStable = []          #this is a stable indice list of vehicles which are plugged in
@@ -169,16 +170,17 @@ class ChaDepParent:
             idx = np.isin(element = idx_Bay_old, test_elements=idx_Bay_new) # if true, the vehicle in the old list of vehicles in charging bays is also in the new
             idx_inv = np.isin(element = idx_Bay_new, test_elements=idx_Bay_old) # if false, the vehicle of the new list of vehicles in the charging bays have not been in the old (and should be added)
             j = 0   # variable, read index in idx_inv
+            # now go through all vehicles which should be in the charging bays. If vehicle stays in charging bay, just add the index i. If vehicle is removed from bay, choose first entry which should be added from queue.
             for i in range(0, n):
                 if idx[i]:
                     idx_Bay_newStable.append(i)
                 else:
-                    while idx_inv[j] == True:
+                    while idx_inv[j] == True: # determines, which element in new sorted bays is added from queue
                         j+=1
                     idx_inv[j] = True
                     idx_Bay_newStable.append(idx_Bay_new[j])
                     num = idx_Bay_new[j]
-                    self.ResultWriter.reparkEvent(SimBroker.t_act, allVehicles[num], self.ChargingStationId, False, self.ChBaMaxPower[num])
+                    self.ResultWriter.reparkEvent(self.SimBroker.t_act, allVehicles[num], self.ChargingStationId, False, self.ChBaMaxPower[j])
             idx_Queue_new_bool = np.isin(element = range(0,len(CD_merged)), test_elements = idx_Bay_newStable, invert=True) # these are the vehicles which are now in the queue
             idx_Queue_new = [] # this is a list to save their indices
             for i in range(0, len(idx_Queue_new_bool)):
@@ -190,10 +192,11 @@ class ChaDepParent:
             self.Queue = []
             for i in idx_Bay_newStable:
                 self.ChBaVehicles.append(allVehicles[i])
-            for i in range(0,idx_Queue_new):
-                self.Queue.append(allVehicles[i])
-                if idx_from_Bay_to_Queue[i]:
-                    self.ResultWriter.reparkEvent(SimBroker.t_act, allVehicles[num], self.ChargingStationId, True, self.ChBaMaxPower[num])
+            for i in range(0, len(idx_Queue_new)):
+                if type(allVehicles[i]) == Vehicle:
+                    self.Queue.append(allVehicles[i])
+                    if idx_from_Bay_to_Queue[i]:
+                        self.ResultWriter.reparkEvent(self.SimBroker.t_act, allVehicles[num], self.ChargingStationId, True, 0)
 
     def chargingDesire(self, v: Vehicle):
         if not self.SimBroker.t_act >= v.VehicleDesEnd:
