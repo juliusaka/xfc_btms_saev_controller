@@ -1,5 +1,6 @@
 
 import string
+from typing import List
 import pandas as pd
 from components import ChaDepParent
 from components import Vehicle
@@ -12,6 +13,7 @@ class ResultWriter:
         self.ChargingStationState_Filename  = filename + "-ChargingStationState" + format
         self.Events_Filename         = filename +"-Events" + format
         self.VehicleStates_Filename          = filename + "-VehicleStates" + format
+        self.ChargingStationProperties_Filename          = filename + "-ChargingStationProperties" + format
 
         '''initialize pandas dataframes'''
         self.ChargingStationStates          = pd.DataFrame(columns= [
@@ -22,6 +24,11 @@ class ResultWriter:
         ])
         self.VehicleStates                   = pd.DataFrame(columns=[
             "time", "VehicleId", "ChargingStationId", "QueueOrBay", "ChargingPower", "ChargingDesire", "VehicleDesiredEnd", "VehicleEnergy", "VehicleDesiredEnergy", "VehicleSoc", 
+        ])
+
+        ####
+        self.chargingStationProperties           = pd.DataFrame(columns = [
+            "ChargingStationId", "BtmsSize", "BtmsC", "BtmsMaxPower", "BtmsMaxSoc", "BtmsMinSoc", "ChBaNum", "ChBaMaxPower", "ChBaMaxPower_abs", "ChBaParkingZoneId", "GridPowerMax_Nom", "GridPowerLower", "GridPowerUpper"
         ])
     def reset(self):
         list1 = self.ChargingStationStates.columns
@@ -35,10 +42,14 @@ class ResultWriter:
 
     def save(self):
         # save the three DataFrames
-        saveDataFrames = [self.ChargingStationStates, self.Events, self.VehicleStates]
-        saveFileNames  = [self.ChargingStationState_Filename, self.Events_Filename, self.VehicleStates_Filename] 
-        for i in range(0,3):
-            pd.DataFrame.to_csv( saveDataFrames[i].set_index("time") , saveFileNames[i]) # the index is just set to time before saving.
+        saveDataFrames = [self.ChargingStationStates, self.Events, self.VehicleStates, self.chargingStationProperties]
+        saveFileNames  = [self.ChargingStationState_Filename, self.Events_Filename, self.VehicleStates_Filename, self.ChargingStationProperties_Filename] 
+        for i in range(0,len(saveDataFrames)):
+            if i<3:
+                save = saveDataFrames[i].set_index("time")
+            else:
+                save = saveDataFrames[i]
+            pd.DataFrame.to_csv( save, saveFileNames[i]) # the index is just set to time before saving.
 
     # add now all the events which could happen and assign the entries to the differnt dataframes
 
@@ -90,3 +101,10 @@ class ResultWriter:
         self.ChargingStationStates = self.ChargingStationStates.append({
             "time": t_act, "ChargingStationID": ChargingStation.ChargingStationId, "BaysVehicleIds":VehicleIds, "BaysChargingPower": ChargingStation.ChBaPower, "TotalChargingPower": sum(ChargingStation.ChBaPower), "BaysChargingDesire": CD_Bays,"BaysNumberOfVehicles": numVehiclesBays, "QueueVehicleIds": VehicleIdsQueue, "QueueChargingDesire": CD_Queue, "QueueNumberOfVehicles": len(CD_Queue), "BtmsPower": ChargingStation.BtmsPower,"BtmsSoc": ChargingStation.BtmsSoc(), "BtmsEnergy": ChargingStation.BtmsEn, "TotalChargingPowerDesire": ChargingStation.PowerDesire, "GridPowerUpper": ChargingStation.GridPowerUpper, "GridPowerLower": ChargingStation.GridPowerLower
         }, ignore_index=True)
+
+    def saveChargingStationProperties(self, chargingStations):
+        # chargingStations is a list of chargingStations
+        for x in chargingStations:
+            self.chargingStationProperties = self.chargingStationProperties.append({"ChargingStationId": x.ChargingStationId, "BtmsSize": x.BtmsSize, "BtmsC": x.BtmsC, "BtmsMaxPower": x.BtmsMaxPower, "BtmsMaxSoc": x.BtmsMaxSoc, "BtmsMinSoc": x.BtmsMinSoc, "ChBaNum": x.ChBaNum, "ChBaMaxPower": x.ChBaMaxPower, "ChBaMaxPower_abs": x.ChBaMaxPower_abs, "ChBaParkingZoneId": x.ChBaParkingZoneId, "GridPowerMax_Nom": x.GridPowerMax_Nom, "GridPowerLower": x.GridPowerLower, "GridPowerUpper": x.GridPowerUpper}, ignore_index=True)
+
+        

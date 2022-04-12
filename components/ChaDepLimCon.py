@@ -76,11 +76,11 @@ class ChaDepLimCon(ChaDepParent):
         for i in range(0, len(self.Queue)):
             self.ResultWriter.updateVehicleStates(t_act = self.SimBroker.t_act + timestep, vehicle=self.Queue[i], ChargingStationId=self.ChargingStationId, QueueOrBay=True, ChargingPower=0)
 
-        '''add power desires'''
+        '''determine power desire for next time step'''
         PowerDesire = 0
         for i in range(0,len(self.ChBaVehicles)):
             if type(self.ChBaVehicles[i]) == Vehicle:
-                PowerDesire += min([self.ChBaVehicles[i].VehicleMaxPower, self.ChBaMaxPower[i]])
+                PowerDesire += min([self.ChBaVehicles[i].getMaxChargingPower(timestep), self.ChBaMaxPower[i]])
 
         self.PowerDesire = PowerDesire
 

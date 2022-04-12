@@ -94,7 +94,16 @@ before the first step, an initilization function can be called:
 
 ### ChaDepLimCon
 Charging Depot with Limit Controller
+Algorithm overview:
 
+- *self.repark()*: sorts the vehicles with the inherited repark method to charging bays and queue.
+- calculate maximum total charge power: if BTMS is sufficiently charge, maximum charging power is the grid limit + the BTMS power. If BTMS is close to reach min SOC, an intermediate value for the BTMS power is chosen, which maintains SOC >= min SOC. If BTMS SOC is <= min SOC, the maximum charging power is the grid limit.
+- sorted by the charging desire CD, charging power is now distributed to the vehicles until the maximum charge power is reached. the actual charging power of each vehicle is determined by the Vehicle method *getMaxChargingPower(timestep)*. 
+- determine on how to charge or discharge the BTMS: if the sum of all charging powers of the vehicles does not exceed the grid power limit the BTMS can be charged with a power, up to reaching the grid limit or the maximum BTMS charging power. Intermediate Charging Power for BTMS is choosen if BTMS is close to reach maximal SOC.
+- update the BTMS and vehicle SOC
+- write new chargingStation and vehicle states for the end of the timestep
+- calculate power desires for charging vehicles and btms for the next time step
+- release vehicles when full (delete them from charging bays or queue and throw ResultWrtier Events)
 
 
 ### ChaDepMPC: 
@@ -106,6 +115,11 @@ an object as a datastructure for all the vehicle information. Has also methods t
 
 - Vehicle Energy: the energy level of the vehicle
 - desired Energy: the desired energy level of the vehicle (not the energy to be refilled)
+
+methods:
+
+-*getMaxChargePower(timestep)*: returns the maximum charge power at the actual time, ensuring that the vehicle doesn't exceed the desired energy level. (for last step of charging, an intermediate power level is therefore choosen)
+
 
 ### VehicleGenerator
 
