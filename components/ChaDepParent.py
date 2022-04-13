@@ -54,6 +54,8 @@ class ChaDepParent:
 
         '''Power Desire'''
         self.PowerDesire            = 0               # Power Desire to DERMS
+        self.BtmsPowerDesire        = 0
+
 
         '''Queue of Vehicles'''
         #variables
@@ -62,8 +64,17 @@ class ChaDepParent:
         '''Simulation Data'''
         self.SimBroker              = SimBroker
 
+        '''Rating Metric'''
+        self.EnergyLagSum           = 0                 # sum of energy lags as rating metric
+
     def BtmsSoc(self):
         return self.BtmsEn/self.BtmsSize
+    
+    def getBtmsMaxPower(self, timestep):
+        x = min([self.BtmsMaxPower, (self.BtmsSize * self.BtmsMaxSoc - self.BtmsEn) / (timestep/3.6e3)])
+        if x<0:
+            x=0
+        return x
 
     def BtmsAddPower(self, power, timestep):
         # power in kW and timestep in s
@@ -126,10 +137,11 @@ class ChaDepParent:
         # class method to perform day planning
         pass
 
-    def arrival(self, vehicle: Vehicle):
+    def arrival(self, vehicle: Vehicle, t_act):
         # class method to let vehicles arrive
         # calculate charging desire
         vehicle.ChargingDesire = self.chargingDesire(vehicle)
+        vehicle.updateEnergyLag(t_act)
         self.Queue.append(vehicle)
         self.ResultWriter.arrivalEvent(self.SimBroker.t_act, vehicle, self.ChargingStationId)
         self.ResultWriter.updateVehicleStates(t_act = self.SimBroker.t_act, vehicle=vehicle, ChargingStationId=self.ChargingStationId, QueueOrBay=True, ChargingPower=0)

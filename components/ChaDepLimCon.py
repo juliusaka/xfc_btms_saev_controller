@@ -50,24 +50,24 @@ class ChaDepLimCon(ChaDepParent):
         # if sum of charging power is greater than grid power limit, the btms must be discharged
         if sumPowers >= self.GridPowerUpper:
             self.BtmsPower = self.GridPowerUpper - sumPowers # result is negative
-        # if that is not the case, we might be able to charge with full power for one timestep, if we don't exceed BtmsMaxSOC with this
-        elif self.BtmsEn <= self.BtmsSize * self.BtmsMaxSoc - self.BtmsMaxPower * timestep/3.6e3:
-            self.BtmsPower = min([self.BtmsMaxPower, self.GridPowerUpper - sumPowers])
-        # if that doesn't work, we can charge with an intermediate value:
+        # if that is not the case, we might be able to charge for one timestep, if SOC < Max SOC
         elif self.BtmsEn < self.BtmsSize * self.BtmsMaxSoc:
-            self.BtmsPower = min([self.BtmsMaxPower, (self.BtmsSize * self.BtmsMaxSoc - self.BtmsEn) / (timestep/3.6e3), self.GridPowerUpper - sumPowers])
+            self.BtmsPower = min([self.getBtmsMaxPower(timestep), self.GridPowerUpper - sumPowers])
         # if that doesn't work, it seems like Btms is full, then charging power is 0.
         else:
             self.BtmsPower = 0
         
-        '''# update SOC values'''
+        '''# update SOC and energy lag values and sum up energy lag'''
         # BTMS
         self.BtmsAddPower(self.BtmsPower, timestep)
         # Vehicles
+        self.EnergyLagSum = 0
         for i in range(0, len(self.ChBaVehicles)):
             if type(self.ChBaVehicles[i]) == Vehicle:
-                #print('updateSOC')
                 self.ChBaVehicles[i].addPower(self.ChBaPower[i], timestep)
+                self.EnergyLagSum += self.ChBaVehicles[i].updateEnergyLag(self.SimBroker.t_act + timestep)
+        for x in self.Queue:
+            self.EnergyLagSum += x.updateEnergyLag(self.SimBroker.t_act + timestep)
         
         # result Writer for chargingStation states and vehicle states
         for i in range(0, len(self.ChBaVehicles)):
@@ -83,6 +83,7 @@ class ChaDepLimCon(ChaDepParent):
                 PowerDesire += min([self.ChBaVehicles[i].getMaxChargingPower(timestep), self.ChBaMaxPower[i]])
 
         self.PowerDesire = PowerDesire
+        self.BtmsPowerDesire = self.getBtmsMaxPower(timestep)
 
         '''Write chargingStation states in ResultWriter'''
         self.ResultWriter.updateChargingStationState(self.SimBroker.t_act, self)

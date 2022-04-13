@@ -141,23 +141,7 @@ Object, which provides the BEAM-simulation results to charging station simulatio
 
 ### Result Writer
 
-opens 3 pandas data frames and writes charging station states, vehicle states and events regularily in it. 
-
-#### ChargingStationStates:
-
-    "time", "ChargingStationID", "BaysVehicleIds", "BaysChargingPower", "BaysChargingDesire","BaysNumberOfVehicles", "QueueVehicleIds", "QueueChargingDesire", "QueueNumberOfVehicles", "TotalChargingPowerDesire", "BtmsChargingPowerDesire", "BtmsPower"
-
-    BaysChargingPower: Actual Charging Power of each vehicle in the charging bays.
-    TotalChargingDesire: Desire of power delivery from grid to charge vehicles (+/-)
-    BtmsChargingPowerDesire: Desire of charging power to charge BTMS
-    BtmsPower: Actual charging power of BTMS (+/-)
-
-#### Events: 
-
-    "time", "Event", "ChargingStationId", "VehicleId", "QueueOrBay", "ChargingDesire", "VehicleType", "VehicleArrival", "VehicleDesiredEnd", "VehicleEnergy", "VehicleDesiredEnergy", "VehicleSoc", "VehicleMaxEnergy", "VehicleMaxPower", "ChargingBayMaxPower"
-
-#### VehicleState:
-    "time", "VehicleId", "ChargingStationId", "QueueOrBay", "ChargingPower", "ChargingDesire", "VehicleDesiredEnd", "VehicleEnergy", "VehicleDesiredEnergy", "VehicleSoc", 
+opens 4 pandas data frames and writes charging station states, vehicle states and events regularily in it and chargingStationProperties one time in it. 
 
             
 Finally, the data frames are saved as .csv files.
@@ -166,7 +150,10 @@ Finally, the data frames are saved as .csv files.
 - *reparkEvent*: writes states when vehicle change from queue to charging bay (bay to queue) into events dataframe
 - *releaseEvent*: writes states when vehicle is released from station into events dataframe
 
-*not finished*
+*look for more information in the result writer module*
+
+### Rating Metrics (done in ResultWriter)
+
 
 ### Physiscs Simulation Dummy (PhySimDummy)
 

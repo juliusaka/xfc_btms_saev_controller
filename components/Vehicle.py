@@ -5,11 +5,13 @@ class Vehicle:
         self.VehicleArrival = VehicleArrival                # arrival time of vehicles
         self.VehicleDesEnd  = VehicleDesEnd                 # desired end times of charging
         self.VehicleEngy    = VehicleEngy                   # Energy State of vehicles [kWh]
+        self.VehicleEngy_Arrival = VehicleEngy              # Energy at Arrival, needed for calculation of Energy Lag
         self.VehicleDesEngy = VehicleDesEngy                # desired Energy State of vehicles: level + fuel [kWh]
         self.VehicleSoc     = VehicleEngy / VehicleMaxEngy  # SOC of vehicles [-]
         self.VehicleMaxEngy = VehicleMaxEngy                # maximal energy state of vehicles [kWh]
         self.VehicleMaxPower= VehicleMaxPower               # maximal charging power of vehicles
         self.ChargingDesire = 0                             # charging desire of vehicle, assigned during control steps
+        self.EnergyLag      = 0                             # energy lag (rating metric)
     
     def __str__(self):
         # print method
@@ -19,7 +21,7 @@ class Vehicle:
         maxPowerVehicle = self.VehicleMaxPower
         maxPowerForDesEngy = max([0, (self.VehicleDesEngy - self.VehicleEngy)/(timestep/3.6e3)]) # maximum power should be no less than 0
         return min([maxPowerVehicle, maxPowerForDesEngy]) # the smaller value is the max power.
-        
+    
     def addEngy(self, addedEngy):
         #addedEngy in kWh
         self.VehicleEngy    = self.VehicleEngy + addedEngy  # add energy 
@@ -40,3 +42,11 @@ class Vehicle:
     def power_warning(self, power):
         if power > self.VehicleMaxPower:
             print("Warning: Vehicle " + self.VehicleId + " exceeds maximal charging power. Charging power " + str(power))
+
+    def updateEnergyLag(self, t_act):
+        if self.VehicleDesEnd > t_act:
+            E_reference = self.VehicleEngy_Arrival + (self.VehicleDesEngy-self.VehicleEngy_Arrival)/(self.VehicleDesEnd - self.VehicleArrival) * (t_act - self.VehicleArrival)
+            self.EnergyLag = self.VehicleEngy - E_reference
+        else:
+            self.EnergyLag = 0
+        return self.EnergyLag
