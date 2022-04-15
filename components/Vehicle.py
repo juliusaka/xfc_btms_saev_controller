@@ -12,6 +12,7 @@ class Vehicle:
         self.VehicleMaxPower= VehicleMaxPower               # maximal charging power of vehicles
         self.ChargingDesire = 0                             # charging desire of vehicle, assigned during control steps
         self.EnergyLag      = 0                             # energy lag (rating metric)
+        self.TimeLag        = 0                             # time lag (rating metric)
     
     def __str__(self):
         # print method
@@ -48,5 +49,14 @@ class Vehicle:
             E_reference = self.VehicleEngy_Arrival + (self.VehicleDesEngy-self.VehicleEngy_Arrival)/(self.VehicleDesEnd - self.VehicleArrival) * (t_act - self.VehicleArrival)
             self.EnergyLag = self.VehicleEngy - E_reference
         else:
-            self.EnergyLag = 0
+            E_reference = self.VehicleDesEngy
+        self.EnergyLag = self.VehicleEngy - E_reference
         return self.EnergyLag
+
+    def updateTimeLag(self, t_act): 
+        if self.VehicleDesEnd < t_act:
+            self.TimeLag = 0
+        else:
+            self.TimeLag = t_act - self.VehicleDesEnd
+        return self.TimeLag
+    

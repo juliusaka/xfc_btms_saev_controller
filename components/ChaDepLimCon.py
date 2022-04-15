@@ -57,17 +57,21 @@ class ChaDepLimCon(ChaDepParent):
         else:
             self.BtmsPower = 0
         
-        '''# update SOC and energy lag values and sum up energy lag'''
+        '''# update SOC, energy lag and time lag values and sum up energy and time lag'''
         # BTMS
         self.BtmsAddPower(self.BtmsPower, timestep)
         # Vehicles
         self.EnergyLagSum = 0
+        self.TimeLagSum   = 0
+        # here energy lag only counted, when negative.
         for i in range(0, len(self.ChBaVehicles)):
             if type(self.ChBaVehicles[i]) == Vehicle:
                 self.ChBaVehicles[i].addPower(self.ChBaPower[i], timestep)
-                self.EnergyLagSum += self.ChBaVehicles[i].updateEnergyLag(self.SimBroker.t_act + timestep)
+                self.EnergyLagSum   += self.ChBaVehicles[i].updateEnergyLag(self.SimBroker.t_act + timestep) 
+                self.TimeLagSum     += self.ChBaVehicles[i].updateTimeLag(self.SimBroker.t_act + timestep)
         for x in self.Queue:
-            self.EnergyLagSum += x.updateEnergyLag(self.SimBroker.t_act + timestep)
+            self.EnergyLagSum   += x.updateEnergyLag(self.SimBroker.t_act + timestep)
+            self.TimeLagSum     += self.ChBaVehicles[i].updateTimeLag(self.SimBroker.t_act + timestep)
         
         # result Writer for chargingStation states and vehicle states
         for i in range(0, len(self.ChBaVehicles)):

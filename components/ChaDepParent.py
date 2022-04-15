@@ -46,7 +46,7 @@ class ChaDepParent:
 
         '''Grid Constraints'''
         if calcBtmsGridProp:
-            self.GridPowerMax_Nom   = 0.5*sum(ChBaMaxPower) # empirical formula (check with literature)
+            self.GridPowerMax_Nom   = 0.35*sum(ChBaMaxPower) # empirical formula (check with literature)
         else:
             self.GridPowerMax_Nom   = GridPowerMax_Nom  # maximum power withdrawal from grid, nominal value (can be time-varying)
         self.GridPowerLower         = GridPowerLower  # will be assigned in step function
@@ -66,6 +66,7 @@ class ChaDepParent:
 
         '''Rating Metric'''
         self.EnergyLagSum           = 0                 # sum of energy lags as rating metric
+        self.TimeLagSum             = 0                 # sum of time lags of vehicles as rating metric
 
     def BtmsSoc(self):
         return self.BtmsEn/self.BtmsSize
