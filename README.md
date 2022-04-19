@@ -106,7 +106,24 @@ Algorithm overview:
 - release vehicles when full (delete them from charging bays or queue and throw ResultWrtier Events)
 
 
-### ChaDepMPC: 
+### ChaDepMpcBase:
+
+This is the base MPC model. It has two main methods:
+
+- *planning()*: In this function, (day-) planning is performed. This means the control variables are determined in an optimization problem depended on prediction for charging demand and grid constraints. Runtime of this method can be longer, as a long horizon is optimized
+- *step()*: This is the function which determines the control signals for each time step. Runtime of this should be short and has a short horizon.
+
+#### **planning():**
+
+The planning needs as input informations all the properties of the charging station and prediction about grid power limits (P_Lim(t)) and Charging Demand (P_Charge,total(t)). It determines the storage size and delivers and optimal trajectory for the collocated energy storage. 
+
+To determine the uncurtailed charging demand based on given BEAM results, we assume:
+
+- charging depots are rather large (law of big numbers), so that individual arrivals does not have that large influence
+- the charging demand can be quiet well predicted, e.g. with machine learning models.
+
+Because of this, we use the BEAM-results for each TAZ and add some random noise to the generated power profile to mimique the prediction through ML models.
+Another option would be, to use one general prediction for all charging stations and scale it based on numbers of plugs.  
 
 
 ### Vehicle
@@ -119,6 +136,12 @@ an object as a datastructure for all the vehicle information. Has also methods t
 methods:
 
 -*getMaxChargePower(timestep)*: returns the maximum charge power at the actual time, ensuring that the vehicle doesn't exceed the desired energy level. (for last step of charging, an intermediate power level is therefore choosen)
+
+-*updateEnergyLag*: returns the energy lag of a vehicle while charging. This is a rating metric and defined as the difference between anticipated energy level (by Beam) and real energy level.
+
+$ E_{\text{Lag}}(t) = E_{\text{real}}(t) - E_{\text{anticipated}}(t)$
+
+where $E_{\text{anticipated}}(t)$ is interpolated between desired energy level and arrival energy level based on the time, if actual time exceeds desired end, it is set to desired energy level. This function must be called in the charging controller.
 
 
 ### VehicleGenerator

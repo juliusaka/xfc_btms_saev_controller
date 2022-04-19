@@ -1,5 +1,6 @@
 from .ChaDepParent import ChaDepParent
 from .ChaDepLimCon import ChaDepLimCon
+from .ChaDepMpcBase import ChaDepMpcBase
 from .Vehicle import Vehicle
 from .SimBroker import SimBroker
 from .VehicleGenerator import VehicleGenerator

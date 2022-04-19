@@ -22,7 +22,6 @@ class ChaDepLimCon(ChaDepParent):
         # this is the intermediate case and the chargingPower to reach the minimum SOC
         else:
             P_max = self.GridPowerUpper + (self.BtmsEn - self.BtmsSize * self.BtmsMinSoc) / (timestep/3.6e3)
-        
         '''# now assign the charging powers to each vehicle, prioritized by their charging desire'''
         self.ChBaPower = [] # delete charging power of previous timestep
         CD_Bays = [] # list of charging desire of the vehicles in bays
@@ -57,28 +56,11 @@ class ChaDepLimCon(ChaDepParent):
         else:
             self.BtmsPower = 0
         
-        '''# update SOC, energy lag and time lag values and sum up energy and time lag'''
+        '''# update BTMS and vehicles states and update the result writer with their states'''
         # BTMS
         self.BtmsAddPower(self.BtmsPower, timestep)
         # Vehicles
-        self.EnergyLagSum = 0
-        self.TimeLagSum   = 0
-        # here energy lag only counted, when negative.
-        for i in range(0, len(self.ChBaVehicles)):
-            if type(self.ChBaVehicles[i]) == Vehicle:
-                self.ChBaVehicles[i].addPower(self.ChBaPower[i], timestep)
-                self.EnergyLagSum   += self.ChBaVehicles[i].updateEnergyLag(self.SimBroker.t_act + timestep) 
-                self.TimeLagSum     += self.ChBaVehicles[i].updateTimeLag(self.SimBroker.t_act + timestep)
-        for x in self.Queue:
-            self.EnergyLagSum   += x.updateEnergyLag(self.SimBroker.t_act + timestep)
-            self.TimeLagSum     += self.ChBaVehicles[i].updateTimeLag(self.SimBroker.t_act + timestep)
-        
-        # result Writer for chargingStation states and vehicle states
-        for i in range(0, len(self.ChBaVehicles)):
-            if type(self.ChBaVehicles[i]) == Vehicle:
-                self.ResultWriter.updateVehicleStates(t_act = self.SimBroker.t_act + timestep, vehicle=self.ChBaVehicles[i], ChargingStationId=self.ChargingStationId, QueueOrBay=False, ChargingPower=self.ChBaPower[i])
-        for i in range(0, len(self.Queue)):
-            self.ResultWriter.updateVehicleStates(t_act = self.SimBroker.t_act + timestep, vehicle=self.Queue[i], ChargingStationId=self.ChargingStationId, QueueOrBay=True, ChargingPower=0)
+        self.updateVehicleStatesAndWriteResults(self.ChBaPower, timestep)
 
         '''determine power desire for next time step'''
         PowerDesire = 0

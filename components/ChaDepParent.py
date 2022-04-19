@@ -134,7 +134,7 @@ class ChaDepParent:
             out.append(self.Queue.pop(pop[i]-i)) # to make up the loss of popped out elements before
         return out
  
-    def dayPlanning(self):
+    def planning(self):
         # class method to perform day planning
         pass
 
@@ -244,16 +244,72 @@ class ChaDepParent:
         pass
         #self.BtmsEn = self.BtmsSize * CesSoc
 
+    def updateVehicleStatesAndWriteResults(self, ChBaPower, timestep):
+        self.EnergyLagSum = 0
+        self.TimeLagSum   = 0
+
+        for i in range(0, len(self.ChBaVehicles)):
+            if self.ChBaVehicles[i] != False:
+                self.ChBaVehicles[i].addPower(ChBaPower[i], timestep)
+                self.EnergyLagSum   += self.ChBaVehicles[i].updateEnergyLag(self.SimBroker.t_act + timestep) 
+                self.TimeLagSum     += self.ChBaVehicles[i].updateTimeLag(self.SimBroker.t_act + timestep)
+        for x in self.Queue:
+            self.EnergyLagSum   += x.updateEnergyLag(self.SimBroker.t_act + timestep)
+            self.TimeLagSum     += self.ChBaVehicles[i].updateTimeLag(self.SimBroker.t_act + timestep)
+
+        # result Writer for chargingStation states and vehicle states
+        for i in range(0, len(self.ChBaVehicles)):
+            if type(self.ChBaVehicles[i]) == Vehicle:
+                self.ResultWriter.updateVehicleStates(t_act = self.SimBroker.t_act + timestep, vehicle=self.ChBaVehicles[i], ChargingStationId=self.ChargingStationId, QueueOrBay=False, ChargingPower=ChBaPower[i])
+        for i in range(0, len(self.Queue)):
+            self.ResultWriter.updateVehicleStates(t_act = self.SimBroker.t_act + timestep, vehicle=self.Queue[i], ChargingStationId=self.ChargingStationId, QueueOrBay=True, ChargingPower=0)
+
+
     def step(self, timestep): # call with t_act = SimBroker.t_act
-        # class method to perform control action for the next simulation step.
-        '''Requirements:'''
-            # release vehicles when full from charging bays
-            # repark vehicles from queue to charging bays if possible
-        self.repark()
-            # update control action from last step with new results for SOC, P_total, P_Btms
-            # perform controller action
-            # function INPUTS: Grid Limits, Revised SOC of Storage, 
-            # function OUTPUTS: Power from Grid, from BTMS
+        '''TEMPLATE FOR OTHER CONTROLLERS:'''
         pass
+    
+        '''repark vehicles based on tehir charging desire with the parent method'''
+        self.repark()
+
+        '''insert here the control action'''
+
+        '''assign values to:
+        self.ChBaPower
+        self.BtmsPower
+        DONE: self.PowerDesire # for DERMS
+        DONE: self.BtmsPowerDesire # for DERMS
+        '''
+
+        '''update SOC and Result Writer for Vehicles'''
+        # BTMS
+        self.BtmsAddPower(self.BtmsPower, timestep)
+        # Vehicles
+        self.updateVehicleStatesAndWriteResults(self.ChBaPower, timestep)
+
+        '''determine power desire for next time step
+                this must be done after Vehicle and BTMS states are updated, so that charging curves can be taken into account'''
+        PowerDesire = 0
+        for i in range(0,len(self.ChBaVehicles)):
+            if self.ChBaVehicles[i] != False:
+                PowerDesire += min([self.ChBaVehicles[i].getMaxChargingPower(timestep), self.ChBaMaxPower[i]])
+
+        self.PowerDesire = PowerDesire
+        self.BtmsPowerDesire = self.getBtmsMaxPower(timestep)
+
+        '''Write chargingStation states in ResultWriter'''
+        self.ResultWriter.updateChargingStationState(self.SimBroker.t_act, self)
+
+        '''release vehicles when full'''
+        r1 = self.chBaReleaseThreshold()
+        r2 = self.queueReleaseThreshold()
+        released_Vehicles = r1 + r2
+        # add release events
+        for x in released_Vehicles:
+            self.ResultWriter.releaseEvent(self.SimBroker.t_act, x, self.ChargingStationId)
+
+        '''checks'''
+        if len(self.ChBaVehicles)!=self.ChBaNum:
+            raise ValueError("Size of ChargingBay List shouldn't change")
 
         
