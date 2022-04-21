@@ -1,5 +1,5 @@
 class Vehicle:
-    def __init__(self, VehicleId, VehicleType, VehicleArrival, VehicleDesEnd, VehicleEngy, VehicleDesEngy, VehicleMaxEngy, VehicleMaxPower): # the first inputs are from Beam, the last from the vehicle file
+    def __init__(self, VehicleId, VehicleType, VehicleArrival, VehicleDesEnd, VehicleEngy, VehicleDesEngy, VehicleMaxEngy, VehicleMaxPower, ParkingZoneId = False): # the first inputs are from Beam, the last from the vehicle file
         self.VehicleId      = VehicleId                     # vehicle id
         self.VehicleType    = VehicleType                   # vehicle type
         self.VehicleArrival = VehicleArrival                # arrival time of vehicles
@@ -13,6 +13,8 @@ class Vehicle:
         self.ChargingDesire = 0                             # charging desire of vehicle, assigned during control steps
         self.EnergyLag      = 0                             # energy lag (rating metric)
         self.TimeLag        = 0                             # time lag (rating metric)
+        if not ParkingZoneId == False:
+            self.BeamDesignatedParkingZoneId = ParkingZoneId    # ParkingZoneId, used in prediction generation of MPC controller.
     
     def __str__(self):
         # print method

@@ -1,8 +1,77 @@
+import components
 from components import ChaDepParent
-from components import SimBroker
 import numpy as np
 
 class ChaDepMpcBase(ChaDepParent):
+
+    def __init__(self, ChargingStationId, ResultWriter: components.ResultWriter, SimBroker: components.SimBroker, ChBaMaxPower, ChBaParkingZoneId, ChBaNum, BtmsSize=100, BtmsC=1, BtmsMaxSoc=0.8, BtmsMinSOC=0.2, BtmsSoc0=0.5, calcBtmsGridProp=False, GridPowerMax_Nom=1, GridPowerLower=-1, GridPowerUpper=1):
+
+        super().__init__(ChargingStationId, ResultWriter, SimBroker, ChBaMaxPower, ChBaParkingZoneId, ChBaNum, BtmsSize, BtmsC, BtmsMaxSoc, BtmsMinSOC, BtmsSoc0, calcBtmsGridProp, GridPowerMax_Nom, GridPowerLower, GridPowerUpper)
+
+        '''additional variables for MPC:'''
+        self.PredictionTime = []
+        self.PredictionPower = []
+
+    def initializePlanning(self, path_BeamPredictionFile, dtype, path_DataBase, timestep=5*60, addNoise = True):
+        # generate a prediction for the charging station
+        # neglection of charging desire, make this not too good
+        ChBaVehicles = []
+        Queue = []
+        time = []
+        power_sum = []
+        #open a SimBroker object for this
+        PredBroker = components.SimBroker(path_BeamPredictionFile, dtype)
+        # open a VehicleGenerator for this:
+        VehicleGenerator = components.VehicleGenerator(path_BeamPredictionFile, dtype, path_DataBase)
+        #print("check 1")
+
+        #add all vehicle to queue which arrive at this charging station
+        while not PredBroker.eol():
+            #print("check 1.5")
+            slice = PredBroker.step(timestep)
+            for i in range(0, len(slice)):
+                #print("check 1.9")
+                if slice.iloc[i]["type"] == "ChargingPlugInEvent":
+                    vehicle = VehicleGenerator.generateVehicleSO(slice.iloc[i], AddParkingZoneId=True)
+                    if np.isin(element=self.ChBaParkingZoneId, test_elements=vehicle.BeamDesignatedParkingZoneId).any():
+                        Queue.append(vehicle)
+            # add vehicle to charging bays if possible
+            while len(ChBaVehicles) < self.ChBaNum and len(Queue) > 0:
+                ChBaVehicles.append(Queue.pop(0))
+            # charge vehicles with maximum possible power
+            power_i = []
+            for x in ChBaVehicles:
+                p = min([x.getMaxChargingPower(timestep), self.ChBaMaxPower_abs])
+                x.addPower(p, timestep)
+                power_i.append(p)
+            #save result in vectors
+            time.append(PredBroker.t_act)
+            power_sum.append(sum(power_i))
+            #release vehicles which are full
+            pop_out = []
+            for i in range(0,len(ChBaVehicles)):
+                if ChBaVehicles[i].VehicleEngy >= ChBaVehicles[i].VehicleDesEngy:
+                    pop_out.append(i)
+            for i in range(0, len(pop_out)):
+                x = ChBaVehicles.pop(pop_out[i]-i) # -i makes up for the loss of list-length after pop 
+                # print(x.VehicleSoc)
+                # print(x.VehicleDesEngy/x.VehicleMaxEngy)
+        
+        # add noise to produce prediction:
+        if addNoise:
+            param = 0.10
+            avg = np.average(power_sum)
+            self.power_sum_original = power_sum.copy()
+            for i in range(0,len(power_sum)):
+                 power_sum[i] = power_sum[i] + avg * (np.random.randn() * param)
+                 if power_sum[i] < 0:
+                     power_sum[i] = 0
+        # save to Prediction Variables
+        self.PredictionTime = time
+        self.PredictionPower = power_sum
+    
+    def planning(self, t_act):
+        pass
 
     def step(self, timestep):
 
@@ -48,24 +117,3 @@ class ChaDepMpcBase(ChaDepParent):
         '''checks'''
         if len(self.ChBaVehicles)!=self.ChBaNum:
             raise ValueError("Size of ChargingBay List shouldn't change")
-
-    def initializePlanning(self, BeamPredictionFile, dtype, addNoise = True):
-        # generate a prediction for the charging station
-        # neglection of charging desire, make this not too good
-        ChBaVehicles = []
-        Queue = []
-        time = []
-        power = []
-        #open a SimBroker object for this
-        PredBroker = SimBroker(BeamPredictionFile, dtype)
-            # find out if current element belongs to this chargingStation
-        time.append(PredBroker.t_act)
-        
-        while not PredBroker.eol(): 
-            
-            np.isin(element = self.ChBaParkingZoneId, test_elements= ['X-PEV-9-1']).any()
-        del SimBroker
-        pass
-    
-    def planning(self, t_act):
-        pass

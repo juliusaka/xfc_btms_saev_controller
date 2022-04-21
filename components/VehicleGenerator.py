@@ -35,7 +35,7 @@ class VehicleGenerator:
 
         pass
 
-    def generateVehicleSO(self, df_slice: pd.DataFrame):
+    def generateVehicleSO(self, df_slice: pd.DataFrame, AddParkingZoneId = False):
         # for the Stand-Alone (SO) version
         # generate here the vehicle, based on the df_slice with "ChargingPlugInEvent"
         # (the slice of the event) which is given by the SimBroker.
@@ -58,10 +58,16 @@ class VehicleGenerator:
             RefuelSessionEvent = self.SimRes[np.logical_and(np.logical_and(self.SimRes.index >= VehicleArrival, self.SimRes.type == "RefuelSessionEvent"), self.SimRes.vehicle == VehicleId)].iloc[0] # select first row
             VehicleDesEnd       = RefuelSessionEvent.name # this is the time at which refuel session event is finished
             VehicleDesEngy      = RefuelSessionEvent.fuel / 3.6e6 + VehicleEngy # this is the desired state of energy at the end of the charging event
+            if AddParkingZoneId == True:
+                VehicleBeamParkingZoneId = RefuelSessionEvent.parkingZoneId
+            else:
+                VehicleBeamParkingZoneId = False
         except: # if we are at the end of the file, we don't want errors from events which aren't finished.
-            VehicleDesEnd       = 0
-            VehicleDesEngy      = 0 
+            VehicleDesEnd               = 0
+            VehicleDesEngy              = 0 
+            VehicleBeamParkingZoneId    = False
+            print("VehicleGenerator: did not find associated RefuelSession Event. Set Energy to 0")
         
-        Vehicle = components.Vehicle(VehicleId, VehicleType, VehicleArrival, VehicleDesEnd, VehicleEngy, VehicleDesEngy, VehicleMaxEngy, VehicleMaxPower)
+        Vehicle = components.Vehicle(VehicleId, VehicleType, VehicleArrival, VehicleDesEnd, VehicleEngy, VehicleDesEngy, VehicleMaxEngy, VehicleMaxPower, ParkingZoneId=VehicleBeamParkingZoneId)
 
         return Vehicle

@@ -7,7 +7,7 @@ import numpy as np
 
 class ChaDepParent:
     
-    def __init__(self, ChargingStationId, ResultWriter: ResultWriter, SimBroker: SimBroker, ChBaMaxPower, ChBaParkingZoneId, BtmsSize = 100, BtmsC = 1, BtmsMaxSoc = 0.8, BtmsMinSOC = 0.2, BtmsSoc0 = 0.50, calcBtmsGridProp = False, GridPowerMax_Nom = 1 , GridPowerLower = -1, GridPowerUpper = 1):
+    def __init__(self, ChargingStationId, ResultWriter: ResultWriter, SimBroker: SimBroker, ChBaMaxPower, ChBaParkingZoneId, ChBaNum: int, BtmsSize = 100, BtmsC = 1, BtmsMaxSoc = 0.8, BtmsMinSOC = 0.2, BtmsSoc0 = 0.50, calcBtmsGridProp = False, GridPowerMax_Nom = 1 , GridPowerLower = -1, GridPowerUpper = 1):
 
         '''ChargingStationIdentity'''
         self.ChargingStationId  = ChargingStationId
@@ -31,14 +31,17 @@ class ChaDepParent:
 
         '''Charging Bays'''
         #properties
-        self.ChBaNum            = len(ChBaParkingZoneId)# number of charging bays
+        self.ChBaNum            = ChBaNum # number of charging bays determined by ChBaMaxPower vector
+        print(ChBaNum)
         self.ChBaMaxPower       = ChBaMaxPower      # list of maximum power for each charging bay in kW
         self.ChBaMaxPower_abs   = max(ChBaMaxPower) # maximum value from list above
-        self.ChBaParkingZoneId  = ChBaParkingZoneId # list of parking zone ids associated with max power list
+        self.ChBaParkingZoneId  = ChBaParkingZoneId # list of parking zone ids associated with max power list; can be longer than ChBaMaxPower or ChBaNu for testing with reduced number of charging bays
         #variables
         self.ChBaVehicles       = self.chBaInit(self.ChBaNum) # list for Vehicles objects, which are in charging bays.
-        if (len(ChBaMaxPower) != len(ChBaParkingZoneId)):
-            raise ValueError(' size of list with maximal plug power doesnt equals size of list with parking zone ids')
+        if len(ChBaMaxPower) != ChBaNum:
+            print(len(ChBaMaxPower))
+            print(ChBaNum)
+            raise ValueError(' size of list with maximal plug power doesnt equals number of charging bays')
         # variables
         self.ChBaPower          = []                # this is the variable to which charging power for each bay is assigned.
         
