@@ -1,6 +1,9 @@
 import components
 from components import ChaDepParent
 import numpy as np
+import cvxpy as cp
+import cvxpy.atoms.max as cpmax
+import cvxpy.atoms.min as cpmin
 
 class ChaDepMpcBase(ChaDepParent):
 
@@ -11,8 +14,12 @@ class ChaDepMpcBase(ChaDepParent):
         '''additional variables for MPC:'''
         self.PredictionTime = []
         self.PredictionPower = []
+        self.power_sum_original = []
+        self.PredictionGridUpper = []
+        self.PreidctionGridLower = []
 
-    def initializePlanning(self, path_BeamPredictionFile, dtype, path_DataBase, timestep=5*60, addNoise = True):
+
+    def generatePredictions(self, path_BeamPredictionFile, dtype, path_DataBase, timestep=5*60, addNoise = True):
         # generate a prediction for the charging station
         # neglection of charging desire, make this not too good
         ChBaVehicles = []
@@ -69,9 +76,60 @@ class ChaDepMpcBase(ChaDepParent):
         # save to Prediction Variables
         self.PredictionTime = time
         self.PredictionPower = power_sum
-    
-    def planning(self, t_act):
-        pass
+
+        # generate a prediction for power limits
+        for i in time:
+            self.PredictionGridUpper.append(self.GridPowerMax_Nom)
+            self.PreidctionGridLower.append(- self.GridPowerMax_Nom)
+
+    def planning(self, t_act, t_max, timestep):
+        # vector lengthes
+        T = np.floor((t_max - t_act) / timestep)
+
+        # define variables 
+        x = cp.Variable((1, T+1))
+        u = cp.Variable((2, T))
+        
+        # define disturbance d, which is the charging power demand
+        time = np.array(self.PredictionTime)
+        power = np.array(self.PredictionPower)
+        idx = np.logical_and(time >=t_act, time <= t_max)
+        d = power[idx]
+        if len(d) != T:
+            print("length d", len(d))
+            print("length T", T)
+            raise ValueError("length T and length of vector d are unequal")
+
+        #parameters
+        ts = timestep / 3.6e3
+        eta = self.BtmsEfficiency
+
+        # tuning parameters
+        a = 1
+        b = 1
+        constr = []
+        # define constraints
+        for k in range(T):
+            constr += [x[:,k+1] == x[:,k] + ts * eta * u[1,k],
+                        u[0,k] - u[1,k] >= d[k]]
+        # insert initial constraint and bound BTMS size
+        constr += [x[:,0]== 0,
+                    x[:,0] == x[:,T]]
+        
+        # define cost-funciton
+        cost = a * cpmax(u[0,:]) + b*(cpmax(x) - cpmin(x))
+
+        # solve the problem
+        prob = cp.Problem(cp.Minimize(cost), constr)
+
+        # determine BTMS size
+        btms_size = max(x.value) - min(x.value)
+        P_Grid = u[0,:].value
+        P_BTMS = u[1,:].value
+        E_BTMS = x.value
+        P_Charge = d
+        
+        return btms_size, P_Grid, P_BTMS, E_BTMS, P_Charge
 
     def step(self, timestep):
 

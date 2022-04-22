@@ -110,8 +110,10 @@ Algorithm overview:
 
 This is the base MPC model. It has two main methods:
 
-- *planning()*: In this function, (day-) planning is performed. This means the control variables are determined in an optimization problem depended on prediction for charging demand and grid constraints. Runtime of this method can be longer, as a long horizon is optimized
+- *planning()*: In this function, (day-) planning is performed. This means the control variables are determined in an optimization problem depended on prediction for charging demand and grid constraints. Runtime of this method can be longer, as a long horizon is optimized. The prediction for this are generated from Beam output with random noise in *.generatePredictions()*.
 - *step()*: This is the function which determines the control signals for each time step. Runtime of this should be short and has a short horizon.
+
+Further information about the MpcBase controller can be found in the MpcBase File.
 
 #### **planning():**
 
