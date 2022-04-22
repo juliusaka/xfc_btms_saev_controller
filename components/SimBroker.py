@@ -30,6 +30,7 @@ class SimBroker:
         self.length     = len(self.SimRes)     # save length of pd dataframe
         self.i          = 0
         self.t_act      = self.SimRes.index[self.i]
+        self.t_max      = max(self.SimRes.index)
         '''
         self.t_act      = t_Start              # start time of simulation in seconds
         while self.SimRes.index[self.i] < self.t_act:

@@ -84,7 +84,7 @@ class ChaDepMpcBase(ChaDepParent):
 
     def planning(self, t_act, t_max, timestep):
         # vector lengthes
-        T = np.floor((t_max - t_act) / timestep)
+        T = int(np.floor((t_max - t_act) / timestep))
 
         # define variables 
         x = cp.Variable((1, T+1))
@@ -105,8 +105,8 @@ class ChaDepMpcBase(ChaDepParent):
         eta = self.BtmsEfficiency
 
         # tuning parameters
-        a = 1
-        b = 1
+        a = 0.5
+        b = 10*150/5000
         constr = []
         # define constraints
         for k in range(T):
@@ -121,14 +121,17 @@ class ChaDepMpcBase(ChaDepParent):
 
         # solve the problem
         prob = cp.Problem(cp.Minimize(cost), constr)
-
+        prob.solve()
+        
+        print(x)
+        type(x)
         # determine BTMS size
-        btms_size = max(x.value) - min(x.value)
+        btms_size = np.max(x.value) - np.min(x.value)
         P_Grid = u[0,:].value
         P_BTMS = u[1,:].value
-        E_BTMS = x.value
+        E_BTMS = x[0,:].value
         P_Charge = d
-        
+
         return btms_size, P_Grid, P_BTMS, E_BTMS, P_Charge
 
     def step(self, timestep):
