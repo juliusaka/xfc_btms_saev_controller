@@ -82,13 +82,14 @@ class ChaDepMpcBase(ChaDepParent):
             self.PredictionGridUpper.append(self.GridPowerMax_Nom)
             self.PreidctionGridLower.append(- self.GridPowerMax_Nom)
 
-    def planning(self, t_act, t_max, timestep):
+    def planning(self, t_act, t_max, timestep, a, b, P_free, cRating = 100):
         # vector lengthes
         T = int(np.floor((t_max - t_act) / timestep))
 
         # define variables 
         x = cp.Variable((1, T+1))
         u = cp.Variable((2, T))
+        p_gridSlack = cp.Variable((1,1)) # slack variable to determine demand charge with free demand charge level, e.g. if p_max > 20kW, demand charge applied
         
         # define disturbance d, which is the charging power demand
         time = np.array(self.PredictionTime)
@@ -105,34 +106,35 @@ class ChaDepMpcBase(ChaDepParent):
         eta = self.BtmsEfficiency
 
         # tuning parameters
-        a = 0.5
-        b = 10*150/5000
         constr = []
         # define constraints
         for k in range(T):
             constr += [x[:,k+1] == x[:,k] + ts * eta * u[1,k],
-                        u[0,k] - u[1,k] >= d[k]]
-        # insert initial constraint and bound BTMS size
+                        u[0,k] - u[1,k] == d[k]]
+        # insert initial constraint, bound BTMS size and define free power level
         constr += [x[:,0]== 0,
-                    x[:,0] == x[:,T]]
+                    x[:,0] == x[:,T],
+                    p_gridSlack >= cpmax(u[0,:]),
+                    p_gridSlack >= P_free]
         
         # define cost-funciton
-        cost = a * cpmax(u[0,:]) + b*(cpmax(x) - cpmin(x))
+        cost = a * (p_gridSlack - P_free) # demand charg
+        for k in range(T):       # cost of btms degradation
+            cost += b * 0.5 * cp.abs(u[1,k]) * ts
 
         # solve the problem
         prob = cp.Problem(cp.Minimize(cost), constr)
         prob.solve()
-        
-        print(x)
-        type(x)
-        # determine BTMS size
+
+        # determine BTMS size and unpack over values
         btms_size = np.max(x.value) - np.min(x.value)
         P_Grid = u[0,:].value
         P_BTMS = u[1,:].value
-        E_BTMS = x[0,:].value
+        E_BTMS = x[0,:-1].value
         P_Charge = d
+        cost = prob.value
 
-        return btms_size, P_Grid, P_BTMS, E_BTMS, P_Charge
+        return time, btms_size, P_Grid, P_BTMS, E_BTMS, P_Charge, cost
 
     def step(self, timestep):
 
