@@ -3,9 +3,9 @@ from components import ChaDepParent
 import numpy as np
 import cvxpy as cp
 import cvxpy.atoms.max as cpmax
-import cvxpy.atoms.min as cpmin
 
 class ChaDepMpcBase(ChaDepParent):
+    '''see mpcBase.md for explanations'''
 
     def __init__(self, ChargingStationId, ResultWriter: components.ResultWriter, SimBroker: components.SimBroker, ChBaMaxPower, ChBaParkingZoneId, ChBaNum, BtmsSize=100, BtmsC=1, BtmsMaxSoc=0.8, BtmsMinSOC=0.2, BtmsSoc0=0.5, calcBtmsGridProp=False, GridPowerMax_Nom=1, GridPowerLower=-1, GridPowerUpper=1):
 
@@ -82,7 +82,8 @@ class ChaDepMpcBase(ChaDepParent):
             self.PredictionGridUpper.append(self.GridPowerMax_Nom)
             self.PreidctionGridLower.append(- self.GridPowerMax_Nom)
 
-    def planning(self, t_act, t_max, timestep, a, b, P_free, cRating = 100):
+    def planning(self, t_act, t_max, timestep, a, b, P_free):
+        '''see mpcBase.md for explanations'''
         # vector lengthes
         T = int(np.floor((t_max - t_act) / timestep))
 
@@ -110,12 +111,12 @@ class ChaDepMpcBase(ChaDepParent):
         # define constraints
         for k in range(T):
             constr += [x[:,k+1] == x[:,k] + ts * eta * u[1,k],
-                        u[0,k] - u[1,k] == d[k]]
+                        u[0,k] - u[1,k] == d[k],]
         # insert initial constraint, bound BTMS size and define free power level
-        constr += [x[:,0]== 0,
+        constr +=  [x[:,0]== 0,
                     x[:,0] == x[:,T],
                     p_gridSlack >= cpmax(u[0,:]),
-                    p_gridSlack >= P_free]
+                    p_gridSlack >= P_free,]
         
         # define cost-funciton
         cost = a * (p_gridSlack - P_free) # demand charg
