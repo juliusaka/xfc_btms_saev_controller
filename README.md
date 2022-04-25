@@ -110,6 +110,7 @@ Algorithm overview:
 
 This is the base MPC model. It has two main methods:
 
+- *determineBtmsSize()*: In this function, the first-level "controller" is runned, which determines the BTMS size based on predictions for charging demand. The prediction for this are generated from Beam output with random noise in *.generatePredictions()*.
 - *planning()*: In this function, (day-) planning is performed. This means the control variables are determined in an optimization problem depended on prediction for charging demand and grid constraints. Runtime of this method can be longer, as a long horizon is optimized. The prediction for this are generated from Beam output with random noise in *.generatePredictions()*.
 - *step()*: This is the function which determines the control signals for each time step. Runtime of this should be short and has a short horizon.
 

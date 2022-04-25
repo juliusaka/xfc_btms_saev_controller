@@ -82,14 +82,14 @@ class ChaDepMpcBase(ChaDepParent):
             self.PredictionGridUpper.append(self.GridPowerMax_Nom)
             self.PreidctionGridLower.append(- self.GridPowerMax_Nom)
 
-    def planning(self, t_act, t_max, timestep, a, b, P_free):
+    def determineBtmsSize(self, t_act, t_max, timestep, a, b, c, P_free):
         '''see mpcBase.md for explanations'''
         # vector lengthes
         T = int(np.floor((t_max - t_act) / timestep))
 
         # define variables 
         x = cp.Variable((1, T+1))
-        u = cp.Variable((2, T))
+        u = cp.Variable((4, T))
         p_gridSlack = cp.Variable((1,1)) # slack variable to determine demand charge with free demand charge level, e.g. if p_max > 20kW, demand charge applied
         
         # define disturbance d, which is the charging power demand
@@ -110,8 +110,12 @@ class ChaDepMpcBase(ChaDepParent):
         constr = []
         # define constraints
         for k in range(T):
-            constr += [x[:,k+1] == x[:,k] + ts * eta * u[1,k],
-                        u[0,k] - u[1,k] == d[k],]
+            constr += [x[:,k+1] == x[:,k] + ts * eta * u[2,k] + ts * 1/eta * u[3,k],
+                        u[0,k] - u[1,k] == d[k], # energy flow equation
+                        u[1,k] == u[2,k] + u[3,k], # P_BTMS is sum of charge and discharge
+                        u[2,k] >= 0, # charging power always positive
+                        u[3,k] <= 0, # discharge power always negative
+                        ]
         # insert initial constraint, bound BTMS size and define free power level
         constr +=  [x[:,0]== 0,
                     x[:,0] == x[:,T],
@@ -120,8 +124,8 @@ class ChaDepMpcBase(ChaDepParent):
         
         # define cost-funciton
         cost = a * (p_gridSlack - P_free) # demand charg
-        for k in range(T):       # cost of btms degradation
-            cost += b * 0.5 * cp.abs(u[1,k]) * ts
+        for k in range(T):       # cost of btms degradation and cost of energy loss
+            cost += (b+c) * u[2,k] * ts - c * u[3,k] * ts
 
         # solve the problem
         prob = cp.Problem(cp.Minimize(cost), constr)
@@ -133,9 +137,11 @@ class ChaDepMpcBase(ChaDepParent):
         P_BTMS = u[1,:].value
         E_BTMS = x[0,:-1].value
         P_Charge = d
+        P_BTMS_Ch = u[2,:].value
+        P_BTMS_DCh = u[3,:].value
         cost = prob.value
 
-        return time, btms_size, P_Grid, P_BTMS, E_BTMS, P_Charge, cost
+        return time, btms_size, P_Grid, P_BTMS, P_BTMS_Ch, P_BTMS_DCh, E_BTMS, P_Charge, cost
 
     def step(self, timestep):
 
