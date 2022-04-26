@@ -12,7 +12,7 @@
 in *determineBtmsSize()*:
 
 $\begin{equation} 
-\min \quad a \cdot (P_{slack} - P_{free}) + b \cdot \Sigma_{k=0}^{T} P_{BTMS,Ch}(k)dt + c \cdot (\Sigma_{k=0}^{k=T} P_{BTMS,Ch}(k)dt - \Sigma_{k=0}^{k=T}P_{BTMS,DCh}(k)dt)
+\min \quad a \cdot (P_{slack} - P_{free}) + b \cdot \Sigma_{k=0}^{T} P_{BTMS,Ch}(k)dt + c \cdot (\Sigma_{k=0}^{k=T} P_{BTMS,Ch}(k)dt + \Sigma_{k=0}^{k=T}P_{BTMS,DCh}(k)dt)
 \end{equation}$
 subject to:
 $\begin{align} 
@@ -31,11 +31,11 @@ where $a$ is the demand charge per day, $b$ is the BTMS cost per cycle and c is 
 
 The objective is to minimize the sum of demand charge, the usage cost of the BTMS as the cost of storing/releasing energy in terms of cycles and the energy loss cost. As demand charges can be applied after exceeding a certain level, we choosed a formulation which returns the exceeding of a certain power level $P_{free}$. The term $P_{slack} - P_{free}$ is 0 as long as $\max(P_{Grid}) \leq P_{free}$, and gives after that the difference to the free power level. 
 
-As the problem is convex in objective function and constraints, a solution can be efficiently determined with open-source accessible solvers. We use the mathematical modeling language *cvxpy*. For the implementation, we defined the following states, control and disturbance variables. We also define the slack variable for a free power level before demand charge:
+As the problem is convex in objective function and constraints, a solution can be efficiently determined with open-source accessible solvers. We use the mathematical modeling language *cvxpy*. For the implementation, we defined the following states, control and disturbance(input) variables. We also define the slack variable for a free power level before demand charge:
 $\begin{align}
 x(k) &= [E_{BTMS}(k)] \\
 u(k) &= [P_{Grid}(k), P_{BTMS}(k), P_{BTMS,Ch}(k), P_{BTMS,DCh}(k)] \\
-d(k) &= [P_{Charge}(k)]\\
+i(k) &= [P_{Charge}(k)]\\
 P_{slack}
 \end{align}$
 
@@ -67,10 +67,61 @@ delivers for the same cycle
 $\begin{equation*}
 P_{BTMS,DCh}(1) = -\eta^2 P_{BTMS,Ch}(0)
 \end{equation*}$
-which represents the energy loss correctly. Likewise, we are also able to implement the cost of the energy los as
+which represents the energy loss correctly. Likewise, we are also able to implement the cost of the energy los as ($P_{BTMS,DCh} \leq 0$)
 $\begin{equation*}
-C_{loss} = c_{el} \cdot (\Sigma_{k=0}^{k=T} P_{BTMS,Ch}(k)dt - \Sigma_{k=0}^{k=T}P_{BTMS,DCh}(k)dt)
+C_{loss} = c_{el} \cdot (\Sigma_{k=0}^{k=T} P_{BTMS,Ch}(k)dt + \Sigma_{k=0}^{k=T}P_{BTMS,DCh}(k)dt)
 \end{equation*}$
 with $c_{el}$ as the electricity cost. This is only valid when assuming $E_{BTMS}(k=0) = E_{BTMS}(k=T)$.
 
 ## 2. Level: Optimal day-ahead/long-term plan
+
+in *planning()*:
+
+$\begin{equation}
+\begin{aligned} 
+\min \quad a \cdot (P_{slack} - P_{free}) + b \cdot \Sigma_{k=0}^{T} P_{BTMS,Ch}(k)dt + c \cdot (\Sigma_{k=0}^{k=T} P_{BTMS,Ch}(k)dt + \Sigma_{k=0}^{k=T}P_{BTMS,DCh}(k)dt) \\\ 
++\Sigma_{k=0}^{k=T} d(k) \cdot t_{L}(k)
+\end{aligned}
+\end{equation}$
+
+subject to:
+$\begin{align} 
+E_{BTMS}(k+1) &= E_{BTMS}(k) + dt \cdot (\eta \cdot P_{BTMS,Ch}(k) + \frac{1}{\eta}P_{BTMS,DCh}(k)) \quad &\forall k \in [0,T]\\ 
+E_{Shift}(k+1) &= E_{Shift}(k) + dt \cdot P_{Shift}(k) \\
+P_{Charge}(k) - P_{Shift}(k) &= P_{Grid}(k) - P_{BTMS}(k) \quad &\forall k \in [0,T]  \\
+P_{BTMS}(k) &= P_{BTMS,Ch}(k) + P_{BTMS,DCh}(k) \quad &\forall k \in [0,T]\\
+P_{BTMS,Ch}(k) &\geq 0 \quad &\forall k \in [0,T]\\
+P_{BTMS,DCh}(k) &\leq 0 \quad &\forall k \in [0,T]\\
+E_{BTMS}(k) &\geq 0 \quad &\forall k \in [0,T]\\
+E_{BTMS}(k) &\leq \Delta E_{BTMS} \quad &\forall k \in [0,T] \\
+t_L(k) &\geq \frac{E_{Shift}(k+1)-E_{Shift}(k)}{P_{charge,avg}} \quad &\forall k \in [0,T]\\
+t_L(k) &\geq 0 \quad &\forall k \in [0,T]\\
+E_{BTMS}(0) &= E_{BTMS}(T+1)\\
+P_{slack} &\geq \max(P_{Grid}(k))\\
+P_{slack} &\geq P_{free}\\
+\end{align}$
+We added the BTMS size $\Delta E_{BTMS}$ to the constraint, and ensured that the energy level is between this and 0. Furthermore, we set $E_{BTMS}(0) = E_{BTMS}(T+1)$ to ensure, that the BTMS isn't completly discharged in our case of a one day simulation. For real-world use, optimization for 2 or 3 days in advance might be better solution, with just using the results for the first day.
+
+Compared to the approach described in 1st level for determining BTMS-size, we added the ability to shift charging power, i.e. to increase charging time of vehicles. For this, we increase the state of shifted energy $E_{Shift}$ which serves as a stock for the shifted power and has an equal defintion of the earlier introduced energy lag. In order to be able to assign a meaningful cost to shifting energy, we value the cost of waiting time increase of vehicles (see equation 27). Each time the shifted energy increases, additional waiting time is necessary, which can be determined by the additional shifted energy divided by the average charge power of a vehicle $P_{charge,avg}$. If the shifted energy stays the same or is reduced, there is no additional waiting time necessary. The cost-function parameter $d(k)$ is defined for every timestep, so that e.g. higher waiting time cost at ride-hailing peak-demand times could be implemented, to further prioritize having enough available charging power at these times. 
+
+**remark**: We might have to add a constraint to ensure that the shifted energy doesn't blow up, but ideally, the cost function should do this.
+
+We define our state, control, disturbance and slack variables as:
+$\begin{align}
+x(k) &= [E_{BTMS}(k), E_{Shift}(k)]\\
+u(k) &= [P_{Grid}(k), P_{BTMS}(k), P_{BTMS,Ch}(k), P_{BTMS,DCh}(k), P_{Shift}(k)] \\
+i(k) &= [P_{Charge}(k)]\\
+P_{slack}&, t_L
+\end{align}$
+
+From this, we can obtain a trajectory for the desired Energy Level in the behind the meter storage. From this, we determine a load band with a 5% upper and lower deviations of the BTMS-size $\Delta E_{BTMS}$. We apply the min- and max-function to ensure, that we don't exceed storage size with this.
+
+$\begin{align}
+E_{BTMS,traj,lower}(k) &= \max([0\text{kWh}, E_{BTMS}(k)-0.05\Delta E_{BTMS}])\\
+E_{BTMS,traj,upper}(k) &= \min([\Delta E_{BTMS}, E_{BTMS}(k)+0.05\Delta E_{BTMS}])
+\end{align}$
+
+**Option**: We could also include predictions for power grid constraints like
+$$\begin{equation*}
+P_{Grid}(k) \leq P_{Grid,Limit,pred}(k) \quad \forall k \in [0,T] 
+\end{equation*}$$
