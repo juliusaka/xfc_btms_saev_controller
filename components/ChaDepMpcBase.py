@@ -158,8 +158,8 @@ class ChaDepMpcBase(ChaDepParent):
         # define variables 
         x = cp.Variable((2, T+1))
         u = cp.Variable((5, T))
-        t_lag = cp.Variable((1,T)) # slack variable for time lag
-        p_gridSlack = cp.Variable((1,1)) # slack variable to determine demand charge with free demand charge level, e.g. if p_max > 20kW, demand charge applied
+        t_lag = cp.Variable((1,T))          # slack variable for time lag
+        p_gridSlack = cp.Variable((1,1))    # slack variable to determine demand charge with free demand charge level, e.g. if p_max > 20kW, demand charge applied
         
         # define disturbance i_power, which is the charging power demand
         time = np.array(self.PredictionTime)
@@ -186,17 +186,22 @@ class ChaDepMpcBase(ChaDepParent):
         for k in range(T):
             constr += [x[0,k+1] == x[0,k] + ts * eta * u[2,k] + ts * 1/eta * u[3,k], # BTMS equation
                         x[1,k+1] == x[1,k] + ts * u[4,k], # shifted energy equation
-                        i_power[k] - u[4,k] == u[0,k] - u[1,k], # energy flow equation
+                        u[0,k] - u[1,k] == i_power[k] - u[4,k], # energy flow equation
                         u[1,k] == u[2,k] + u[3,k], # P_BTMS is sum of charge and discharge
                         u[2,k] >= 0, # charging power always positive
-                        u[3,k] <= 0, # discharge power always negative^
-                        x[0,k] >= 0, # lower limit of BTMS size
-                        x[0,k] <= self.BtmsSize, # upper limit of BTMS size
+                        u[3,k] <= 0, # discharge power always negative
                         t_lag[0,k] >= (x[1,k+1]-x[1,k])/P_ChargeAvg, #time lag is the increase in energy lag
                         t_lag[0,k] >= 0 # lower bound of time lag.
                         ]
+        for k in range(T+1):
+            constr += [x[0,k] >= 0, # lower limit of BTMS size
+                        x[0,k] <= self.BtmsSize, # upper limit of BTMS size
+                        x[1,k] >= 0,  # shifted energy is only a positive bin
+                        ]
         # insert initial constraint, bound BTMS size and define free power level
         constr +=  [x[0,0] == x[0,T], # ensure not to discharge BTMS to minimize cost function
+                    x[1,0] == 0, #set shifted Energy at beginning to zero
+                    x[1,T] == 0, #shifted energy should be zero at end
                     p_gridSlack >= cpmax(u[0,:]),
                     p_gridSlack >= P_free,
                     ]
@@ -211,15 +216,26 @@ class ChaDepMpcBase(ChaDepParent):
         prob.solve()
 
         # determine BTMS size and unpack over values
-        btms_size = np.max(x.value) - np.min(x.value)
         P_Grid = u[0,:].value
         P_BTMS = u[1,:].value
-        E_BTMS = x[0,:-1].value
+        E_BTMS = x[0,:].value
+        E_Shift = x[1,:].value
         P_Charge = i_power
+        P_Shift = u[4,:].value
         P_BTMS_Ch = u[2,:].value
         P_BTMS_DCh = u[3,:].value
+        t_lag = t_lag[0,:].value
         cost = prob.value
-        pass
+
+        # print solver stats
+        print(self.ChargingStationId)
+        print('solver name: ',prob.solver_stats.solver_name)
+        print('setup time: ',prob.solver_stats.setup_time)
+        print('solve time: ',prob.solver_stats.solve_time)
+        print(prob.status)
+        print('')
+
+        return time, P_Grid, P_BTMS, P_BTMS_Ch, P_BTMS_DCh, E_BTMS, E_Shift, P_Charge, P_Shift, t_lag, cost
 
     def step(self, timestep):
 
