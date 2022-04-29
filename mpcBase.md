@@ -77,14 +77,12 @@ with $c_{el}$ as the electricity cost. This is only valid when assuming $E_{BTMS
 
 ## 2. Level: Optimal day-ahead/long-term plan
 
-### convex option
-
 in *planning()*:
 
 $\begin{equation}
 \begin{aligned}
 \min \quad a \cdot (P_{slack} - P_{free}) + b \cdot \Sigma_{k=0}^{T} P_{BTMS,Ch}(k)dt + c \cdot (\Sigma_{k=0}^{k=T} P_{BTMS,Ch}(k)dt + \Sigma_{k=0}^{k=T}P_{BTMS,DCh}(k)dt) \\\
-+\Sigma_{k=0}^{k=T} d(k) \cdot E_{Shift}(k)
++\Sigma_{k=0}^{k=T+1} d(k) \cdot t_{wait}(k)
 \end{aligned}
 \end{equation}$
 
@@ -96,17 +94,21 @@ P_{Charge}(k) - P_{Shift}(k) &= P_{Grid}(k) - P_{BTMS}(k) \quad &\forall k \in [
 P_{BTMS}(k) &= P_{BTMS,Ch}(k) + P_{BTMS,DCh}(k) \quad &\forall k \in [0,T]\\
 P_{BTMS,Ch}(k) &\geq 0 \quad &\forall k \in [0,T]\\
 P_{BTMS,DCh}(k) &\leq 0 \quad &\forall k \in [0,T]\\
-E_{BTMS}(k) &\geq 0 \quad &\forall k \in [0,T]\\
-E_{BTMS}(k) &\leq \Delta E_{BTMS} \quad &\forall k \in [0,T] \\
-E_{Shift}(k) &\geq 0 \quad &\forall k \in [0,T]\\
+t_{wait}(k) &\geq dt \cdot (n_a(k) +n_b(k)) &\forall k \in [0,T] \\
+n_a(k) &\geq \frac{E_{Shift}(k)}{P_{ch,avg} \cdot dt} &\forall k \in [0,T] \\
+n_b(k) &\geq \frac{P_{Shift}(k)}{P_{ch,avg}} &\forall k \in [0,T] \\
+n_b(k) &\geq 0 &\forall k \in [0,T]\\
+E_{BTMS}(k) &\geq 0 \quad &\forall k \in [0,T+1]\\
+E_{BTMS}(k) &\leq \Delta E_{BTMS} \quad &\forall k \in [0,T+1] \\
+E_{Shift}(k) &\geq 0 \quad &\forall k \in [0,T+1]\\
 E_{BTMS}(0) &= E_{BTMS}(T+1)\\
 E_{Shift}(0) &= 0\\
 P_{slack} &\geq \max(P_{Grid}(k))\\
 P_{slack} &\geq P_{free}\\
 \end{align}$
-We added the BTMS size $\Delta E_{BTMS}$ to the constraint, and ensured that the energy level is between this and 0. Furthermore, we set $E_{BTMS}(0) = E_{BTMS}(T+1)$ to ensure, that the BTMS isn't completly discharged in our case of a one day simulation. For real-world use, optimization for 2 or 3 days in advance might be better solution, with just using the results for the first day.
+We added the BTMS size $\Delta E_{BTMS}$ to the constraint, and ensured that the energy level is between this and 0. Furthermore, we set $E_{BTMS}(0) = E_{BTMS}(T+1)$ to ensure that the BTMS isn't completly discharged in our case of a one day simulation. For real-world usage, optimization for 2 or 3 days in advance might be better solution, with just using the results for the first day.
 
-Compared to the approach described in 1st level for determining BTMS-size, we added the ability to shift charging power, i.e. to increase charging time of vehicles. For this, we increase the state of shifted energy $E_{Shift}$ which serves as a stock for the shifted power and has an equal defintion of the earlier introduced energy lag. The value $E_{Shift}(k)$ is penalized in the cost-function with the tuning parameter $d(k)$. This parameter $d(k)$ is defined for every timestep, so that e.g. higher waiting time cost at ride-hailing peak-demand times could be implemented, to further prioritize having enough available charging power at these times. Unfortunately, it is not possible to assign a real-world, monetary value to the parameter $d$ while maintaining a convex problem, because it can't be translated into increased waiting times without further logical function.
+Compared to the approach described in 1st level for determining BTMS-size, we added the ability to shift charging power, i.e. to decrease charging speed of vehicles. For this, we increase the state of shifted energy $E_{Shift}$ which serves as a stock for the shifted power and has an equal defintion of the earlier introduced energy lag. We then derive from the shifted energy the generated charging time $t_{wait}$, which can be penalized with the tuning parameter $d(k)$. This parameter $d(k)$ is defined for every timestep, so that e.g. higher waiting time cost at ride-hailing peak-demand times could be implemented, to further prioritize having enough available charging power at these times. Please look down in the document to understand, how we dervie the waiting time.
 
 **remark**: We might have to add a constraint to ensure that the shifted energy does match 0 at the end, but ideally, the cost function should do this (e.g. $E_{Shift}(T) = 0$).
 
@@ -115,7 +117,7 @@ $\begin{align}
 x(k) &= [E_{BTMS}(k), E_{Shift}(k)]\\
 u(k) &= [P_{Grid}(k), P_{BTMS}(k), P_{BTMS,Ch}(k), P_{BTMS,DCh}(k), P_{Shift}(k)] \\
 i(k) &= [P_{Charge}(k)]\\
-P_{slack}
+P_{slack}(k), & t_{wait}(k), n(k) = [n_a(k), n_b(k)]
 \end{align}$
 
 From this, we can obtain a trajectory for the desired Energy Level in the behind the meter storage. From this, we determine a load band with a 5% upper and lower deviations of the BTMS-size $\Delta E_{BTMS}$. We apply the min- and max-function to ensure, that we don't exceed storage size with this.
@@ -130,84 +132,37 @@ $$\begin{equation*}
 P_{Grid}(k) \leq P_{Grid,Limit,pred}(k) \quad \forall k \in [0,T]
 \end{equation*}$$
 
-### mixed-integer, non-convex option
+### explanation of waiting time
 
-in *planning2()*:
+The waiting at the charging station is the result of 2 values:
 
-In this approach, we aim to determine increased waiting times for vehicles. The resulting problems is a mixed-integer and non-convex optimization problem. In order to correctly determine the increased waiting time, integer-based, logical formulations are necessary.
-
-We can differentiate between to reasons for waiting time
-
-- waiting time due to load shifting $P_{Shift}(k)$. For one timestep, we can determine the sum of associated waiting time increase for individual vehicles due to load shifting as $t_{Shift}(k) \geq \frac{P_{Shift}(k) \cdot dt}{P_{ch,avg}}$, where $P_{ch,avg}$ is the average charging power of one vehicle. We only count the increase of waiting time and set $t_{Shift}(k) \geq 0$.
-- waiting time increase due to idling, i.e. not supplying additional power to adress the waiting time problem. This is depicted in the figure as $t_{idle}(k)$. We will calculate this as the sum of timesteps for which the condition $P_{Shift}(k) =0$ and $E_{Shift}(k) > 0$ is true. To check this condition, logical constraint modeling is necessary, for which we use multiple integer-based variables $y_i(k) \in [0,1]$.
+- a) waiting time due to already shifted energy at time $k$
+- b) waiting time due to shifted energy at time $k$
 
 <img src="informations/04_18_22 MPC types.png" alt="explanation of waiting time" style="height: 400px;"/>
 
-The optimization Problem can be formulated as
-
+For a), the number of vehicles which is resembled by the already shifted energy $E_{Shift}$ can be calculated as:
 $\begin{equation}
-\begin{aligned}
-\min \quad a \cdot (P_{slack} - P_{free}) + b \cdot \Sigma_{k=0}^{T} P_{BTMS,Ch}(k)dt + c \cdot (\Sigma_{k=0}^{k=T} P_{BTMS,Ch}(k)dt + \Sigma_{k=0}^{k=T}P_{BTMS,DCh}(k)dt) \\\
-+\Sigma_{k=0}^{k=T} d(k) \cdot (t_{Shift}(k)+t_{idle}(k))
-\end{aligned}
-\end{equation}$
-where we directly replace
+n_a(k) = \frac{E_{Shift}(k)}{P_{ch,avg} \cdot dt}
+\end{equation}$ 
+
+For b), the number of vehicles which is resembled by the newly shifted energy $P_{Shift}\cdot dt$ can be calculated as
 $\begin{equation}
-t_{idle}(k) = dt \cdot y_5(k) \quad \text{with } y_5(k) \in[0,1]
-\end{equation}$
+n_b(k) = \frac{P_{Shift}(k)\cdot dt}{P_{ch,avg}\cdot dt}
+\end{equation}$ 
+which is valid for the case $P_{Shift}(k)\geq0$. If $P_{Shift}(k)<0$, the vehicles are released at the end of the timestep, so that they are within the timestep still at the charging station, which means we have to add a constraint that $n_b(k) \geq 0$.
 
-subject to:
-$\begin{align}
-E_{BTMS}(k+1) &= E_{BTMS}(k) + dt \cdot (\eta \cdot P_{BTMS,Ch}(k) + \frac{1}{\eta}P_{BTMS,DCh}(k)) \quad &\forall k \in [0,T]\\
-E_{Shift}(k+1) &= E_{Shift}(k) + dt \cdot P_{Shift}(k) \\
-P_{Charge}(k) - P_{Shift}(k) &= P_{Grid}(k) - P_{BTMS}(k) \quad &\forall k \in [0,T]  \\
-P_{BTMS}(k) &= P_{BTMS,Ch}(k) + P_{BTMS,DCh}(k) \quad &\forall k \in [0,T]\\
-P_{BTMS,Ch}(k) &\geq 0 \quad &\forall k \in [0,T]\\
-P_{BTMS,DCh}(k) &\leq 0 \quad &\forall k \in [0,T]\\
-E_{BTMS}(k) &\geq 0 \quad &\forall k \in [0,T]\\
-E_{BTMS}(k) &\leq \Delta E_{BTMS} \quad &\forall k \in [0,T] \\
-E_{Shift}(k) &\geq 0 \quad &\forall k \in [0,T]\\
-t_{Shift}(k) &\geq \frac{P_{Shift}\cdot dt}{P_{ch,avg}} \quad &\forall k \in [0,T]\\
-t_{Shift}(k) &\geq 0 \quad &\forall k \in [0,T]\\
-E_{BTMS}(0) &= E_{BTMS}(T+1)\\
-E_{Shift}(0) &= 0\\
-P_{slack} &\geq \max(P_{Grid}(k))\\
-P_{slack} &\geq P_{free}\\
-\end{align}$
+The total waiting time increase during one time step is then
+$\begin{equation}
+t_{wait}(k) = dt \cdot (n_a(k) +n_b(k))
+\end{equation}$ 
 
-To add the logical constraints, which are nessary to determine $y_5$, we include the following integer-constraints (all $y_i \in [0,1]$):
-$$\begin{align}
-M_1\cdot y_0(k) &\geq E_{Shift}(k) \quad \quad &\forall k \in [0,T]\\
-P_{Shift}(k) &\leq M_2 \cdot y_1(k) &\forall k \in [0,T]\\
-P_{Shift}(k) &\geq -M_2 \cdot y_2(k) &\forall k \in [0,T]\\
-2 \cdot y_3(k)-(y_1(k)-y_2(k)) &\geq 0 &\forall k \in [0,T]\\
-y_4(k) +y_3(k) &\geq 1 &\forall k \in [0,T]\\
-y_5(k)- (y_4(k)+y_0(k)) &\geq -1 &\forall k \in [0,T]
-\end{align}$$
-
-The first equation determines with the "Big-M"-method, if the $E_{Shift}$ is greater then 0, because only then additional waiting time is introduced. The two next equations determines in $y_1$ and $y_2$  if $P_{Shift}$ is either greater or smaller then 0. Then the fourth equation is a logical or. If both of $y_1$ and $y_2$ are false, $P_{Shift}=0$ and $y_3$ is false. The fifth equation determines the inverse $y_4$ which is true for $P_{Shift}(k)=0$. The last equations is a logical and and checks if the shifted energy is greater than 0 and $P_{Shift}=0$, which is exactly the case when the charging process is producing an idle time $t_{idle}$, like depicted in the figure. For this case, $y_5$ is finally set to $1$.
-
-The logical constraints are taken from [Desmond C. Ong's Website](https://desmond-ong.github.io/stats-notes/logical-constraints.html) and tested for consitency.
-
-**remark**: We might have to add a constraint to ensure that the shifted energy does match 0 at the end, but ideally, the cost function should do this (e.g. $E_{Shift}(T) = 0$).
-
-We define our state, control, disturbance and slack variables as:
-$\begin{align}
-x(k) &= [E_{BTMS}(k), E_{Shift}(k)]\\
-u(k) &= [P_{Grid}(k), P_{BTMS}(k), P_{BTMS,Ch}(k), P_{BTMS,DCh}(k), P_{Shift}(k)] \\
-y(k) &= [y_0(k),y_1(k),y_2(k),y_3(k),y_4(k),y_5(k)] \quad \text{with } y_i \in [0,1]\\
-i(k) &= [P_{Charge}(k)]\\
-P_{slack}
-\end{align}$
-
-From this, we can obtain a trajectory for the desired Energy Level in the behind the meter storage. From this, we determine a load band with a 5% upper and lower deviations of the BTMS-size $\Delta E_{BTMS}$. We apply the min- and max-function to ensure, that we don't exceed storage size with this.
+To express this as constraints of the minimization problem, we write
 
 $\begin{align}
-E_{BTMS,traj,lower}(k) &= \max([0\text{kWh}, E_{BTMS}(k)-0.05\Delta E_{BTMS}])\\
-E_{BTMS,traj,upper}(k) &= \min([\Delta E_{BTMS}, E_{BTMS}(k)+0.05\Delta E_{BTMS}])
+t_{wait}(k) &\geq dt \cdot (n_a(k) +n_b(k))\\
+n_a(k) &\geq \frac{E_{Shift}(k)}{P_{ch,avg} \cdot dt} \\
+n_b(k) &\geq \frac{P_{Shift}(k)\cdot dt}{P_{ch,avg}\cdot dt}\\
+n_b(k) &\geq 0
 \end{align}$
 
-**Option**: We could also include predictions for power grid constraints like
-$$\begin{equation*}
-P_{Grid}(k) \leq P_{Grid,Limit,pred}(k) \quad \forall k \in [0,T]
-\end{equation*}$$

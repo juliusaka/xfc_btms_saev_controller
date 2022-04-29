@@ -14,6 +14,7 @@ below, there is a list of important used packages:
 
 - **dask**: used for processing the large output-csv for the independent controller developement framework
 - **numpy**
+- **PySCIPOpt**: for solving mixed integer optimization problems. Here is the [GitHub](https://github.com/scipopt/PySCIPOpt). 
 
 ## Units
 
@@ -87,7 +88,7 @@ before the first step, an initilization function can be called:
 
 - updateFromPhySim: updates the CES Soc based on the output of the physical Simulation. *not used so far to prevent mistakes for debugging*
 
-- chBaInit, chBaActiveCharges, chBaAdd, chBaReleaseThreshold: This are classes to handle the fact, that a list with the same length than number of charging plugs is needed. ChBaInit initializes this array and sets all elements to False, which means that no vehicle is present. ChBaAdd adds an vehicle to the first available charging bay, chBaReleaseThreshold releases vehicles which are fully charged.
+- chBaInit, chBaActiveCharges, chBaAdd, chBaReleaseThreshold: This are classes to handle the fact, that a list with the same length than number of charging plugs is needed. ChBaInit initializes this array and sets all elements to False, which means that no vehicle is present. ChBaAdd adds an vehicle to the first available charging bay, chBaReleaseThreshold releases vehicles which are fully charged.   
 
 
 ### subclasses of ChaDepParent:

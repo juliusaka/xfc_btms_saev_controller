@@ -3,6 +3,7 @@ from components import ChaDepParent
 import numpy as np
 import cvxpy as cp
 import cvxpy.atoms.max as cpmax
+import time as time_module
 
 class ChaDepMpcBase(ChaDepParent):
     '''see mpcBase.md for explanations'''
@@ -150,7 +151,7 @@ class ChaDepMpcBase(ChaDepParent):
 
         return time, btms_size, P_Grid, P_BTMS, P_BTMS_Ch, P_BTMS_DCh, E_BTMS, P_Charge, cost
 
-    def planning(self, t_act, t_max, timestep, a, b, c, d_param, P_free, P_ChargeAvg):
+    def planning(self, t_act, t_max, timestep, a, b, c, d_param, P_free, P_ChargeAvg, cRating=100):
         '''see mpcBase.md for explanations'''
         # vector lengthes
         T = int(np.floor((t_max - t_act) / timestep))
@@ -158,8 +159,9 @@ class ChaDepMpcBase(ChaDepParent):
         # define variables 
         x = cp.Variable((2, T+1))
         u = cp.Variable((5, T))
-        t_lag = cp.Variable((1,T))          # slack variable for time lag
         p_gridSlack = cp.Variable((1,1))    # slack variable to determine demand charge with free demand charge level, e.g. if p_max > 20kW, demand charge applied
+        t_wait = cp.Variable((1,T))
+        n = cp.Variable((2,T))
         
         # define disturbance i_power, which is the charging power demand
         time = np.array(self.PredictionTime)
@@ -173,7 +175,7 @@ class ChaDepMpcBase(ChaDepParent):
 
         #create array for cost-function parameter d
         d = []
-        for i in range(len(i_power)):
+        for i in range(len(i_power)+1):
             d.append(d_param)
 
         #parameters
@@ -190,8 +192,119 @@ class ChaDepMpcBase(ChaDepParent):
                         u[1,k] == u[2,k] + u[3,k], # P_BTMS is sum of charge and discharge
                         u[2,k] >= 0, # charging power always positive
                         u[3,k] <= 0, # discharge power always negative
-                        t_lag[0,k] >= (x[1,k+1]-x[1,k])/P_ChargeAvg, #time lag is the increase in energy lag
-                        t_lag[0,k] >= 0 # lower bound of time lag.
+                        t_wait[0,k] >= ts *( n[0,k] +n[1,k]),
+                        n[0,k] >= x[1,k]/(P_ChargeAvg * ts),
+                        n[1,k] >= u[4,k] / P_ChargeAvg,
+                        n[0,k] >= 0,
+                        ]
+
+        # btms power limits
+        if cRating != None:
+            for k in range(T):
+                constr += [u[2,k] <= cRating*self.BtmsSize, # upper power limit,
+                            u[3,k] >= -cRating*self.BtmsSize, # discharge power always negative
+                            ]
+
+        for k in range(T+1):
+            constr += [x[0,k] >= 0, # lower limit of BTMS size
+                        x[0,k] <= self.BtmsSize, # upper limit of BTMS size
+                        x[1,k] >= 0,  # shifted energy is only a positive bin
+                        ]
+        # insert initial constraint, bound BTMS size and define free power level
+        constr +=  [x[0,0] == x[0,T], # ensure not to discharge BTMS to minimize cost function
+                    x[1,0] == 0, #set shifted Energy at beginning to zero
+                    x[1,T] == 0, #shifted energy should be zero at end
+                    p_gridSlack >= cpmax(u[0,:]),
+                    p_gridSlack >= P_free,
+                    ]
+        
+        # define cost-funciton
+        cost = a * (p_gridSlack - P_free) # demand charg
+        for k in range(T):       # cost of btms degradation and cost of energy loss
+            cost += (b+c) * u[2,k] * ts + c * u[3,k] * ts + d[k] * t_wait[0,k]
+
+        # solve the problem
+        prob = cp.Problem(cp.Minimize(cost), constr)
+        prob.solve()
+
+        # determine BTMS size and unpack over values
+        P_Grid = u[0,:].value
+        P_BTMS = u[1,:].value
+        E_BTMS = x[0,:].value
+        E_Shift = x[1,:].value
+        P_Charge = i_power
+        P_Shift = u[4,:].value
+        P_BTMS_Ch = u[2,:].value
+        P_BTMS_DCh = u[3,:].value
+        t_wait_val = t_wait[0,:].value
+        cost_t_wait = 0
+        for k in range(len(t_wait_val)):
+            cost_t_wait += d[k] * t_wait_val[k]
+        cost = prob.value
+
+        # print solver stats
+        print(self.ChargingStationId)
+        print('solver name: ',prob.solver_stats.solver_name)
+        print('setup time: ',prob.solver_stats.setup_time)
+        print('solve time: ',prob.solver_stats.solve_time)
+        print(prob.status)
+        print('')
+
+        return time, P_Grid, P_BTMS, P_BTMS_Ch, P_BTMS_DCh, E_BTMS, E_Shift, P_Charge, P_Shift, t_wait_val, cost_t_wait, cost
+
+    def planningNonLinear(self, t_act, t_max, timestep, a, b, c, d_param, P_free, P_ChargeAvg):
+        '''see mpcBase.md for explanations'''
+        # vector lengthes
+        T = int(np.floor((t_max - t_act) / timestep))
+
+        # define variables 
+        x = cp.Variable((2, T+1))
+        u = cp.Variable((5, T))
+        y = cp.Variable((6,T), boolean = True)
+        p_gridSlack = cp.Variable((1,1))    # slack variable to determine demand charge with free demand charge level, e.g. if p_max > 20kW, demand charge applied
+        t_shift = cp.Variable((1,T))
+        
+        # define disturbance i_power, which is the charging power demand
+        time = np.array(self.PredictionTime)
+        power = np.array(self.PredictionPower)
+        idx = np.logical_and(time >=t_act, time <= t_max)
+        i_power = power[idx]
+        if len(i_power) != T:
+            print("length d", len(i_power))
+            print("length T", T)
+            raise ValueError("length T and length of vector d are unequal")
+
+        #create array for cost-function parameter d
+        d = []
+        for i in range(len(i_power)+1):
+            d.append(d_param)
+
+        # choose big M
+        M = 1e5
+
+        #parameters
+        ts = timestep / 3.6e3
+        eta = self.BtmsEfficiency
+
+        # tuning parameters
+        constr = []
+        # define constraints
+        for k in range(T):
+            constr += [x[0,k+1] == x[0,k] + ts * eta * u[2,k] + ts * 1/eta * u[3,k], # BTMS equation
+                        x[1,k+1] == x[1,k] + ts * u[4,k], # shifted energy equation
+                        u[0,k] - u[1,k] == i_power[k] - u[4,k], # energy flow equation
+                        u[1,k] == u[2,k] + u[3,k], # P_BTMS is sum of charge and discharge
+                        u[2,k] >= 0, # charging power always positive
+                        u[3,k] <= 0, # discharge power always negative
+                        t_shift[0,k] >= u[4,k] * ts / P_ChargeAvg,
+                        t_shift[0,k] >= 0,
+                        # now the logical constraints
+                        M * y[0,k] >= x[0,k],
+                        u[4,k] <= M * y[1,k],
+                        u[4,k] >= -M * y[2,k],
+                        2 * y[3,k] - (y[1,k] + y[2,k]) >= 0,
+                        y[4,k] +y[3,k ]>= 1,
+                        y[5,k] - (y[4,k] +y[0,k]) >= -1,
                         ]
         for k in range(T+1):
             constr += [x[0,k] >= 0, # lower limit of BTMS size
@@ -209,11 +322,13 @@ class ChaDepMpcBase(ChaDepParent):
         # define cost-funciton
         cost = a * (p_gridSlack - P_free) # demand charg
         for k in range(T):       # cost of btms degradation and cost of energy loss
-            cost += (b+c) * u[2,k] * ts + c * u[3,k] * ts + d[k] * t_lag[0,k] # u[3,k] is always negative
+            cost += (b+c) * u[2,k] * ts + c * u[3,k] * ts + d[k] * (t_shift[0,k] + ts * y[5,k]) # u[3,k] is always negative
 
         # solve the problem
         prob = cp.Problem(cp.Minimize(cost), constr)
+        start_time = time_module.time()
         prob.solve()
+        end_time = time_module.time()
 
         # determine BTMS size and unpack over values
         P_Grid = u[0,:].value
@@ -224,18 +339,20 @@ class ChaDepMpcBase(ChaDepParent):
         P_Shift = u[4,:].value
         P_BTMS_Ch = u[2,:].value
         P_BTMS_DCh = u[3,:].value
-        t_lag = t_lag[0,:].value
         cost = prob.value
+        t_shift_val = t_shift[0,:].value
+        y5 = y[5,:].value
+        y = y[:,:].value
 
         # print solver stats
         print(self.ChargingStationId)
         print('solver name: ',prob.solver_stats.solver_name)
         print('setup time: ',prob.solver_stats.setup_time)
-        print('solve time: ',prob.solver_stats.solve_time)
+        print('solve time: ',end_time - start_time)
         print(prob.status)
         print('')
 
-        return time, P_Grid, P_BTMS, P_BTMS_Ch, P_BTMS_DCh, E_BTMS, E_Shift, P_Charge, P_Shift, t_lag, cost
+        return time, P_Grid, P_BTMS, P_BTMS_Ch, P_BTMS_DCh, E_BTMS, E_Shift, P_Charge, P_Shift, t_shift_val, y5, y,cost
 
     def step(self, timestep):
 
