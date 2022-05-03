@@ -1,3 +1,4 @@
+from typing import List
 import components
 from components import ChaDepParent
 import numpy as np
@@ -152,6 +153,7 @@ class ChaDepMpcBase(ChaDepParent):
         return time, btms_size, P_Grid, P_BTMS, P_BTMS_Ch, P_BTMS_DCh, E_BTMS, P_Charge, cost
 
     def planning(self, t_act, t_max, timestep, a, b, c, d_param, P_free, P_ChargeAvg, cRating=100):
+        time_start = time_module.time()
         '''see mpcBase.md for explanations'''
         # vector lengthes
         T = int(np.floor((t_max - t_act) / timestep))
@@ -169,14 +171,21 @@ class ChaDepMpcBase(ChaDepParent):
         idx = np.logical_and(time >=t_act, time <= t_max)
         i_power = power[idx]
         if len(i_power) != T:
-            print("length d", len(i_power))
+            print("length i_power", len(i_power))
             print("length T", T)
-            raise ValueError("length T and length of vector d are unequal")
+            raise ValueError("length T and length of vector i_power are unequal")
 
         #create array for cost-function parameter d
-        d = []
-        for i in range(len(i_power)+1):
-            d.append(d_param)
+        if type(d_param) != list:
+            d = []
+            for i in range(len(i_power)+1):
+                d.append(d_param)
+        else:
+            d = d_param
+            if len(d) != T:
+                print("length d", len(d))
+                print("length T", T)
+                raise ValueError("length T and length of vector d are unequal")
 
         #parameters
         ts = timestep / 3.6e3
@@ -222,10 +231,16 @@ class ChaDepMpcBase(ChaDepParent):
         cost = a * (p_gridSlack - P_free) # demand charg
         for k in range(T):       # cost of btms degradation and cost of energy loss
             cost += (b+c) * u[2,k] * ts + c * u[3,k] * ts + d[k] * t_wait[0,k]
+        
+        print(d)
+
+        time_end1 = time_module.time()
 
         # solve the problem
         prob = cp.Problem(cp.Minimize(cost), constr)
         prob.solve()
+
+        time_end2=time_module.time()
 
         # determine BTMS size and unpack over values
         P_Grid = u[0,:].value
@@ -245,8 +260,9 @@ class ChaDepMpcBase(ChaDepParent):
         # print solver stats
         print(self.ChargingStationId)
         print('solver name: ',prob.solver_stats.solver_name)
-        print('setup time: ',prob.solver_stats.setup_time)
-        print('solve time: ',prob.solver_stats.solve_time)
+        print('setup time: ',time_end1-time_start)
+        print('solve time: ',time_end2-time_end1)
+        print('total control action time: ', time_end2-time_start)
         print(prob.status)
         print('')
 

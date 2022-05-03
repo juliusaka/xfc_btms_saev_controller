@@ -19,7 +19,7 @@ subject to:
 $\begin{align}
 E_{BTMS}(k+1) &= E_{BTMS}(k) + dt \cdot (\eta \cdot P_{BTMS,Ch}(k) + \frac{1}{\eta}P_{BTMS,DCh}(k)) \quad &\forall k \in [0,T]\\
 P_{Charge}(k) &= P_{Grid}(k) - P_{BTMS}(k) \quad &\forall k \in [0,T]  \\
-P_{BTMS}(k) &= P_{BTMS,Ch}(k) + P_{BTMS,DCh}(k) \quad &\forall k \in [0,T]\\
+c &= P_{BTMS,Ch}(k) + P_{BTMS,DCh}(k) \quad &\forall k \in [0,T]\\
 P_{BTMS,Ch}(k) &\geq 0 \quad &\forall k \in [0,T]\\
 P_{BTMS,DCh}(k) &\leq 0 \quad &\forall k \in [0,T]\\
 E_{BTMS}(0) &= E_{BTMS}(T+1)\\
@@ -43,6 +43,8 @@ P_{slack}
 With this formulization, the BTMS-size is determined as $\max(E_{BTMS}) - \min(E_{BTMS})$. The maximum power delivery of the BTMS is unconstrained and can therefore reach high C-Ratings, especially when you choose high BTMS cycle cost compared to demand charges. Integrating a C-Rating into this optimization problem leads to a non-convex formulization which would have to be solved with a less efficient solver and isn't guarenteed to be globally optimal. As we try to assess future scenarios, higher C-ratings are probably possible, so that this shouldn't be off to much concern for us.
 
 After determining the BTMS-size for unconstrained charging, it is possible to reduce the size to e.g. assess the impact of this on SAEV-fleets.
+
+**option**: We might add a constraint to implement a maximal C-Rating of the BTMS. Need to investigate if problem is still convex then.
 
 ### correct implementation of charging losses
 
@@ -110,8 +112,6 @@ We added the BTMS size $\Delta E_{BTMS}$ to the constraint, and ensured that the
 
 Compared to the approach described in 1st level for determining BTMS-size, we added the ability to shift charging power, i.e. to decrease charging speed of vehicles. For this, we increase the state of shifted energy $E_{Shift}$ which serves as a stock for the shifted power and has an equal defintion of the earlier introduced energy lag. We then derive from the shifted energy the generated charging time $t_{wait}$, which can be penalized with the tuning parameter $d(k)$. This parameter $d(k)$ is defined for every timestep, so that e.g. higher waiting time cost at ride-hailing peak-demand times could be implemented, to further prioritize having enough available charging power at these times. Please look down in the document to understand, how we dervie the waiting time.
 
-**remark**: We might have to add a constraint to ensure that the shifted energy does match 0 at the end, but ideally, the cost function should do this (e.g. $E_{Shift}(T) = 0$).
-
 We define our state, control, disturbance and slack variables as:
 $\begin{align}
 x(k) &= [E_{BTMS}(k), E_{Shift}(k)]\\
@@ -120,11 +120,21 @@ i(k) &= [P_{Charge}(k)]\\
 P_{slack}(k), & t_{wait}(k), n(k) = [n_a(k), n_b(k)]
 \end{align}$
 
-From this, we can obtain a trajectory for the desired Energy Level in the behind the meter storage. From this, we determine a load band with a 5% upper and lower deviations of the BTMS-size $\Delta E_{BTMS}$. We apply the min- and max-function to ensure, that we don't exceed storage size with this.
+From this, we can obtain a trajectory for the desired Energy Level in the behind the meter storage. From this, we determine a load band with $\beta$ upper and lower deviations of the BTMS-size $\Delta E_{BTMS}$. We apply the min- and max-function to ensure, that we don't exceed storage size with this.
 
 $\begin{align}
-E_{BTMS,traj,lower}(k) &= \max([0\text{kWh}, E_{BTMS}(k)-0.05\Delta E_{BTMS}])\\
-E_{BTMS,traj,upper}(k) &= \min([\Delta E_{BTMS}, E_{BTMS}(k)+0.05\Delta E_{BTMS}])
+E_{BTMS,lower}(k) &= \max([0\text{kWh}, E_{BTMS}(k)-\beta\Delta E_{BTMS}])\\
+E_{BTMS,upper}(k) &= \min([\Delta E_{BTMS}, E_{BTMS}(k)+\beta\Delta E_{BTMS}])
+\end{align}$
+
+**remark 1**: We might have to add a constraint to ensure that the shifted energy does match 0 at the end, but ideally, the cost function should do this (e.g. $E_{Shift}(T) = 0$).
+
+**remark 2**: In order to correctly way the parameters of the cost-function to each other, we assume that we optimize over one day. For that, we divide the demand charge in such a way, that it is projected to one day. e.g. if it is given for one month, we divide it by 30 days. 
+
+**remark 3**: The code also allows to add a C-Rating, which adds the constraint
+$\begin{align}
+P_{BTMS,Ch}(k) &\leq C \cdot \Delta E_{BTMS} \quad &\forall k \in [0,T]\\
+P_{BTMS,DCh}(k) &\geq C \cdot \Delta E_{BTMS} \quad &\forall k \in [0,T]\\
 \end{align}$
 
 **Option**: We could also include predictions for power grid constraints like
@@ -166,3 +176,58 @@ n_b(k) &\geq \frac{P_{Shift}(k)\cdot dt}{P_{ch,avg}\cdot dt}\\
 n_b(k) &\geq 0
 \end{align}$
 
+**draft result**: It seems like the economical value of waiting time is higher opposed to demand charges and btms cost. For example, for a waiting time cost of 1$/hour, a demand charge of 20$/kW, a BTMS cost of 200$/kWh for 5000 cycles, and an electricity price of 0.15$/kWh with an BTMS efficiency of 90%, no waiting time is considered to reduce the other factors. Only for BTMS prices of over 500$/kWh for 5000 cycles, small amounts of waiting times are considered. This preliminary result should be cross checked with more BEAM-simulation results and correct infrastructure settings, but the preliminary results show that waiting time are probably economical to avoid. Also, the argumentation about the waiting time calculation should be checked one more time if correct.
+
+## 3. Level: short horizoned model predictive control
+
+based on the preliminary finding from the previous controller, we don't design a MPC with a sophisticated wait time integration, i.e. we will just introduce one slack variable to maintain a feasible solution for all cases, if power demand of charging can't be satisfied with avaialble grid and charging power resources.
+
+In order to align with the goal to show, how control can benefit on keeping the stress low for the electric grid, we choose the objective to be a minimization of deviations of the grid power from the average.
+
+in *step()*:
+$\begin{equation}
+\begin{aligned}
+\min \quad \Sigma_{k=-1}^{N} (P_{Grid}(k) - P_{avg}(k)) + M \cdot t
+\end{aligned}
+\end{equation}$
+
+Here, $N$ is the prediction horizon of the short horizoned MPC, $M$ is a big number and $t$ is a slack variable to maintain feasibility for infeasible combinations of variable sets.
+
+subject to:
+$\begin{align}
+E_{BTMS}(k+1) &= E_{BTMS}(k) + dt \cdot (\eta \cdot P_{BTMS,Ch}(k) + \frac{1}{\eta}P_{BTMS,DCh}(k)) \quad &\forall k \in [0,N]\\
+E_{V}(k+1) &= E_{V}(k) + dt \cdot P_{Charge}(k) \quad &\forall k \in [0,N]\\
+P_{Charge}(k) &= P_{Grid}(k) - P_{BTMS}(k) \quad &\forall k \in [0,N]  \\
+P_{BTMS}(k) &= P_{BTMS,Ch}(k) + P_{BTMS,DCh}(k) \quad &\forall k \in [0,N]\\
+P_{Grid}(k) &\leq \max (P_{Grid,planning}(i)) \quad &\forall k \in [0,N]\\
+P_{Grid}(k) &\leq P_{Grid,DERMS} \quad &\forall k \in [0,N]\\
+P_{BTMS,Ch}(k) &\geq 0 \quad &\forall k \in [0,N]\\
+P_{BTMS,DCh}(k) &\leq 0 \quad &\forall k \in [0,N]\\
+P_{Charge}(k) &\geq 0 \quad &\forall k \in [0,N]\\
+E_{BTMS}(k) &\geq 0 \quad &\forall k \in [0,N+1]\\
+E_{BTMS}(k) &\leq \Delta E_{BTMS} \quad &\forall k \in [0,N+1] \\
+E_{BTMS}(k) &\geq E_{BTMS,lower}(k) \quad &\forall k \in [1,N+1]\\
+E_{BTMS}(k) &\leq E_{BTMS,lower}(k) \quad &\forall k \in [1,N+1]\\
+E_{V}(k) &\geq E_{V,lower}(k) - t\quad &\forall k \in [1,N+1]\\
+E_{V}(k) &\leq E_{V,upper}(k) \quad &\forall k \in [1,N+1]\\
+E_{BTMS}(0) &= E_{BTMS,PhySim}\\
+E_{V}(0) &= 0 \\
+\end{align}$
+
+Compared to the fomulations before, $P_{Charge}(k)$ is now a variable determined to satisfy the charging demand for Vehicles $E_{V,lower}(k)$ and $E_{V,upper}(k)$, which are determined as the sum of the vehicle object function *determineChargingTrajectory()*. They resemble an upper and lower bound for the necessary energy transfered to each vehicle. The lower bound is a trajectory which need to be fullfilled to reach the desired end in time, the upper bound is a trajectory which resemble the fastet possible charge. The time in between is allowed flexibility. We added the slack variable $t$ to the minimal needed energy to maintain feasibility for all cases. The charging power $P_{Charge}(k)$ is then distributed by the charging desire of each vehicle. (sharing power doesn't make sense to reduce waiting times. )
+
+Likewise, we added a differntial equaiton for the aggregated energy level in the vehicles $E_{V}(k)$. 
+
+We initialize each run of the short horizoned MPC with the energy level of the BTMS, which will be given from the physical simulation.
+
+To summarize the variables, we have:
+$\begin{align}
+x(k) &= [E_{BTMS}(k), E_{V}(k)]\\
+u(k) &= [P_{Grid}(k), P_{BTMS}(k), P_{BTMS,Ch}(k), P_{BTMS,DCh}(k), P_{Charge}(k)] \\
+t
+\end{align}$
+inputs to our algortihm are
+$\begin{align*}
+&\max({P_{Grid,planning(i)}}), P_{Grid,DERMS}, \Delta E_{BTMS},\\ 
+&E_{BTMS,lower}(k), E_{BTMS,lower}(k), E_{V,lower}(k), E_{V,upper}(k), E_{BTMS,PhySim}
+\end{align*}$
