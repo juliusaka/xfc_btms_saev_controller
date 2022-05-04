@@ -229,5 +229,5 @@ t_1, t_2
 inputs to our algortihm are
 $\begin{align*}
 &P_{Grid}(k=-1), \max({P_{Grid,planning(i)}}), P_{Grid,DERMS}, \Delta E_{BTMS},\\ 
-&E_{BTMS,lower}(k), E_{BTMS,lower}(k), E_{V,lower}(k), E_{V,upper}(k), E_{BTMS,PhySim}
+&E_{BTMS,lower}(k), E_{BTMS,upper}(k), E_{V,lower}(k), E_{V,upper}(k), E_{BTMS,PhySim}
 \end{align*}$

@@ -1,3 +1,5 @@
+import numpy as np
+
 class Vehicle:
     def __init__(self, VehicleId, VehicleType, VehicleArrival, VehicleDesEnd, VehicleEngy, VehicleDesEngy, VehicleMaxEngy, VehicleMaxPower, ParkingZoneId = False): # the first inputs are from Beam, the last from the vehicle file
         self.VehicleId      = VehicleId                     # vehicle id
@@ -20,10 +22,17 @@ class Vehicle:
         # print method
         return ("Vehicle with the following properties: \nVehicleId: " + str(self.VehicleId) + " VehicleType: " + str(self.VehicleType) + " Arrival: " + str(self.VehicleArrival) + " Desired End Time: " + str(self.VehicleDesEnd) + " Vehicle Energy: " + str(self.VehicleEngy) + " Desired Energy: " + str(self.VehicleDesEngy) + " SOC: " + str(self.VehicleSoc) + " Maximal Energy: " + str(self.VehicleMaxEngy) + " Max Charging Power: "  + str(self.VehicleMaxPower))
 
-    def getMaxChargingPower(self, timestep):
-        maxPowerVehicle = self.VehicleMaxPower
-        maxPowerForDesEngy = max([0, (self.VehicleDesEngy - self.VehicleEngy)/(timestep/3.6e3)]) # maximum power should be no less than 0
-        return min([maxPowerVehicle, maxPowerForDesEngy]) # the smaller value is the max power.
+    def getMaxChargingPower(self, timestep, inverse = False):
+
+        if not inverse:
+            maxPowerVehicle = self.VehicleMaxPower
+            maxPowerForDesEngy = max([0, (self.VehicleDesEngy - self.VehicleEngy)/(timestep/3.6e3)]) # maximum power should be no less than 0
+            power = min([maxPowerVehicle, maxPowerForDesEngy]) # the smaller value is the max power.
+        elif inverse:
+            maxPowerVehicle = self.VehicleMaxPower
+            powerForArrivalEngy = max([0, (self.VehicleEngy - self.VehicleEngy_Arrival)/timestep/3.6e3])
+            power = min([powerForArrivalEngy, self.VehicleMaxPower])
+        return power
     
     def addEngy(self, addedEngy):
         #addedEngy in kWh
@@ -61,4 +70,76 @@ class Vehicle:
         else:
             self.TimeLag = t_act - self.VehicleDesEnd
         return self.TimeLag
-    
+
+    def copy(self):
+        # a copy method of the vehicle, to obtain charging trajectories.
+        v = Vehicle(self.VehicleId, self.VehicleType, self.VehicleArrival, self.VehicleDesEnd, self.VehicleEngy, self.VehicleDesEngy, self.VehicleMaxEngy, self.VehicleMaxPower)
+        v.VehicleEngy_Arrival = self.VehicleEngy_Arrival
+        return v
+
+    def getChargingTrajectoryUpper(self,t_act, timestep, N):
+        # determine upper bound of vehicle energy level charging trajectory. Normalized to energy power level at time 0
+        v = self.copy()
+        traj = [0]
+        E0 = v.VehicleEngy
+        for i in range(N):
+            maxPower = v.getMaxChargingPower(timestep)
+            v.addPower(maxPower, timestep)
+            traj.append(v.VehicleEngy - E0)
+        del v
+        return traj
+
+    def getChargingTrajectoryUpper(self,t_act, timestep, N):
+        # the prediction horizon is N, but we need N+1 values for stocks (inital value + N steps)
+
+        # determine upper bound of vehicle energy level charging trajectory. Normalized to energy power level at time 0
+        v = self.copy()
+        traj = [0]
+        E0 = v.VehicleEngy
+        for i in range(N):
+            maxPower = v.getMaxChargingPower(timestep)
+            v.addPower(maxPower, timestep)
+            traj.append(v.VehicleEngy - E0)
+        del v
+        return traj
+
+    def getChargingTrajectoryLower(self,t_act, timestep, N):
+        # this gives back both lower and upper trajectory, as we need the upper trajectory to check the lower. 
+        # determine lower bound of vehicle energy level charging trajectory. Normalized to energy power level at time 0
+        v = self.copy()
+        traj = [0]
+        # set energy level to desired energy
+        v.VehicleEngy = v.VehicleDesEngy
+
+        # if we are already over the desired end time, we just have to charge with maximal power
+        if t_act >= v.VehicleDesEnd:
+            traj = self.getChargingTrajectoryUpper(t_act, timestep, N)
+        else:
+            traj_inv = [] #trajectory is inversed if we go back in time
+            k = np.ceil((self.VehicleDesEnd - t_act)/timestep) # number of timestep from end to charging to beginning
+            if k < N:
+                for i in range(N-k):
+                    traj_inv.append(v.VehicleEngy)
+                for i in range(k+1):
+                    traj_inv.append(v.VehicleEngy)
+                    power = v.getMaxChargingPower(timestep, inverse=True)
+                    v.addPower( -1 * power, timestep)
+            else:
+                for i in range(k+1):
+                    traj_inv.append(v.VehicleEngy)
+                    power = v.getMaxChargingPower(timestep, inverse=True)
+                    v.addPower( -1 * power, timestep)
+            # reverse the list
+            traj = traj_inv.reverse()
+            # take the first N + 1 elements
+            traj = traj[0:N+1]
+            # substract energy at k = 0
+            E0 = traj[0]
+            for i in range(len(traj)):
+                traj[i] = traj[i] - E0
+            # make sure that this isn't higher then the upper trajectory
+            traj_upper = self.getChargingTrajectoryUpper(t_act, timestep, N)
+            for i in range(len(traj_upper)):
+                traj[i] = min([traj[i], traj_upper[i]])
+        del v
+        return traj, traj_upper

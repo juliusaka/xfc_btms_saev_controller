@@ -19,6 +19,7 @@ class DermsDummy:
 
     def output(self, chargingStationId: string):
         variation = 1 + 0.05 * npr.randn() # 68% of the deviations lie within the 1sigma band of 5%
-        GridPowerLower = -1 * variation * self.data[chargingStationId][0]
-        GridPowerUpper = variation * self.data[chargingStationId][0]
+        # TODO Derms turned of for first by assigning big value
+        GridPowerLower = 1e6 * -1 * variation * self.data[chargingStationId][0]
+        GridPowerUpper = 1e6 * variation * self.data[chargingStationId][0]
         return GridPowerLower, GridPowerUpper

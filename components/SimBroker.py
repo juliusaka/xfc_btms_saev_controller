@@ -28,9 +28,10 @@ class SimBroker:
         self.SimRes     = pd.read_csv(path, dtype = dtype, index_col= "time") # save length of pd dataframe, time is set as index!
         self.SimRes     = self.SimRes.sort_index()  # make sure that inputs are ascending
         self.length     = len(self.SimRes)     # save length of pd dataframe
-        self.i          = 0
+        self.i          = 0                    # line in result dataframe which is currently read
         self.t_act      = self.SimRes.index[self.i]
         self.t_max      = max(self.SimRes.index)
+        self.iteration  = 0                    # number of iteration which in terms of steps of timestep 
         '''
         self.t_act      = t_Start              # start time of simulation in seconds
         while self.SimRes.index[self.i] < self.t_act:
@@ -49,6 +50,8 @@ class SimBroker:
         if not stop:
             self.i += 1 # to also catch last element
         df_slice = self.SimRes.iloc[i_old : self.i , :]
+
+        self.iteration += 1
         return df_slice
     
     def eol(self):

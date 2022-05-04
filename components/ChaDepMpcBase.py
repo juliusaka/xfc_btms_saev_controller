@@ -8,8 +8,6 @@ import cvxpy as cp
 import cvxpy.atoms.max as cpmax
 import time as time_module
 
-from components.ResultWriter import ResultWriter
-
 class ChaDepMpcBase(ChaDepParent):
     '''see mpcBase.md for explanations'''
 
@@ -38,13 +36,14 @@ class ChaDepMpcBase(ChaDepParent):
         # neglection of charging desire, make this not too good
         ChBaVehicles = []
         Queue = []
-        time = []
-        power_sum = []
         #open a SimBroker object for this
         PredBroker = components.SimBroker(path_BeamPredictionFile, dtype)
         # open a VehicleGenerator for this:
         VehicleGenerator = components.VehicleGenerator(path_BeamPredictionFile, dtype, path_DataBase)
-        #print("check 1")
+        
+        # open lists for power and time, initialize with a value to synchronize with iteration counter of prediction broker (at iteration 0, the power is 0, because no vehicles have arrived. all the vehicles of the last timestep seconds start charging at the start of the iteration)
+        time = [PredBroker.t_act]
+        power_sum = [0]
 
         #add all vehicle to queue which arrive at this charging station
         while not PredBroker.eol():
@@ -347,7 +346,7 @@ class ChaDepMpcBase(ChaDepParent):
 
         return time, P_Grid, P_BTMS, P_BTMS_Ch, P_BTMS_DCh, E_BTMS, E_Shift, P_Charge, P_Shift, t_wait_val, cost_t_wait, cost
 
-    def runMpc(self, N):
+    def runMpc(self, N, SimBroker: components.SimBroker):
 
         # define variables 
         x = cp.Variable((2, N+1))
@@ -356,6 +355,11 @@ class ChaDepMpcBase(ChaDepParent):
 
         # obtain inputs
         P_GridLast = self.P_GridLast
+        P_GridMaxPlanning = self.P_GridMaxPlanning
+        P_GridUpper = self.GridPowerUpper # TODO turn derms off by assign big value in the derms dummy
+        btms_size = self.BtmsSize
+        E_BtmsLower = self.E_BtmsLower
+        E_BtmsUpper = self.E_BtmsUpper
 
 
     def step(self, timestep):

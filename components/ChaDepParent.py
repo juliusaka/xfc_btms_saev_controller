@@ -219,6 +219,7 @@ class ChaDepParent:
                         self.ResultWriter.reparkEvent(self.SimBroker.t_act, allVehicles[num], self.ChargingStationId, True, 0)
 
     def chargingDesire(self, v: Vehicle):
+        # TODO update this for use with new max charging power method (when changing to realisitic charging profiles)
         if not self.SimBroker.t_act >= v.VehicleDesEnd:
             P_max = min([self.ChBaMaxPower_abs, v.VehicleMaxPower])
             f1 = v.VehicleDesEngy - v.VehicleEngy # fraction part 1
@@ -231,7 +232,6 @@ class ChaDepParent:
 
     def release(self,):
         # class method to release vehicles
-        # TODO will this be done by the chargingStation itself?
         #self.ResultWriter.releaseEvent(self.SimBroker.t_act, )
         pass
     
