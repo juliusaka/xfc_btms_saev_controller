@@ -187,11 +187,11 @@ In order to align with the goal to show, how control can benefit on keeping the 
 in *step()*:
 $\begin{equation}
 \begin{aligned}
-\min \quad \Sigma_{k=-1}^{N} (P_{Grid}(k) - P_{avg}(k)) + M \cdot t
+\min \quad \Sigma_{k=-1}^{N} (P_{Grid}(k) - P_{avg}(k)) + M \cdot (t_1 +t_2)
 \end{aligned}
 \end{equation}$
 
-Here, $N$ is the prediction horizon of the short horizoned MPC, $M$ is a big number and $t$ is a slack variable to maintain feasibility for infeasible combinations of variable sets.
+Here, $N$ is the prediction horizon of the short horizoned MPC, $M$ is a big number and $t$ is a slack variable to maintain feasibility for infeasible combinations of variable sets. We also include the last power withdrawal $P_{Grid}(k=-1)$ from the grid to avoid big jumps.
 
 subject to:
 $\begin{align}
@@ -199,7 +199,7 @@ E_{BTMS}(k+1) &= E_{BTMS}(k) + dt \cdot (\eta \cdot P_{BTMS,Ch}(k) + \frac{1}{\e
 E_{V}(k+1) &= E_{V}(k) + dt \cdot P_{Charge}(k) \quad &\forall k \in [0,N]\\
 P_{Charge}(k) &= P_{Grid}(k) - P_{BTMS}(k) \quad &\forall k \in [0,N]  \\
 P_{BTMS}(k) &= P_{BTMS,Ch}(k) + P_{BTMS,DCh}(k) \quad &\forall k \in [0,N]\\
-P_{Grid}(k) &\leq \max (P_{Grid,planning}(i)) \quad &\forall k \in [0,N]\\
+P_{Grid}(k) &\leq \max (P_{Grid,planning}(i)) + t_2 \quad &\forall k \in [0,N]\\
 P_{Grid}(k) &\leq P_{Grid,DERMS} \quad &\forall k \in [0,N]\\
 P_{BTMS,Ch}(k) &\geq 0 \quad &\forall k \in [0,N]\\
 P_{BTMS,DCh}(k) &\leq 0 \quad &\forall k \in [0,N]\\
@@ -208,7 +208,7 @@ E_{BTMS}(k) &\geq 0 \quad &\forall k \in [0,N+1]\\
 E_{BTMS}(k) &\leq \Delta E_{BTMS} \quad &\forall k \in [0,N+1] \\
 E_{BTMS}(k) &\geq E_{BTMS,lower}(k) \quad &\forall k \in [1,N+1]\\
 E_{BTMS}(k) &\leq E_{BTMS,lower}(k) \quad &\forall k \in [1,N+1]\\
-E_{V}(k) &\geq E_{V,lower}(k) - t\quad &\forall k \in [1,N+1]\\
+E_{V}(k) &\geq E_{V,lower}(k) - t_1 \quad &\forall k \in [1,N+1]\\
 E_{V}(k) &\leq E_{V,upper}(k) \quad &\forall k \in [1,N+1]\\
 E_{BTMS}(0) &= E_{BTMS,PhySim}\\
 E_{V}(0) &= 0 \\
@@ -224,10 +224,10 @@ To summarize the variables, we have:
 $\begin{align}
 x(k) &= [E_{BTMS}(k), E_{V}(k)]\\
 u(k) &= [P_{Grid}(k), P_{BTMS}(k), P_{BTMS,Ch}(k), P_{BTMS,DCh}(k), P_{Charge}(k)] \\
-t
+t_1, t_2
 \end{align}$
 inputs to our algortihm are
 $\begin{align*}
-&\max({P_{Grid,planning(i)}}), P_{Grid,DERMS}, \Delta E_{BTMS},\\ 
+&P_{Grid}(k=-1), \max({P_{Grid,planning(i)}}), P_{Grid,DERMS}, \Delta E_{BTMS},\\ 
 &E_{BTMS,lower}(k), E_{BTMS,lower}(k), E_{V,lower}(k), E_{V,upper}(k), E_{BTMS,PhySim}
 \end{align*}$

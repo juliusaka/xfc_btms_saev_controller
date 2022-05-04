@@ -1,5 +1,6 @@
 
 import string
+import os
 from typing import List
 import pandas as pd
 from components import ChaDepParent
@@ -8,12 +9,16 @@ import components
 
 class ResultWriter:
 
-    def __init__(self, filename: string, iterations_save: int = 12, format: string = ".csv") -> None:
-        self.iterations_save                = iterations_save # number of iterations, after which results are saved (backup for crashs). Not used so far
-        self.ChargingStationState_Filename  = filename + "-ChargingStationState" + format
-        self.Events_Filename         = filename +"-Events" + format
-        self.VehicleStates_Filename          = filename + "-VehicleStates" + format
-        self.ChargingStationProperties_Filename          = filename + "-ChargingStationProperties" + format
+    def __init__(self, directory: string, simName: string, iterations_save: int = 12, format: string = ".csv") -> None:
+        self.iterations_save                    = iterations_save # number of iterations, after which results are saved (backup for crashs). Not used so far
+
+        self.directory                          = os.path.join(directory,simName)          # save for use in other function
+        os.makedirs(self.directory, exist_ok=True)
+        self.simName                            = simName            # save for use in other function
+        self.ChargingStationState_Filename      = self.directory + "ChargingStationState" + format
+        self.Events_Filename                    = self.directory + "Events" + format
+        self.VehicleStates_Filename             = self.directory + "VehicleStates" + format
+        self.ChargingStationProperties_Filename = self.directory + "ChargingStationProperties" + format
 
         '''initialize pandas dataframes'''
         self.ChargingStationStates          = pd.DataFrame(columns= [

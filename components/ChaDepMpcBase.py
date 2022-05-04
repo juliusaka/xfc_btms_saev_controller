@@ -1,3 +1,5 @@
+import pandas as pd
+import os
 from typing import List
 import components
 from components import ChaDepParent
@@ -5,6 +7,8 @@ import numpy as np
 import cvxpy as cp
 import cvxpy.atoms.max as cpmax
 import time as time_module
+
+from components.ResultWriter import ResultWriter
 
 class ChaDepMpcBase(ChaDepParent):
     '''see mpcBase.md for explanations'''
@@ -18,11 +22,15 @@ class ChaDepMpcBase(ChaDepParent):
         self.determinedMaxPower = None
 
         '''additional variables for MPC:'''
-        self.PredictionTime = []
-        self.PredictionPower = []
-        self.power_sum_original = []
-        self.PredictionGridUpper = []
-        self.PreidctionGridLower = []
+        self.PredictionTime         = []
+        self.PredictionPower        = []
+        self.power_sum_original     = []
+        self.PredictionGridUpper    = []   # TODO used so far?
+        self.PredictionGridLower    = []   # TODO used so far?
+
+        self.P_GridLast             = None      # last Grid Power, used to flatten the MPC power curve
+        self.P_GridMaxPlanning      = None      # maximal P_Grid from planning, used to keep demand charge low
+
 
 
     def generatePredictions(self, path_BeamPredictionFile, dtype, path_DataBase, timestep=5*60, addNoise = True):
@@ -71,10 +79,11 @@ class ChaDepMpcBase(ChaDepParent):
                 # print(x.VehicleDesEngy/x.VehicleMaxEngy)
         
         # add noise to produce prediction:
+        self.power_sum_original = power_sum.copy()
+        
         if addNoise:
             param = 0.10
             avg = np.average(power_sum)
-            self.power_sum_original = power_sum.copy()
             for i in range(0,len(power_sum)):
                  power_sum[i] = power_sum[i] + avg * (np.random.randn() * param)
                  if power_sum[i] < 0:
@@ -86,7 +95,21 @@ class ChaDepMpcBase(ChaDepParent):
         # generate a prediction for power limits
         for i in time:
             self.PredictionGridUpper.append(self.GridPowerMax_Nom)
-            self.PreidctionGridLower.append(- self.GridPowerMax_Nom)
+            self.PredictionGridLower.append(- self.GridPowerMax_Nom)
+        
+        #save results to csv-file
+        dict = {
+            'time': time,
+            'Power_original': self.power_sum_original,
+            'Power_noise': self.PredictionPower,
+            'PredictionGridUpper': self.PredictionGridUpper,
+            'PredictionGridLower': self.PredictionGridLower,
+        }
+        df = pd.DataFrame({ key:pd.Series(value) for key, value in dict.items() })
+        dir         = os.path.join(self.ResultWriter.directory,'generatePredictions')
+        os.makedirs(dir, exist_ok=True) 
+        filename    = self.ChargingStationId + ".csv"
+        df.to_csv(os.path.join(dir, filename))
 
     def determineBtmsSize(self, t_act, t_max, timestep, a, b, c, P_free):
         '''see mpcBase.md for explanations'''
@@ -150,9 +173,31 @@ class ChaDepMpcBase(ChaDepParent):
         self.determinedBtmsSize = btms_size
         self.determinedMaxPower = max(abs(P_BTMS))
 
+        #save results to csv-file
+        param_vec = np.zeros_like(time)
+        param_vec[0] = self.determinedBtmsSize
+        param_vec[1] = a
+        param_vec[2] = b
+        param_vec[3] = c
+        dict = {
+            'time': time,
+            'P_Grid': P_Grid,
+            'P_BTMS': P_BTMS,
+            'E_BTMS': E_BTMS[:-1],
+            'P_Charge': P_Charge,
+            'P_BTMS_Ch': P_BTMS_Ch,
+            'P_BTMS_DCh': P_BTMS_DCh,
+            'param: btms size, a,b,c': param_vec,
+        }
+        df = pd.DataFrame({ key:pd.Series(value) for key, value in dict.items() })
+        dir         = os.path.join(self.ResultWriter.directory,'determineBtmsSize')
+        os.makedirs(dir, exist_ok=True) 
+        filename    = self.ChargingStationId + ".csv"
+        df.to_csv(os.path.join(dir, filename))
+
         return time, btms_size, P_Grid, P_BTMS, P_BTMS_Ch, P_BTMS_DCh, E_BTMS, P_Charge, cost
 
-    def planning(self, t_act, t_max, timestep, a, b, c, d_param, P_free, P_ChargeAvg, cRating=100):
+    def planning(self, t_act, t_max, timestep, a, b, c, d_param, P_free, P_ChargeAvg, beta, cRating=None):
         time_start = time_module.time()
         '''see mpcBase.md for explanations'''
         # vector lengthes
@@ -257,6 +302,40 @@ class ChaDepMpcBase(ChaDepParent):
             cost_t_wait += d[k] * t_wait_val[k]
         cost = prob.value
 
+        # save important values to object
+        self.P_GridMaxPlanning = max(P_Grid)
+        self.E_BtmsLower        = []
+        self.E_BtmsUpper        = []
+        for i in range(T+1):
+            self.E_BtmsLower.append(max([0, (1-beta) * E_BTMS[i]]))
+            self.E_BtmsUpper.append(min[self.BtmsSize, (1+beta) * E_BTMS[i]])
+        
+        #save results to csv-file
+        param_vec = np.zeros_like(time)
+        param_vec[0] = self.BtmsSize
+        param_vec[1] = a
+        param_vec[2] = b
+        param_vec[3] = c
+        dict = {
+            'time': time,
+            'P_Grid': P_Grid,
+            'P_BTMS': P_BTMS,
+            'E_BTMS': E_BTMS,
+            'E_Shift': E_Shift,
+            'P_Charge': P_Charge,
+            'P_Shift': P_Shift,
+            'P_BTMS_Ch': P_BTMS_Ch,
+            'P_BTMS_DCh': P_BTMS_DCh,
+            't_wait': t_wait_val,
+            'param: btms size, a,b,c': param_vec,
+            'd': d
+        }
+        df = pd.DataFrame({ key:pd.Series(value) for key, value in dict.items() })
+        dir         = os.path.join(self.ResultWriter.directory,'planning')
+        os.makedirs(dir, exist_ok=True) 
+        filename    = self.ChargingStationId + ".csv"
+        df.to_csv(os.path.join(dir, filename))
+
         # print solver stats
         print(self.ChargingStationId)
         print('solver name: ',prob.solver_stats.solver_name)
@@ -268,9 +347,20 @@ class ChaDepMpcBase(ChaDepParent):
 
         return time, P_Grid, P_BTMS, P_BTMS_Ch, P_BTMS_DCh, E_BTMS, E_Shift, P_Charge, P_Shift, t_wait_val, cost_t_wait, cost
 
+    def runMpc(self, N):
+
+        # define variables 
+        x = cp.Variable((2, N+1))
+        u = cp.Variable((5, N))
+        t = cp.Variable((1,1))
+
+        # obtain inputs
+        P_GridLast = self.P_GridLast
+
+
     def step(self, timestep):
 
-        '''repark vehicles based on tehir charging desire with the parent method'''
+        '''repark vehicles based on their charging desire with the parent method'''
         self.repark()
 
         '''insert here the control action'''
