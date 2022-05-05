@@ -30,8 +30,7 @@ class Vehicle:
             power = min([maxPowerVehicle, maxPowerForDesEngy]) # the smaller value is the max power.
         elif inverse:
             maxPowerVehicle = self.VehicleMaxPower
-            powerForArrivalEngy = max([0, (self.VehicleEngy - self.VehicleEngy_Arrival)/timestep/3.6e3])
-            power = min([powerForArrivalEngy, self.VehicleMaxPower])
+            power = min([self.VehicleMaxPower, abs((self.VehicleEngy - self.VehicleEngy_Arrival)/(timestep/3.6e3))])
         return power
     
     def addEngy(self, addedEngy):
@@ -107,39 +106,43 @@ class Vehicle:
         # this gives back both lower and upper trajectory, as we need the upper trajectory to check the lower. 
         # determine lower bound of vehicle energy level charging trajectory. Normalized to energy power level at time 0
         v = self.copy()
-        traj = [0]
         # set energy level to desired energy
         v.VehicleEngy = v.VehicleDesEngy
 
         # if we are already over the desired end time, we just have to charge with maximal power
         if t_act >= v.VehicleDesEnd:
-            traj = self.getChargingTrajectoryUpper(t_act, timestep, N)
+            traj_lower = self.getChargingTrajectoryUpper(t_act, timestep, N)
+            traj_upper = traj_lower.copy()
         else:
-            traj_inv = [] #trajectory is inversed if we go back in time
-            k = np.ceil((self.VehicleDesEnd - t_act)/timestep) # number of timestep from end to charging to beginning
-            if k < N:
-                for i in range(N-k):
-                    traj_inv.append(v.VehicleEngy)
-                for i in range(k+1):
-                    traj_inv.append(v.VehicleEngy)
+            traj_lower = [] #trajectory is inversed if we go back in time
+            k = int(np.ceil((self.VehicleDesEnd - t_act)/timestep)) # number of timestep from end to charging to beginning, must go back this steps
+
+            if k < N: # if 
+                for i in range(N-k): # fill up N-k with Vehicle desired energy
+                    traj_lower.append(v.VehicleDesEngy)
+
+                for i in range(k+1): # start "de-charging" at k
+                    traj_lower.append(v.VehicleEngy)
                     power = v.getMaxChargingPower(timestep, inverse=True)
                     v.addPower( -1 * power, timestep)
+                    # reverse the list
+                    traj_lower.reverse()
             else:
                 for i in range(k+1):
-                    traj_inv.append(v.VehicleEngy)
+                    traj_lower.append(v.VehicleEngy)
                     power = v.getMaxChargingPower(timestep, inverse=True)
                     v.addPower( -1 * power, timestep)
-            # reverse the list
-            traj = traj_inv.reverse()
-            # take the first N + 1 elements
-            traj = traj[0:N+1]
+                    # reverse the list
+                    traj_lower.reverse()
+                    # take the first N + 1 elements
+                    traj_lower = traj_lower[0:N+1]
             # substract energy at k = 0
-            E0 = traj[0]
-            for i in range(len(traj)):
-                traj[i] = traj[i] - E0
+            E0 = traj_lower[0]
+            for i in range(len(traj_lower)):
+                traj_lower[i] = traj_lower[i] - E0
             # make sure that this isn't higher then the upper trajectory
             traj_upper = self.getChargingTrajectoryUpper(t_act, timestep, N)
             for i in range(len(traj_upper)):
-                traj[i] = min([traj[i], traj_upper[i]])
+                traj_lower[i] = min([traj_lower[i], traj_upper[i]])
         del v
-        return traj, traj_upper
+        return traj_lower, traj_upper

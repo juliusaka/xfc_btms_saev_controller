@@ -31,7 +31,7 @@ class SimBroker:
         self.i          = 0                    # line in result dataframe which is currently read
         self.t_act      = self.SimRes.index[self.i]
         self.t_max      = max(self.SimRes.index)
-        self.iteration  = 0                    # number of iteration which in terms of steps of timestep 
+        self.iteration  = -1                    # number of iteration which in terms of steps of timestep 
         '''
         self.t_act      = t_Start              # start time of simulation in seconds
         while self.SimRes.index[self.i] < self.t_act:
@@ -41,14 +41,10 @@ class SimBroker:
     def step(self, timestep):
         self.t_act      += timestep             # update actual time
         i_old = self.i                          # first index row of slice
-        stop = False
         while self.SimRes.index[self.i] <= self.t_act: # include elements up to equals t_act AND make sure we don't exceed length of dataframe
             self.i      +=1
             if self.i >= len(self.SimRes) - 1:
-                stop = True
                 break
-        if not stop:
-            self.i += 1 # to also catch last element
         df_slice = self.SimRes.iloc[i_old : self.i , :]
 
         self.iteration += 1

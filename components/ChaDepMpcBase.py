@@ -360,6 +360,9 @@ class ChaDepMpcBase(ChaDepParent):
         btms_size = self.BtmsSize
         E_BtmsLower = self.E_BtmsLower
         E_BtmsUpper = self.E_BtmsUpper
+        # TODO e v lower
+        # TODO e v upper
+        E_BtmsPhySim = self.BtmsEn # TODO initialize BTMS energy level with values from planning
 
 
     def step(self, timestep):
