@@ -93,7 +93,7 @@ class Vehicle:
 
         # determine upper bound of vehicle energy level charging trajectory. Normalized to energy power level at time 0
         v = self.copy()
-        traj = [0]
+        traj = [0.0]
         E0 = v.VehicleEngy
         for i in range(N):
             maxPower = v.getMaxChargingPower(timestep)
@@ -117,25 +117,25 @@ class Vehicle:
             traj_lower = [] #trajectory is inversed if we go back in time
             k = int(np.ceil((self.VehicleDesEnd - t_act)/timestep)) # number of timestep from end to charging to beginning, must go back this steps
 
-            if k < N: # if 
-                for i in range(N-k): # fill up N-k with Vehicle desired energy
+            if k < N: # if prediction horizon is larger then charging duration
+                for i in range(N-k-1): # fill up N-k-1 with Vehicle desired energy, this is until charging ends -1, because the last energy level when charging ends is calculated in the loop below
                     traj_lower.append(v.VehicleDesEngy)
 
-                for i in range(k+1): # start "de-charging" at k
+                for i in range(k+2): # start "de-charging" at k, need one more step than k+1 states to copy the last energy level.
                     traj_lower.append(v.VehicleEngy)
                     power = v.getMaxChargingPower(timestep, inverse=True)
                     v.addPower( -1 * power, timestep)
-                    # reverse the list
-                    traj_lower.reverse()
+                # reverse the list
+                traj_lower.reverse()
             else:
-                for i in range(k+1):
+                for i in range(k+2): #decharging for k+1 states, with +1 steps to also note down last charge.
                     traj_lower.append(v.VehicleEngy)
                     power = v.getMaxChargingPower(timestep, inverse=True)
                     v.addPower( -1 * power, timestep)
                     # reverse the list
-                    traj_lower.reverse()
-                    # take the first N + 1 elements
-                    traj_lower = traj_lower[0:N+1]
+                traj_lower.reverse()
+                # take the first N + 1 elements
+                traj_lower = traj_lower[0:N+1]
             # substract energy at k = 0
             E0 = traj_lower[0]
             for i in range(len(traj_lower)):
