@@ -102,7 +102,7 @@ class Vehicle:
         del v
         return traj
 
-    def getChargingTrajectoryLower(self,t_act, timestep, N):
+    def getChargingTrajectories(self,t_act, timestep, N):
         # this gives back both lower and upper trajectory, as we need the upper trajectory to check the lower. 
         # determine lower bound of vehicle energy level charging trajectory. Normalized to energy power level at time 0
         v = self.copy()

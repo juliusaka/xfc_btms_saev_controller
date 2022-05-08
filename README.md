@@ -111,16 +111,14 @@ Algorithm overview:
 
 This is the base MPC model. It has two main methods:
 
-- *determineBtmsSize()*: In this function, the first-level "controller" is runned, which determines the BTMS size based on predictions for charging demand. The prediction for this are generated from Beam output with random noise in *.generatePredictions()*.
+- *determineBtmsSize()*: In this function, the first-level "controller" is runned, which determines the BTMS size based on predictions for charging demand. The prediction for this are generated from Beam output with random noise in *.generatePredictions()*. determineBtmsSize saves the informations of the planning process to results.
 - *planning()*: In this function, (day-) planning is performed. This means the control variables are determined in an optimization problem depended on prediction for charging demand and grid constraints. Runtime of this method can be longer, as a long horizon is optimized. The prediction for this are generated from Beam output with random noise in *.generatePredictions()*.
-Planning has a parameter *save* which can be set to true to save the informations of the planning process.
+Planning saves the informations of the planning process to results.
 - *step()*: This is the function which determines the control signals for each time step. Runtime of this should be short and has a short horizon.
 
 Further information about the MpcBase controller can be found in the MpcBase File.
 
-#### **planning():**
-
-The planning needs as input informations all the properties of the charging station and prediction about grid power limits (P_Lim(t)) and Charging Demand (P_Charge,total(t)). It determines the storage size and delivers and optimal trajectory for the collocated energy storage. 
+The *determineBtmsSize()* and *planning():*-fucntion needs as input information all the properties of the charging station, ~~ prediction about grid power limit (P_Lim(t))~~ and the uncurtailed Charging Demand (P_Charge,total(t)). They determine the storage size and delivers and optimal trajectory for the collocated energy storage. 
 
 To determine the uncurtailed charging demand based on given BEAM results, we assume:
 
@@ -143,6 +141,8 @@ methods:
 -*getMaxChargePower(timestep)*: returns the maximum charge power at the actual time, ensuring that the vehicle doesn't exceed the desired energy level. (for last step of charging, an intermediate power level is therefore choosen)
 
 -*updateEnergyLag*: returns the energy lag of a vehicle while charging. This is a rating metric and defined as the difference between anticipated energy level (by Beam) and real energy level.
+
+-*getChargingTrajectories*: returns charging trajectories, one as a lower, one as upper bound of the energy demand for charging. This uses the function *getMaxChargePower()*, which has a parameter inverse for calculating the power level when going backwards. For the lower energy trajectory, we simplify the problem a bit and use the charging power at the end of the step, as solving for the average power in the period is an iterative process and hard to implement. If you would somehow implement the trajectory as a function of time E(t), you would maybe find a more exact solution. But as charging trajectories can never be perfectly described by an equation, this approach will be considered as good enough to show the general behaviour.
 
 $ E_{\text{Lag}}(t) = E_{\text{real}}(t) - E_{\text{anticipated}}(t)$
 

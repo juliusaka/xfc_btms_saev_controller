@@ -113,20 +113,21 @@ class ChaDepMpcBase(ChaDepParent):
     def determineBtmsSize(self, t_act, t_max, timestep, a, b, c, P_free):
         '''see mpcBase.md for explanations'''
         # vector lengthes
-        T = int(np.floor((t_max - t_act) / timestep))
+        T = int(np.ceil((t_max - t_act) / timestep))
 
         # define variables 
         x = cp.Variable((1, T+1))
         u = cp.Variable((4, T))
         p_gridSlack = cp.Variable((1,1)) # slack variable to determine demand charge with free demand charge level, e.g. if p_max > 20kW, demand charge applied
         
-        # define disturbance d, which is the charging power demand
+        # define disturbance i_power, which is the charging power demand
         time = np.array(self.PredictionTime)
         power = np.array(self.PredictionPower)
         idx = np.logical_and(time >=t_act, time <= t_max)
+        time = time[idx]
         i_power = power[idx]
         if len(i_power) != T:
-            print("length d", len(i_power))
+            print("length input power", len(i_power))
             print("length T", T)
             raise ValueError("length T and length of vector d are unequal")
 
@@ -163,11 +164,14 @@ class ChaDepMpcBase(ChaDepParent):
         btms_size = np.max(x.value) - np.min(x.value)
         P_Grid = u[0,:].value
         P_BTMS = u[1,:].value
-        E_BTMS = x[0,:-1].value
+        E_BTMS = x[0,:].value
         P_Charge = i_power
         P_BTMS_Ch = u[2,:].value
         P_BTMS_DCh = u[3,:].value
         cost = prob.value
+        time_x = time.tolist()
+        time_x.append(time[-1]+timestep)
+        time_x = np.array(time_x) # time_x is the time vector for states, time the time vector for control inputs
 
         self.determinedBtmsSize = btms_size
         self.determinedMaxPower = max(abs(P_BTMS))
@@ -180,6 +184,7 @@ class ChaDepMpcBase(ChaDepParent):
         param_vec[3] = c
         dict = {
             'time': time,
+            'time_x': time_x,
             'P_Grid': P_Grid,
             'P_BTMS': P_BTMS,
             'E_BTMS': E_BTMS[:-1],
@@ -194,13 +199,13 @@ class ChaDepMpcBase(ChaDepParent):
         filename    = self.ChargingStationId + ".csv"
         df.to_csv(os.path.join(dir, filename))
 
-        return time, btms_size, P_Grid, P_BTMS, P_BTMS_Ch, P_BTMS_DCh, E_BTMS, P_Charge, cost
+        return time, time_x, btms_size, P_Grid, P_BTMS, P_BTMS_Ch, P_BTMS_DCh, E_BTMS, P_Charge, cost
 
     def planning(self, t_act, t_max, timestep, a, b, c, d_param, P_free, P_ChargeAvg, beta, cRating=None):
         time_start = time_module.time()
         '''see mpcBase.md for explanations'''
         # vector lengthes
-        T = int(np.floor((t_max - t_act) / timestep))
+        T = int(np.ceil((t_max - t_act) / timestep))
 
         # define variables 
         x = cp.Variable((2, T+1))
@@ -213,6 +218,7 @@ class ChaDepMpcBase(ChaDepParent):
         time = np.array(self.PredictionTime)
         power = np.array(self.PredictionPower)
         idx = np.logical_and(time >=t_act, time <= t_max)
+        time = time[idx]
         i_power = power[idx]
         if len(i_power) != T:
             print("length i_power", len(i_power))
@@ -276,7 +282,7 @@ class ChaDepMpcBase(ChaDepParent):
         for k in range(T):       # cost of btms degradation and cost of energy loss
             cost += (b+c) * u[2,k] * ts + c * u[3,k] * ts + d[k] * t_wait[0,k]
         
-        print(d)
+        #print(d)
 
         time_end1 = time_module.time()
 
@@ -300,6 +306,9 @@ class ChaDepMpcBase(ChaDepParent):
         for k in range(len(t_wait_val)):
             cost_t_wait += d[k] * t_wait_val[k]
         cost = prob.value
+        time_x = time.tolist()
+        time_x.append(time[-1]+timestep)
+        time_x = np.array(time_x) # time_x is the time vector for states, time the time vector for control inputs
 
         # save important values to object
         self.P_GridMaxPlanning = max(P_Grid)
@@ -307,7 +316,7 @@ class ChaDepMpcBase(ChaDepParent):
         self.E_BtmsUpper        = []
         for i in range(T+1):
             self.E_BtmsLower.append(max([0, (1-beta) * E_BTMS[i]]))
-            self.E_BtmsUpper.append(min[self.BtmsSize, (1+beta) * E_BTMS[i]])
+            self.E_BtmsUpper.append(min([self.BtmsSize, (1+beta) * E_BTMS[i]]))
         
         #save results to csv-file
         param_vec = np.zeros_like(time)
@@ -317,6 +326,7 @@ class ChaDepMpcBase(ChaDepParent):
         param_vec[3] = c
         dict = {
             'time': time,
+            'time_x': time_x,
             'P_Grid': P_Grid,
             'P_BTMS': P_BTMS,
             'E_BTMS': E_BTMS,
@@ -344,7 +354,7 @@ class ChaDepMpcBase(ChaDepParent):
         print(prob.status)
         print('')
 
-        return time, P_Grid, P_BTMS, P_BTMS_Ch, P_BTMS_DCh, E_BTMS, E_Shift, P_Charge, P_Shift, t_wait_val, cost_t_wait, cost
+        return time, time_x, P_Grid, P_BTMS, P_BTMS_Ch, P_BTMS_DCh, E_BTMS, E_Shift, P_Charge, P_Shift, t_wait_val, cost_t_wait, cost
 
     def runMpc(self, N, SimBroker: components.SimBroker):
 
