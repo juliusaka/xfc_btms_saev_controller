@@ -1,4 +1,6 @@
 *.part
 #beam_output.csv/
 *.pyc
+settings.json
+
 
