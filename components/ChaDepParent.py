@@ -52,8 +52,8 @@ class ChaDepParent:
             self.GridPowerMax_Nom   = 0.35*sum(ChBaMaxPower) # empirical formula (check with literature)
         else:
             self.GridPowerMax_Nom   = GridPowerMax_Nom  # maximum power withdrawal from grid, nominal value (can be time-varying)
-        self.GridPowerLower         = GridPowerLower  # will be assigned in step function
-        self.GridPowerUpper         = GridPowerUpper  # will be assigned in step function
+        self.GridPowerLower         = 0                     # will be assigned in step function
+        self.GridPowerUpper         = self.GridPowerMax_Nom  # will be assigned in step function
 
         '''Power Desire'''
         self.PowerDesire            = 0               # Power Desire to DERMS
