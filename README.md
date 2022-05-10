@@ -218,4 +218,23 @@ this is the Simulation Broker. The simulation broker has the other task to distr
 
 ## Adaption to use within GEMINI-XFC
 
-- change VehicleGenerator, such that the vehicle population with their properites is directly passed, with no need to reconstruct them. Need for implementation for interaction with Beam.
+- change VehicleGenerator, such that the vehicle generation with their properites(especially desired charging level) is directly passed, with no need to reconstruct them. Need for implementation for interaction with Beam.
+
+draft code:
+
+    for each charging station:
+
+        # initialize objects
+        - create VehicleGenerator, SimBroker (Dummy for t_act), ResultWriter
+        - create chargingStation object
+        (- create PhySimDummy and DermsDummy)
+
+        # initiliaze simulation
+        - initiliaze upper and lower grid power limit (TODO: necessary?)
+    
+        # Simulation loop
+        for vehicle in charging events:
+            chargingStation.arrival(Vehicle)
+        chargingStation.step
+        provide outpus to Beam, PhySim, DERMS
+
