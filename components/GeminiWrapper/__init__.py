@@ -1,2 +1,2 @@
 from .SimBrokerDummy import SimBrokerDummy
-from .ControlWrapper import ControlWrapper
+from .ControlWrapperDummy import ControlWrapperDummy
