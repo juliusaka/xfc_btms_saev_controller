@@ -15,10 +15,10 @@ class ResultWriter:
         self.directory                          = os.path.join(directory,simName)          # save for use in other function
         os.makedirs(self.directory, exist_ok=True)
         self.simName                            = simName            # save for use in other function
-        self.ChargingStationState_Filename      = self.directory + "ChargingStationState" + format
-        self.Events_Filename                    = self.directory + "Events" + format
-        self.VehicleStates_Filename             = self.directory + "VehicleStates" + format
-        self.ChargingStationProperties_Filename = self.directory + "ChargingStationProperties" + format
+        self.ChargingStationState_Filename      = os.path.join(self.directory, "ChargingStationState"       + format)
+        self.Events_Filename                    = os.path.join(self.directory, "Events"                     + format)
+        self.VehicleStates_Filename             = os.path.join(self.directory, "VehicleStates"              + format)
+        self.ChargingStationProperties_Filename = os.path.join(self.directory, "ChargingStationProperties"  + format)
 
         '''initialize pandas dataframes'''
         self.ChargingStationStates          = pd.DataFrame(columns= [

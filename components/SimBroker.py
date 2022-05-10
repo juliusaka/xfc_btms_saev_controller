@@ -31,7 +31,7 @@ class SimBroker:
         self.i          = 0                    # line in result dataframe which is currently read
         self.t_act      = self.SimRes.index[self.i]
         self.t_max      = max(self.SimRes.index)
-        self.iteration  = -1                    # number of iteration which in terms of steps of timestep 
+        self.iteration  = -1                    # number of iteration which in terms of steps of timestep, first call of step will set timestep to 0 for first simulation iteration.
         '''
         self.t_act      = t_Start              # start time of simulation in seconds
         while self.SimRes.index[self.i] < self.t_act:
