@@ -43,7 +43,7 @@ class ChaDepParent:
             print(ChBaNum)
             raise ValueError(' size of list with maximal plug power doesnt equals number of charging bays')
         # variables
-        self.ChBaPower          = []                # this is the variable to which charging power for each bay is assigned.
+        self.ChBaPower          = []                # this is the variable for which charging power for each bay is assigned.
         
         
 
@@ -70,6 +70,12 @@ class ChaDepParent:
         '''Rating Metric'''
         self.EnergyLagSum           = 0                 # sum of energy lags as rating metric
         self.TimeLagSum             = 0                 # sum of time lags of vehicles as rating metric
+
+        ''' Control Output Results'''
+        # control output should be saved to these variables after each step
+        self.output_vehicles           = []                # list of vehicle ids
+        self.output_power              = []                # list of associated charging power commands
+        self.output_release            = []                # list of Booleans for Release
 
     def BtmsSoc(self):
         return self.BtmsEn/self.BtmsSize
@@ -112,31 +118,52 @@ class ChaDepParent:
         #returns the positions  where vehicle was added.
         return j
 
-    def chBaReleaseThreshold(self, threshold = 0.9999):
+    def resetOutput(self):
+        self.output_vehicles   = []
+        self.output_power      = []
+        self.output_release    = []
+
+    def chBaReleaseThresholdAndOutput(self, threshold = 0.9999):
         # threshold gives a threshold of desired energy, after which vehicle can be released.
+        # this function also creates the control outputs
         out = []
         for i in range(0, len(self.ChBaVehicles)):
             # find sufficient charged vehicle, put them in the out array and replace them with false
             if type(self.ChBaVehicles[i]) == components.Vehicle:
+                self.output_vehicles.append(self.ChBaVehicles[i].VehicleId) # for control output
+                self.output_power.append(self.ChBaPower[i]) # for control ouput
                 if self.ChBaVehicles[i].VehicleEngy > threshold * self.ChBaVehicles[i].VehicleDesEngy:
                     out.append(self.ChBaVehicles[i])
                     self.ChBaVehicles[i] = False
+                    self.output_release.append(True) # for control output
+                else:
+                    self.output_release.append(False) # for control output
         return out
     
-    def queueReleaseThreshold(self, threshold = 0.9999):
+    def queueReleaseThresholdAndOutput(self, threshold = 0.9999):
         # threshold gives a threshold of desired energy, after which vehicle can be released.
+        # this function also creates the control outputs
         pop = []
         out = []
         for i in range(0, len(self.Queue)):
             # find out which indices need to be popped out
             if type(self.Queue[i]) == components.Vehicle:
+                self.output_vehicles.append(self.ChBaVehicles[i].VehicleId) # for control output
+                self.output_power.append(0) # for control output
                 if self.Queue[i].VehicleEngy > threshold * self.Queue[i].VehicleDesEngy:
                     pop.append(i)
+                    self.output_release.append(True)
+                else:
+                    self.output_release.append(False)
+
         # pop this indices out
         for i in range(0, len(pop)):
             out.append(self.Queue.pop(pop[i]-i)) # to make up the loss of popped out elements before
         return out
- 
+    
+    def getControlOutput(self):
+        return self.output_vehicles, self.output_power, self.output_release
+
     def planning(self):
         # class method to perform day planning
         pass
@@ -150,6 +177,23 @@ class ChaDepParent:
         self.ResultWriter.arrivalEvent(self.SimBroker.t_act, vehicle, self.ChargingStationId)
         self.ResultWriter.updateVehicleStates(t_act = self.SimBroker.t_act, vehicle=vehicle, ChargingStationId=self.ChargingStationId, QueueOrBay=True, ChargingPower=0)
         
+    def departure(self, vehicleIds, t_act):
+        # vehicleIds is a list of vehicleIds which should be released
+        # for vehicles in charging bay
+        for i in range(0, len(self.ChBaVehicles)):
+            if self.ChBaVehicles[i] != False: # if a vehicle is in bay
+                if np.isin(self.ChBaVehicles[i].VehicleId, vehicleIds).any(): # if the vehicleId of this vehicle was not released before
+                    self.ResultWriter.forcedReleaseEvent(t_act, self.ChBaVehicles[i], self.ChargingStationId)
+                    self.ChBaVehicles[i] = False # release Vehicle
+        # for vehicles in Queue
+        out = []
+        for i in range(0, len(self.Queue)):
+            if np.isin(self.Queue[i].VehicleId, vehicleIds).any(): # if the vehicleId of this vehicle was not released before
+                out.append(i)
+                self.ResultWriter.forcedReleaseEvent(t_act, self.Queue[i], self.ChargingStationId)
+        # pop this vehicles out
+        for i in range(0, len(out)):
+            self.Queue.pop(out[i]-i)
 
     def repark(self):
         # class method to repark the vehicles, based on their charging desire
@@ -303,9 +347,10 @@ class ChaDepParent:
         '''Write chargingStation states in ResultWriter'''
         self.ResultWriter.updateChargingStationState(self.SimBroker.t_act, self)
 
-        '''release vehicles when full'''
-        r1 = self.chBaReleaseThreshold()
-        r2 = self.queueReleaseThreshold()
+        '''release vehicles when full and create control outputs'''
+        self.resetOutput()
+        r1 = self.chBaReleaseThresholdAndOutput()
+        r2 = self.queueReleaseThresholdAndOutput()
         released_Vehicles = r1 + r2
         # add release events
         for x in released_Vehicles:
@@ -314,5 +359,4 @@ class ChaDepParent:
         '''checks'''
         if len(self.ChBaVehicles)!=self.ChBaNum:
             raise ValueError("Size of ChargingBay List shouldn't change")
-
         

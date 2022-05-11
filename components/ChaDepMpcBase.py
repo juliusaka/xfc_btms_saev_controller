@@ -408,9 +408,10 @@ class ChaDepMpcBase(ChaDepParent):
         '''Write chargingStation states in ResultWriter'''
         self.ResultWriter.updateChargingStationState(self.SimBroker.t_act, self)
 
-        '''release vehicles when full'''
-        r1 = self.chBaReleaseThreshold()
-        r2 = self.queueReleaseThreshold()
+        '''release vehicles when full and create control outputs'''
+        self.resetOutput()
+        r1 = self.chBaReleaseThresholdAndOutput()
+        r2 = self.queueReleaseThresholdAndOutput()
         released_Vehicles = r1 + r2
         # add release events
         for x in released_Vehicles:

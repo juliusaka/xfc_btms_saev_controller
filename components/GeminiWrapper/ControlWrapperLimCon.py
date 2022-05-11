@@ -5,13 +5,14 @@ class ControlWrapperLimCon():
     # A Wrapper for the Limit Controller
 
     def __init__(self, parkingZoneId, info_plugs, result_directory, simName, t_start, path_vehicleDatabase) -> None:
+        ChargingStationId = parkingZoneId # TODO: how do we wanna name the charging station?
         ''' init SimBroker Dummy , VehicleGenerator and ResultWriter'''
-        self.SimBroker = components.GeminiWrapper.SimBrokerDummy(t_start) # central timekeeper
-        # TODO a VehicleGenerator for Gemini
-        self.ResultWriter = components.ResultWriter(result_directory, simName)
+        self.SimBroker          = components.GeminiWrapper.SimBrokerDummy(t_start) # central timekeeper
+        self.VehicleGenerator   = components.GeminiWrapper.VehicleGeneratorBeam(path_vehicleDatabase)
+        self.ResultWriter       = components.ResultWriter(result_directory, simName, saveInGemini=True, chargingStationId=str(ChargingStationId))
 
         '''create charging station object'''
-        ChargingStationId = parkingZoneId # TODO: how do we wanna name the charging station?
+        #ChargingStationId  assigned above to use its name to create chargingStationDirectory
         ChBaMaxPower            = []      # TODO: how to get this from info_plugs; list of maximal power per plug
         ChBaParkingZoneId       = []      # TODO: how to get this from info_plugs; list of plug ids
         ChBaNum                 = len(ChBaNum)
@@ -28,19 +29,19 @@ class ControlWrapperLimCon():
         pass
 
     def arrival(self, vehicleId, vehicleType, arrivalTime, desiredDepartureTime, primaryFuelLevelinJoules, desiredFuelLevelInJoules) -> None:
-        #vehicle = self.VehicleGenerator() TODO integration vehicle generator
-        #self.ChargingStation.arrival(vehicle, self.SimBroker.t_act)
-        pass
+        vehicle = self.VehicleGenerator.generateVehicle(VehicleId = vehicleId, VehicleType = vehicleType, VehicleArrival = arrivalTime, VehicleDesEnd = desiredDepartureTime, primaryFuelLevelInJoules = primaryFuelLevelinJoules, desiredFuelLevelInJoules = desiredFuelLevelInJoules)
+        self.ChargingStation.arrival(vehicle, self.SimBroker.t_act)
 
     def step (self, timestep):
         self.ChargingStation.step(timestep)
-        
-        # TODO: provide control outputs to BEAM
+
+        vehicles, power, release = self.ChargingStation.getControlOutput()
+
         control_command_list = []
-        for i in range(0, len(self.Vehicles)):
+        for i in range(0, len(vehicles)):
             control_command_list.append({
-                'vehicleId': str(self.Vehicles[i]),
-                'power': str(power),
+                'vehicleId': str(vehicles[i]),
+                'power': str(power[i]),
                 'release': str(release[i])
             })
         return control_command_list

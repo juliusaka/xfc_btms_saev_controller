@@ -9,12 +9,13 @@ import components
 
 class ResultWriter:
 
-    def __init__(self, directory: string, simName: string, iterations_save: int = 12, format: string = ".csv") -> None:
-        self.iterations_save                    = iterations_save # number of iterations, after which results are saved (backup for crashs). Not used so far
-
-        self.directory                          = os.path.join(directory,simName)          # save for use in other function
+    def __init__(self, directory: string, simName: string, format: string = ".csv", saveInGemini = False, chargingStationId: string = 'ID') -> None:
+        if not saveInGemini:
+            self.directory = os.path.join(directory,simName)         # save for use in other functions
+        else: 
+            self.directory = os.path.join(directory, simName, chargingStationId) # save for use in other functions, save results for each charging station federate seperatly
         os.makedirs(self.directory, exist_ok=True)
-        self.simName                            = simName            # save for use in other function
+        self.simName                            = simName            # save for use in other functions
         self.ChargingStationState_Filename      = os.path.join(self.directory, "ChargingStationState"       + format)
         self.Events_Filename                    = os.path.join(self.directory, "Events"                     + format)
         self.VehicleStates_Filename             = os.path.join(self.directory, "VehicleStates"              + format)
@@ -75,6 +76,11 @@ class ResultWriter:
     def releaseEvent(self, t_act, Vehicle: Vehicle, ChargingStationId):
         self.Events = self.Events.append(
             {"time": t_act, "Event": "ReleaseEvent", "ChargingStationId": ChargingStationId, "VehicleId": Vehicle.VehicleId, "QueueOrBay": "", "ChargingDesire": float("NaN"), "VehicleType": Vehicle.VehicleType, "VehicleArrival": Vehicle.VehicleArrival, "VehicleDesiredEnd": Vehicle.VehicleDesEnd, "VehicleEnergy": Vehicle.VehicleEngy, "VehicleDesiredEnergy": Vehicle.VehicleDesEngy, "VehicleSoc": Vehicle.VehicleSoc, "VehicleMaxEnergy": Vehicle.VehicleMaxEngy, "VehicleMaxPower": Vehicle.VehicleMaxPower, "ChargingBayMaxPower": float("nan")
+        }, ignore_index=True)
+
+    def forcedReleaseEvent(self, t_act, Vehicle: Vehicle, ChargingStationId):
+        self.Events = self.Events.append(
+            {"time": t_act, "Event": "ForcedReleaseEvent", "ChargingStationId": ChargingStationId, "VehicleId": Vehicle.VehicleId, "QueueOrBay": "", "ChargingDesire": float("NaN"), "VehicleType": Vehicle.VehicleType, "VehicleArrival": Vehicle.VehicleArrival, "VehicleDesiredEnd": Vehicle.VehicleDesEnd, "VehicleEnergy": Vehicle.VehicleEngy, "VehicleDesiredEnergy": Vehicle.VehicleDesEngy, "VehicleSoc": Vehicle.VehicleSoc, "VehicleMaxEnergy": Vehicle.VehicleMaxEngy, "VehicleMaxPower": Vehicle.VehicleMaxPower, "ChargingBayMaxPower": float("nan")
         }, ignore_index=True)
 
     def updateVehicleStates(self, t_act, vehicle: Vehicle, ChargingStationId, QueueOrBay, ChargingPower):

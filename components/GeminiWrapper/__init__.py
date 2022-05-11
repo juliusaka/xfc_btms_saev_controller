@@ -1,3 +1,4 @@
 from .SimBrokerDummy import SimBrokerDummy
 from .ControlWrapperDummy import ControlWrapperDummy
 from.ControlWrapperLimCon import ControlWrapperLimCon
+from .VehicleGeneratorBeam import VehicleGeneratorBeam
