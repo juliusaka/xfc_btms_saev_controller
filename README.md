@@ -144,9 +144,9 @@ methods:
 
 -*getChargingTrajectories*: returns charging trajectories, one as a lower, one as upper bound of the energy demand for charging. This uses the function *getMaxChargePower()*, which has a parameter inverse for calculating the power level when going backwards. For the lower energy trajectory, we simplify the problem a bit and use the charging power at the end of the step, as solving for the average power in the period is an iterative process and hard to implement. If you would somehow implement the trajectory as a function of time E(t), you would maybe find a more exact solution. But as charging trajectories can never be perfectly described by an equation, this approach will be considered as good enough to show the general behaviour.
 
-<img src="svgs/0b220a83e612300192b2dac5cf504a29.svg?invert_in_darkmode" align=middle width=243.47074619999995pt height=24.65753399999998pt/>
+<img src="https://rawgit.com/juliusaka/xfc-btms-saev-controller/svgs/svgs/0b220a83e612300192b2dac5cf504a29.svg?invert_in_darkmode" align=middle width=243.47074619999995pt height=24.65753399999998pt/>
 
-where <img src="svgs/18583997f59e150c2101e4322eeee3b1.svg?invert_in_darkmode" align=middle width=95.61681689999999pt height=24.65753399999998pt/> is interpolated between desired energy level and arrival energy level based on the time, if actual time exceeds desired end, it is set to desired energy level. This function must be called in the charging controller.
+where <img src="https://rawgit.com/juliusaka/xfc-btms-saev-controller/svgs/svgs/18583997f59e150c2101e4322eeee3b1.svg?invert_in_darkmode" align=middle width=95.61681689999999pt height=24.65753399999998pt/> is interpolated between desired energy level and arrival energy level based on the time, if actual time exceeds desired end, it is set to desired energy level. This function must be called in the charging controller.
 
 
 ### VehicleGenerator
