@@ -12,11 +12,11 @@
 
 in *determineBtmsSize()*:
 
-$\begin{equation}
+$$\begin{equation}
 \min \quad a \cdot (P_{slack} - P_{free}) + b \cdot \Sigma_{k=0}^{T} P_{BTMS,Ch}(k)dt + c \cdot (\Sigma_{k=0}^{k=T} P_{BTMS,Ch}(k)dt + \Sigma_{k=0}^{k=T}P_{BTMS,DCh}(k)dt)
-\end{equation}$
+\end{equation}$$
 subject to:
-$\begin{align}
+$$\begin{align}
 E_{BTMS}(k+1) &= E_{BTMS}(k) + dt \cdot (\eta \cdot P_{BTMS,Ch}(k) + \frac{1}{\eta}P_{BTMS,DCh}(k)) \quad &\forall k \in [0,T]\\
 P_{Charge}(k) &= P_{Grid}(k) - P_{BTMS}(k) \quad &\forall k \in [0,T]  \\
 c &= P_{BTMS,Ch}(k) + P_{BTMS,DCh}(k) \quad &\forall k \in [0,T]\\
@@ -26,7 +26,7 @@ E_{BTMS}(0) &= E_{BTMS}(T+1)\\
 E_{BTMS}(0) &= 0\\
 P_{slack} &\geq \max(P_{Grid}(k))\\
 P_{slack} &\geq P_{free}
-\end{align}$
+\end{align}$$
 
 where $a$ is the demand charge per day, $b$ is the BTMS cost per cycle and c is the electricity cost. $P_{Grid}$ is the power withdrawal from the electric grid, $P_{BTMS}$ is the power to/from the behind the meter storage and $P_{Charge}$ is the unconstrained power flow of the charging station, which is determined in the class-method *generatePredictions()*, with a simple algorithm, considering vehicle arrivals and the maximum number of available charging bays at the charging station. $E_{BTMS}$ is the energy content of the behind the meter storage, and its size is left open to be determined by the optimization. To correctly implement charging losses, we assume that the same charging loss occurs while charging and discharge, and model these effects with two variables $P_{BTMS,Ch}$ and $P_{BTMS,DCh}$, please see remark at bottom for a proof of this.
 
