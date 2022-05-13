@@ -56,4 +56,14 @@ class ControlWrapperDummy():
 
         return control_command_list, power_allowance
 
-    
+    def sendPowerToDERMS():
+        pass
+
+    def sendPowerToGrid():
+        pass
+
+    def updatePowerLimitsFromDERMS():
+        pass
+
+    def updateCESfromGrid():
+        pass
