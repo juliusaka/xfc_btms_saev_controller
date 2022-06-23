@@ -359,4 +359,3 @@ class ChaDepParent:
         '''checks'''
         if len(self.ChBaVehicles)!=self.ChBaNum:
             raise ValueError("Size of ChargingBay List shouldn't change")
-        

@@ -1,0 +1,4 @@
+- adapt queue / sorting algorithm for use with gemini. Means: turn it of, when used with gemini. Vehicles are assigned to bays by the Beam Parking Manager.
+- how is btms sizing done and initialized?
+- change the way max power is distributed when running with Gemini.
+- Vehicle Generator BEAM
