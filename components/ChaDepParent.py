@@ -1,4 +1,4 @@
-from msilib.schema import Error
+#from msilib.schema import Error
 from components import Vehicle
 from components import ResultWriter
 from components import SimBroker
@@ -32,7 +32,6 @@ class ChaDepParent:
         '''Charging Bays'''
         #properties
         self.ChBaNum            = ChBaNum # number of charging bays determined by ChBaMaxPower vector
-        print(ChBaNum)
         self.ChBaMaxPower       = ChBaMaxPower      # list of maximum power for each charging bay in kW
         self.ChBaMaxPower_abs   = max(ChBaMaxPower) # maximum value from list above
         self.ChBaParkingZoneId  = ChBaParkingZoneId # list of parking zone ids associated with max power list; can be longer than ChBaMaxPower or ChBaNu for testing with reduced number of charging bays
@@ -56,9 +55,9 @@ class ChaDepParent:
         self.GridPowerUpper         = self.GridPowerMax_Nom  # will be assigned in step function
 
         '''Power Desire'''
+        #variables
         self.PowerDesire            = 0               # Power Desire to DERMS
         self.BtmsPowerDesire        = 0
-
 
         '''Queue of Vehicles'''
         #variables
@@ -68,10 +67,12 @@ class ChaDepParent:
         self.SimBroker              = SimBroker
 
         '''Rating Metric'''
+        #variables
         self.EnergyLagSum           = 0                 # sum of energy lags as rating metric
         self.TimeLagSum             = 0                 # sum of time lags of vehicles as rating metric
 
         ''' Control Output Results'''
+        # TODO Did I use this?
         # control output should be saved to these variables after each step
         self.output_vehicles           = []                # list of vehicle ids
         self.output_power              = []                # list of associated charging power commands
@@ -119,6 +120,7 @@ class ChaDepParent:
         return j
 
     def resetOutput(self):
+        # TODO: Did I use this?
         self.output_vehicles   = []
         self.output_power      = []
         self.output_release    = []
@@ -155,7 +157,6 @@ class ChaDepParent:
                     self.output_release.append(True)
                 else:
                     self.output_release.append(False)
-
         # pop this indices out
         for i in range(0, len(pop)):
             out.append(self.Queue.pop(pop[i]-i)) # to make up the loss of popped out elements before
@@ -178,6 +179,7 @@ class ChaDepParent:
         self.ResultWriter.updateVehicleStates(t_act = self.SimBroker.t_act, vehicle=vehicle, ChargingStationId=self.ChargingStationId, QueueOrBay=True, ChargingPower=0)
         
     def departure(self, vehicleIds, t_act):
+        # TODO: Did I use this?
         # vehicleIds is a list of vehicleIds which should be released
         # for vehicles in charging bay
         for i in range(0, len(self.ChBaVehicles)):
@@ -197,7 +199,7 @@ class ChaDepParent:
 
     def repark(self):
         # class method to repark the vehicles, based on their charging desire
-
+        # TODO: This doesn't take into account different plug powers
         # add vehicles to charging bays if possible
         while self.chBaActiveCharges() < self.ChBaNum and len(self.Queue) > 0:
             add = self.Queue.pop(0)
@@ -273,11 +275,6 @@ class ChaDepParent:
             CD = float("inf")
         v.ChargingDesire = CD
         return CD
-
-    def release(self,):
-        # class method to release vehicles
-        #self.ResultWriter.releaseEvent(self.SimBroker.t_act, )
-        pass
     
     def initialize(self, GridPowerLower, GridPowerUpper):
         self.GridPowerLower = GridPowerLower

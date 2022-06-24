@@ -57,7 +57,6 @@ class Vehicle:
     def updateEnergyLag(self, t_act):
         if self.VehicleDesEnd > t_act:
             E_reference = self.VehicleEngy_Arrival + (self.VehicleDesEngy-self.VehicleEngy_Arrival)/(self.VehicleDesEnd - self.VehicleArrival) * (t_act - self.VehicleArrival)
-            self.EnergyLag = self.VehicleEngy - E_reference
         else:
             E_reference = self.VehicleDesEngy
         self.EnergyLag = self.VehicleEngy - E_reference
@@ -73,20 +72,8 @@ class Vehicle:
     def copy(self):
         # a copy method of the vehicle, to obtain charging trajectories.
         v = Vehicle(self.VehicleId, self.VehicleType, self.VehicleArrival, self.VehicleDesEnd, self.VehicleEngy, self.VehicleDesEngy, self.VehicleMaxEngy, self.VehicleMaxPower)
-        v.VehicleEngy_Arrival = self.VehicleEngy_Arrival
+        v.VehicleEngy_Arrival = self.VehicleEngy_Arrival # need to correct this because when creating the copy the current energy levele is different to the levele at arrival.
         return v
-
-    def getChargingTrajectoryUpper(self,t_act, timestep, N):
-        # determine upper bound of vehicle energy level charging trajectory. Normalized to energy power level at time 0
-        v = self.copy()
-        traj = [0]
-        E0 = v.VehicleEngy
-        for i in range(N):
-            maxPower = v.getMaxChargingPower(timestep)
-            v.addPower(maxPower, timestep)
-            traj.append(v.VehicleEngy - E0)
-        del v
-        return traj
 
     def getChargingTrajectoryUpper(self,t_act, timestep, N):
         # the prediction horizon is N, but we need N+1 values for stocks (inital value + N steps)
@@ -104,8 +91,9 @@ class Vehicle:
 
     def getChargingTrajectories(self,t_act, timestep, N):
         # this gives back both lower and upper trajectory, as we need the upper trajectory to check the lower. 
-        # determine lower bound of vehicle energy level charging trajectory. Normalized to energy power level at time 0
+        # trajectories are normalized to energy level at start of charging trajectory
         v = self.copy()
+        
         # set energy level to desired energy
         v.VehicleEngy = v.VehicleDesEngy
 

@@ -36,6 +36,7 @@ class ResultWriter:
         self.chargingStationProperties           = pd.DataFrame(columns = [
             "ChargingStationId", "BtmsSize", "BtmsC", "BtmsMaxPower", "BtmsMaxSoc", "BtmsMinSoc", "ChBaNum", "ChBaMaxPower", "ChBaMaxPower_abs", "ChBaParkingZoneId", "GridPowerMax_Nom"
         ])
+
     def reset(self):
         list1 = self.ChargingStationStates.columns
         list2 = self.Events.columns
@@ -79,6 +80,7 @@ class ResultWriter:
         }, ignore_index=True)
 
     def forcedReleaseEvent(self, t_act, Vehicle: Vehicle, ChargingStationId):
+        # TODO: Did I use this?
         self.Events = self.Events.append(
             {"time": t_act, "Event": "ForcedReleaseEvent", "ChargingStationId": ChargingStationId, "VehicleId": Vehicle.VehicleId, "QueueOrBay": "", "ChargingDesire": float("NaN"), "VehicleType": Vehicle.VehicleType, "VehicleArrival": Vehicle.VehicleArrival, "VehicleDesiredEnd": Vehicle.VehicleDesEnd, "VehicleEnergy": Vehicle.VehicleEngy, "VehicleDesiredEnergy": Vehicle.VehicleDesEngy, "VehicleSoc": Vehicle.VehicleSoc, "VehicleMaxEnergy": Vehicle.VehicleMaxEngy, "VehicleMaxPower": Vehicle.VehicleMaxPower, "ChargingBayMaxPower": float("nan")
         }, ignore_index=True)

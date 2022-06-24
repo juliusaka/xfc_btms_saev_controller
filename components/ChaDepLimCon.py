@@ -82,6 +82,7 @@ class ChaDepLimCon(ChaDepParent):
         # add release events
         for x in released_Vehicles:
             self.ResultWriter.releaseEvent(self.SimBroker.t_act, x, self.ChargingStationId)
+        # TODO: create control outputs
 
         '''checks'''
         if len(self.ChBaVehicles)!=self.ChBaNum:

@@ -225,8 +225,4 @@ this is the Simulation Broker. The simulation broker has the other task to distr
 
 - change in the long *repark()* algorithm to also contain different plug power levels / need to delete this. - To be done
 
-- include an additional power allowance for new arriving vehicles - To be done
-
-- update of in Beam used power for BTMS and Grid Signal, need to reperform calculation of (optimal) BTMS charge/discharge. - To be done
-
 - send power to Grid Simulation functions - To be done

@@ -52,7 +52,7 @@ class ChaDepMpcBase(ChaDepParent):
             for i in range(0, len(slice)):
                 #print("check 1.9")
                 if slice.iloc[i]["type"] == "ChargingPlugInEvent":
-                    vehicle = VehicleGenerator.generateVehicleSO(slice.iloc[i], AddParkingZoneId=True)
+                    vehicle = VehicleGenerator.generateVehicleSO(slice.iloc[i])
                     if np.isin(element=self.ChBaParkingZoneId, test_elements=vehicle.BeamDesignatedParkingZoneId).any():
                         Queue.append(vehicle)
             # add vehicle to charging bays if possible
@@ -79,7 +79,6 @@ class ChaDepMpcBase(ChaDepParent):
         
         # add noise to produce prediction:
         self.power_sum_original = power_sum.copy()
-        
         if addNoise:
             param = 0.10
             avg = np.average(power_sum)
@@ -92,6 +91,7 @@ class ChaDepMpcBase(ChaDepParent):
         self.PredictionPower = power_sum
 
         # generate a prediction for power limits
+        # TODO: so far no implemented deviations
         for i in time:
             self.PredictionGridUpper.append(self.GridPowerMax_Nom)
             self.PredictionGridLower.append(- self.GridPowerMax_Nom)

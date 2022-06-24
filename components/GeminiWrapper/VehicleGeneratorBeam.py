@@ -10,7 +10,7 @@ class VehicleGeneratorBeam:
         dtype_DataBase = {"vehicleTypeId": "category", "primaryFuelConsumptionInJoulePerMeter": "float64", "primaryFuelCapacityInJoule": "float64", "chargingCapability": "category"}
         self.DataBase = pd.read_csv(path_DataBase, usecols=useCols, dtype=dtype_DataBase, index_col="vehicleTypeId")
 
-    def generateVehicle(self, VehicleId, VehicleType, VehicleArrival, VehicleDesEnd, primaryFuelLevelInJoules, desiredFuelLevelInJoules) -> components.Vehicle:
+    def generateVehicle(self, VehicleId, VehicleType, VehicleArrival, VehicleDesEnd, primaryFuelLevelInJoules, desiredFuelLevelInJoules, ) -> components.Vehicle:
         # conversions
         VehicleEngy         = primaryFuelLevelInJoules / 3.6e6 # conversion Joule to kWh
         VehicleDesEngy      = desiredFuelLevelInJoules / 3.6e6 # conversion Joule to kWh
