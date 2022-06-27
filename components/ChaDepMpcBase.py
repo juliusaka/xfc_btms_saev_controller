@@ -20,14 +20,17 @@ class ChaDepMpcBase(ChaDepParent):
         self.determinedMaxPower = None
 
         '''additional variables for MPC:'''
-        self.PredictionTime         = []
-        self.PredictionPower        = []
-        self.power_sum_original     = []
+        self.PredictionTime         = []    # time vector
+        self.PredictionPower        = []    
+        self.power_sum_original     = []    
         self.PredictionGridUpper    = []   # TODO used so far?
         self.PredictionGridLower    = []   # TODO used so far?
 
         self.P_GridLast             = None      # last Grid Power, used to flatten the MPC power curve
         self.P_GridMaxPlanning      = None      # maximal P_Grid from planning, used to keep demand charge low
+
+        self.E_BtmsLower            = []        # btms energy from planning
+        self.E_BtmsUpper            = []        # btms energy from planning
 
 
 
@@ -202,7 +205,7 @@ class ChaDepMpcBase(ChaDepParent):
         return time, time_x, btms_size, P_Grid, P_BTMS, P_BTMS_Ch, P_BTMS_DCh, E_BTMS, P_Charge, cost
 
     def planning(self, t_act, t_max, timestep, a, b, c, d_param, P_free, P_ChargeAvg, beta, cRating=None):
-        time_start = time_module.time()
+        time_start = time_module.time() # timewatch
         '''see mpcBase.md for explanations'''
         # vector lengthes
         T = int(np.ceil((t_max - t_act) / timestep))
@@ -241,56 +244,53 @@ class ChaDepMpcBase(ChaDepParent):
         ts = timestep / 3.6e3
         eta = self.BtmsEfficiency
 
-        # tuning parameters
+        # define constraints (including system dynamics)
         constr = []
-        # define constraints
         for k in range(T):
-            constr += [x[0,k+1] == x[0,k] + ts * eta * u[2,k] + ts * 1/eta * u[3,k], # BTMS equation
-                        x[1,k+1] == x[1,k] + ts * u[4,k], # shifted energy equation
-                        u[0,k] - u[1,k] == i_power[k] - u[4,k], # energy flow equation
-                        u[1,k] == u[2,k] + u[3,k], # P_BTMS is sum of charge and discharge
-                        u[2,k] >= 0, # charging power always positive
-                        u[3,k] <= 0, # discharge power always negative
-                        t_wait[0,k] >= ts *( n[0,k] +n[1,k]),
-                        n[0,k] >= x[1,k]/(P_ChargeAvg * ts),
-                        n[1,k] >= u[4,k] / P_ChargeAvg,
-                        n[0,k] >= 0,
+            constr += [x[0,k+1] == x[0,k] + ts * eta * u[2,k] + ts * 1/eta * u[3,k],    # BTMS equation
+                        x[1,k+1] == x[1,k] + ts * u[4,k],                               # shifted energy equation
+                        u[0,k] - u[1,k] == i_power[k] - u[4,k],                         # energy flow equation
+                        u[1,k] == u[2,k] + u[3,k],                                      # P_BTMS is sum of charge and discharge
+                        u[2,k] >= 0,                                                    # charging power always positive
+                        u[3,k] <= 0,                                                    # discharge power always negative
+                        t_wait[0,k] >= ts *( n[0,k] +n[1,k]),                           # wait time 
+                        n[0,k] >= x[1,k]/(P_ChargeAvg * ts),                            # wait time due to already shifted energy
+                        n[1,k] >= u[4,k] / P_ChargeAvg,                                 # wait time due to newly shifted energy
+                        n[1,k] >= 0,                                                    # wait time due to newly shifted energy is always positive
                         ]
 
         # btms power limits
         if cRating != None:
             for k in range(T):
-                constr += [u[2,k] <= cRating*self.BtmsSize, # upper power limit,
-                            u[3,k] >= -cRating*self.BtmsSize, # discharge power always negative
+                constr += [u[2,k] <= cRating*self.BtmsSize,     # upper power limit,
+                            u[3,k] >= -cRating*self.BtmsSize,   # discharge power always negative
                             ]
 
         for k in range(T+1):
-            constr += [x[0,k] >= 0, # lower limit of BTMS size
-                        x[0,k] <= self.BtmsSize, # upper limit of BTMS size
-                        x[1,k] >= 0,  # shifted energy is only a positive bin
+            constr += [x[0,k] >= 0,                 # lower limit of BTMS size
+                        x[0,k] <= self.BtmsSize,    # upper limit of BTMS size
+                        x[1,k] >= 0,                # shifted energy is only a positive bin
                         ]
         # insert initial constraint, bound BTMS size and define free power level
-        constr +=  [x[0,0] == x[0,T], # ensure not to discharge BTMS to minimize cost function
-                    x[1,0] == 0, #set shifted Energy at beginning to zero
-                    x[1,T] == 0, #shifted energy should be zero at end
+        constr +=  [x[0,0] == x[0,T],               # ensure not to discharge BTMS to minimize cost function
+                    x[1,0] == 0,                    # set shifted Energy at beginning to zero
+                    x[1,T] == 0,                    # shifted energy should be zero at end
                     p_gridSlack >= cpmax(u[0,:]),
                     p_gridSlack >= P_free,
                     ]
         
         # define cost-funciton
-        cost = a * (p_gridSlack - P_free) # demand charg
-        for k in range(T):       # cost of btms degradation and cost of energy loss
+        cost = a * (p_gridSlack - P_free)           # demand charge
+        for k in range(T):                          # cost of btms degradation, cost of energy loss, cost of waiting time
             cost += (b+c) * u[2,k] * ts + c * u[3,k] * ts + d[k] * t_wait[0,k]
-        
-        #print(d)
 
-        time_end1 = time_module.time()
+        time_end1 = time_module.time() # timewatch
 
         # solve the problem
         prob = cp.Problem(cp.Minimize(cost), constr)
         prob.solve()
 
-        time_end2=time_module.time()
+        time_end2=time_module.time()    # timewatch
 
         # determine BTMS size and unpack over values
         P_Grid = u[0,:].value
@@ -308,7 +308,7 @@ class ChaDepMpcBase(ChaDepParent):
         cost = prob.value
         time_x = time.tolist()
         time_x.append(time[-1]+timestep)
-        time_x = np.array(time_x) # time_x is the time vector for states, time the time vector for control inputs
+        time_x = np.array(time_x)       # time_x is the time vector for states, time the time vector for control inputs, time_x is one entry longer
 
         # save important values to object
         self.P_GridMaxPlanning = max(P_Grid)
@@ -317,6 +317,10 @@ class ChaDepMpcBase(ChaDepParent):
         for i in range(T+1):
             self.E_BtmsLower.append(max([0, (1-beta) * E_BTMS[i]]))
             self.E_BtmsUpper.append(min([self.BtmsSize, (1+beta) * E_BTMS[i]]))
+        
+        # initialize charging station with planning results
+        self.P_GridLast = P_Grid[0]   # grid power last with first planning value
+        self.BtmsEn = E_BTMS[0]       # BTMS energy with first planning value
         
         #save results to csv-file
         param_vec = np.zeros_like(time)
@@ -330,6 +334,8 @@ class ChaDepMpcBase(ChaDepParent):
             'P_Grid': P_Grid,
             'P_BTMS': P_BTMS,
             'E_BTMS': E_BTMS,
+            'E_BTMS_lower': self.E_BtmsLower,
+            'E_BTMS_upper': self.E_BtmsUpper,
             'E_Shift': E_Shift,
             'P_Charge': P_Charge,
             'P_Shift': P_Shift,
@@ -356,23 +362,95 @@ class ChaDepMpcBase(ChaDepParent):
 
         return time, time_x, P_Grid, P_BTMS, P_BTMS_Ch, P_BTMS_DCh, E_BTMS, E_Shift, P_Charge, P_Shift, t_wait_val, cost_t_wait, cost
 
-    def runMpc(self, N, SimBroker: components.SimBroker):
+    def runMpc(self, t_act, timestep, N, SimBroker: components.SimBroker, M1 = 1e6, M2 = 1e7):
+        # N is the MPC optimization horizon
 
         # define variables 
         x = cp.Variable((2, N+1))
         u = cp.Variable((5, N))
-        t = cp.Variable((1,1))
+        t1 = cp.Variable((1,N)) # this goes from [0, N]: for control output variable
+        t2 = cp.Variable((1,N)) # this goes from [1, N+1]: for state variable, first (0) is already bound
+        P_avg = cp.Variable((1,1))
 
         # obtain inputs
-        P_GridLast = self.P_GridLast
-        P_GridMaxPlanning = self.P_GridMaxPlanning
-        P_GridUpper = self.GridPowerUpper # TODO turn derms off by assign big value in the derms dummy
-        btms_size = self.BtmsSize
-        E_BtmsLower = self.E_BtmsLower
-        E_BtmsUpper = self.E_BtmsUpper
-        # TODO e v lower
-        # TODO e v upper
-        E_BtmsPhySim = self.BtmsEn # TODO initialize BTMS energy level with values from planning
+        P_GridLast          = self.P_GridLast             # grid power from last control step
+        i_act               = SimBroker.iteration         # actual iteration to read out from planning results
+        P_GridMaxPlanning   = self.P_GridMaxPlanning     
+        P_GridUpper         = self.GridPowerUpper 
+        btms_size           = self.BtmsSize
+        E_BtmsLower         = self.E_BtmsLower
+        E_BtmsUpper         = self.E_BtmsUpper
+        E_Btms              = self.BtmsEn
+        # charging trajectories from cars
+        E_V_lower = np.zeros(N+1)
+        E_V_upper = np.zeros(N+1)
+        for x in self.ChBaVehicles:
+            if x != False:
+                upper, lower = x.getChargingTrajectory(t_act, timestep, N)
+                E_V_upper = np.add(E_V_upper, upper)
+                E_V_lower = np.add(E_V_lower, lower)
+
+        #parameters
+        ts = timestep / 3.6e3
+        eta = self.BtmsEfficiency
+
+        # set up control problem
+        constr = []
+
+        for k in range(N):
+            # system dynamics and control variable constraints
+            constr += [
+                        x[0, k+1] == x[0, k] + ts * (eta * u[2,k] + 1/eta * u[3, k]),   # system dynamic btms
+                        x[1, k+1] == x[1, k] + ts * u[4, k],    # system dynamic charged energy to vehicles
+                        u[4, k] == u[0, k] - u[1, k],   # energy flow at station
+                        u[1, k] == u[2, k] + u[3, k],   # energy equation charge/discharge
+                        u[0, k] <= P_GridMaxPlanning + t2[0, k],  # grid power smaller than value from planning
+                        u[0, k] <= P_GridUpper, # upper bound from derms
+                        u[2, k] >= 0, 
+                        u[3, k] <= 0,
+                        u[4, k] >= 0,
+                        t1[0, k] >= 0,
+                        t2[0, k] >= 0,
+            ]
+        for k in range(N+1):
+            # state constraints
+            constr += [
+                        x[0, k] >= 0,
+                        x[0, k] <= btms_size,
+            ]
+        # define these constraints from 1 on to reduce the number of redundant constraints
+        for k in range(1, N+1):
+            constr += [
+                        x[0, k] >= E_BtmsLower[i_act + k], # correct position in planning results is i_act + k
+                        x[0, k] <= E_BtmsUpper[i_act + k],
+                        x[1, k] >= E_V_lower[k] - t1[0, k], 
+                        x[1, k] <= E_V_upper[k],            
+            ]
+        # initial constraints
+        constr += [
+            x[0, 0] == E_Btms,
+            x[1, 0] == 0,
+        ]
+        # average power constraint
+        constr += [
+            P_avg == (cp.sum(u[0, :]) + P_GridLast)/ (N+1),
+        ]
+        # objective function
+        cost = cp.square(P_GridLast - P_avg)
+        cost += cp.sum(cp.square(u[0, :] - P_avg))
+        cost += M1 * cp.sum(cp.square(t1[0, :] ))
+        cost += M2 * cp.sum(cp.square(t2[0, :] ))
+
+        # solve control problem
+        prob = cp.Problem(cp.Minimize(cost), constr)
+        prob.solve()
+
+        # add routine to deal with infeasibilty (even control problem should always be feasible)
+        if prob.status == 'infeasible':
+            print('The problem is infeasible!')
+            # TODO: add additional code to deal with this
+            
+        # return control action
 
 
     def step(self, timestep):

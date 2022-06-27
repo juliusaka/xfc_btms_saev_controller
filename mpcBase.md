@@ -187,7 +187,7 @@ In order to align with the goal to show how control can benefit on keeping the s
 in *step()*:
 $\begin{equation}
 \begin{aligned}
-\min \quad \Sigma_{k=-1}^{N} (P_{Grid}(k) - P_{avg}(k)) + \Sigma_{k=0}^{N} M_1 t_1(k) + M_2 t_2(k)
+\min \quad \Sigma_{k=-1}^{N} (P_{Grid}(k) - P_{avg}(k))^2 + \Sigma_{k=0}^{N} M_1 t_1(k) + \Sigma_{k=1}^{N+1} M_2 t_2(k)
 \end{aligned}
 \end{equation}$
 
@@ -204,14 +204,17 @@ P_{Grid}(k) &\leq P_{Grid,DERMS} \quad &\forall k \in [0,N]\\
 P_{BTMS,Ch}(k) &\geq 0 \quad &\forall k \in [0,N]\\
 P_{BTMS,DCh}(k) &\leq 0 \quad &\forall k \in [0,N]\\
 P_{Charge}(k) &\geq 0 \quad &\forall k \in [0,N]\\
+t_1(k) &\geq 0 \quad &\forall k \in [0,N]\\
+t_2(k) &\geq 0 \quad &\forall k \in [0,N]\\
 E_{BTMS}(k) &\geq 0 \quad &\forall k \in [0,N+1]\\
 E_{BTMS}(k) &\leq \Delta E_{BTMS} \quad &\forall k \in [0,N+1] \\
 E_{BTMS}(k) &\geq E_{BTMS,lower}(k) \quad &\forall k \in [1,N+1]\\
-E_{BTMS}(k) &\leq E_{BTMS,lower}(k) \quad &\forall k \in [1,N+1]\\
+E_{BTMS}(k) &\leq E_{BTMS,upper}(k) \quad &\forall k \in [1,N+1]\\
 E_{V}(k) &\geq E_{V,lower}(k) - t_1(k) \quad &\forall k \in [1,N+1]\\
 E_{V}(k) &\leq E_{V,upper}(k) \quad &\forall k \in [1,N+1]\\
 E_{BTMS}(0) &= E_{BTMS,PhySim}\\
 E_{V}(0) &= 0 \\
+P_{avg} &= \Sigma_{k=-1}^{N} \frac{P_{Grid}(k)}{N+1}
 \end{align}$
 
 Compared to the fomulations before, $P_{Charge}(k)$ is now a variable determined to satisfy the charging demand for Vehicles $E_{V,lower}(k)$ and $E_{V,upper}(k)$, which are determined as the sum of the vehicle object function *determineChargingTrajectory()*. The function returns an upper and lower bound for the necessary energy transfered to each vehicle. The lower bound is a trajectory which need to be fullfilled to reach the desired end in time, the upper bound is a trajectory which resemble the fastet possible charge. The time in between is allowed flexibility. Likewise, we added a differntial equaiton for the aggregated energy level in the vehicles $E_{V}(k)$.  

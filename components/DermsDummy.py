@@ -18,8 +18,9 @@ class DermsDummy:
         self.data[chargingStationId][3] = desiredChargingPower
 
     def output(self, chargingStationId: string):
-        variation = 1 + 0.05 * npr.randn() # 68% of the deviations lie within the 1sigma band of 5%
-        # TODO Derms turned of for first by assigning big value
-        GridPowerLower = 1e6 * -1 * variation * self.data[chargingStationId][0]
-        GridPowerUpper = 1e6 * variation * self.data[chargingStationId][0]
+        # TODO derms turned off, as chBaMaxpower is multiplied by 0.35 in chadeparent so far
+        variation = 1/0.35 #+ 0.05 * npr.randn() # 68% of the deviations lie within the 1sigma band of 5%
+        # TODO adjust derms behavior
+        GridPowerLower = 2 * -1 * variation * self.data[chargingStationId][0]
+        GridPowerUpper = 2 * variation * self.data[chargingStationId][0]
         return GridPowerLower, GridPowerUpper

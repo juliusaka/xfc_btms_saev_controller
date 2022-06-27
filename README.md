@@ -14,7 +14,6 @@ below, there is a list of important used packages:
 
 - **dask**: used for processing the large output-csv for the independent controller developement framework
 - **numpy**
-- **PySCIPOpt**: for solving mixed integer optimization problems. Here is the [GitHub](https://github.com/scipopt/PySCIPOpt) - not used anmyore ?!
 - **cvxopt**:
 
 

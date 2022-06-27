@@ -133,4 +133,6 @@ class Vehicle:
             for i in range(len(traj_upper)):
                 traj_lower[i] = min([traj_lower[i], traj_upper[i]])
         del v
+        traj_lower = np.array(traj_lower)
+        traj_upper = np.array(traj_upper)
         return traj_lower, traj_upper

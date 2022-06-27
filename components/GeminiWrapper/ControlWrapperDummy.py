@@ -1,7 +1,8 @@
 import components
 class ControlWrapperDummy():
 
-    '''This dummy wouldnt work like this, need to be made functional'''
+    '''This dummy wouldnt work like this, need to be made functional
+    What is this? Probably not necessary anymore.'''
 
     def __init__(self) -> None:
         self.Vehicles = [] # list for vehicle ids
