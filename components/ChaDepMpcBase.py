@@ -32,6 +32,8 @@ class ChaDepMpcBase(ChaDepParent):
         self.E_BtmsLower            = []        # btms energy from planning
         self.E_BtmsUpper            = []        # btms energy from planning
 
+        self.N                      = 10      # number of short horizoned steps in MPC
+
 
 
     def generatePredictions(self, path_BeamPredictionFile, dtype, path_DataBase, timestep=5*60, addNoise = True):
@@ -362,7 +364,7 @@ class ChaDepMpcBase(ChaDepParent):
 
         return time, time_x, P_Grid, P_BTMS, P_BTMS_Ch, P_BTMS_DCh, E_BTMS, E_Shift, P_Charge, P_Shift, t_wait_val, cost_t_wait, cost
 
-    def runMpc(self, t_act, timestep, N, SimBroker: components.SimBroker, M1 = 1e6, M2 = 1e7):
+    def runMpc(self, timestep, N, SimBroker: components.SimBroker, M1 = 1e6, M2 = 1e7):
         # N is the MPC optimization horizon
 
         # define variables 
@@ -386,7 +388,7 @@ class ChaDepMpcBase(ChaDepParent):
         E_V_upper = np.zeros(N+1)
         for x in self.ChBaVehicles:
             if x != False:
-                upper, lower = x.getChargingTrajectory(t_act, timestep, N)
+                upper, lower = x.getChargingTrajectory(SimBroker.t_act, timestep, N)
                 E_V_upper = np.add(E_V_upper, upper)
                 E_V_lower = np.add(E_V_lower, lower)
 
@@ -451,6 +453,11 @@ class ChaDepMpcBase(ChaDepParent):
             # TODO: add additional code to deal with this
             
         # return control action
+        '''our control outputs are P_BTMS  and P_Charge, P_Grid is the sum of both'''
+        P_BTMS = u[1, 0].value
+        P_Charge = u[4, 0].value
+
+        return P_BTMS, P_Charge
 
 
     def step(self, timestep):
@@ -459,22 +466,26 @@ class ChaDepMpcBase(ChaDepParent):
         self.repark()
 
         '''insert here the control action'''
-
+        
         '''assign values to:
         self.ChBaPower
         self.BtmsPower
-        DONE: self.PowerDesire # for DERMS
-        DONE: self.BtmsPowerDesire # for DERMS
         '''
+        # run MPC to obtain max power for charging vehicles and charging power for BTMS
+        P_BTMS, P_Charge = self.runMpc(timestep, self.N, self.SimBroker)
+        P_max = P_Charge
+        # distribute MPC powers to vehicles (by charging desire)
+        self.distributeChargingPowerToVehicles(timestep, P_max)
+        # assign MPC btms power to btms
+        self.BtmsPower = P_BTMS
 
-        '''update SOC and Result Writer for Vehicles'''
+        '''# update BTMS and vehicles states and update the result writer with their states'''
         # BTMS
         self.BtmsAddPower(self.BtmsPower, timestep)
         # Vehicles
         self.updateVehicleStatesAndWriteResults(self.ChBaPower, timestep)
 
-        '''determine power desire for next time step
-                this must be done after Vehicle and BTMS states are updated, so that charging curves can be taken into account'''
+        '''determine power desire for next time step'''
         PowerDesire = 0
         for i in range(0,len(self.ChBaVehicles)):
             if self.ChBaVehicles[i] != False:
@@ -494,6 +505,7 @@ class ChaDepMpcBase(ChaDepParent):
         # add release events
         for x in released_Vehicles:
             self.ResultWriter.releaseEvent(self.SimBroker.t_act, x, self.ChargingStationId)
+        # TODO: create control outputs
 
         '''checks'''
         if len(self.ChBaVehicles)!=self.ChBaNum:

@@ -23,26 +23,7 @@ class ChaDepLimCon(ChaDepParent):
         else:
             P_max = self.GridPowerUpper + (self.BtmsEn - self.BtmsSize * self.BtmsMinSoc) / (timestep/3.6e3)
         '''# now assign the charging powers to each vehicle, prioritized by their charging desire'''
-        self.ChBaPower = [] # delete charging power of previous timestep
-        CD_Bays = [] # list of charging desire of the vehicles in bays
-        for x in self.ChBaVehicles:
-            self.ChBaPower.append(0) # make list of charging power with corresponding size
-            if type(x) == Vehicle:
-                CD_Bays.append(-1* x.ChargingDesire) # multiply with -1 to have an sorted descending list
-            else:
-                CD_Bays.append(float('nan')) # add nan if no vehicle is in Bay
-        idx_Bays = np.argsort(CD_Bays)
-        for i in range(0, len(self.ChBaVehicles)): # go through charging bays sorted by their charging desire
-            j = idx_Bays[i] # save index of current charging bay in j
-            if type(self.ChBaVehicles[j]) == Vehicle: # only assign charging power, if a vehicle is in the bay
-                maxPower = min([self.ChBaMaxPower[j], self.ChBaVehicles[j].getMaxChargingPower(timestep)]) # the maximum power of the current bay is the minimum of the chargingbay max power and the vehicle max power
-                sumPowers = sum(self.ChBaPower)
-                if  sumPowers + maxPower <= P_max: # test if maxPower of current bay can be fully added
-                    self.ChBaPower[j] = maxPower
-                elif sumPowers < P_max: # test if intermediate value can be added
-                    self.ChBaPower[j] = P_max - sumPowers
-                else: # if no power adding is possible, we can leave this loop.
-                    break
+        self.distributeChargingPowerToVehicles(timestep, P_max)
 
         '''# now find out how to charge or discharge BTMS''' 
         sumPowers = sum(self.ChBaPower)
