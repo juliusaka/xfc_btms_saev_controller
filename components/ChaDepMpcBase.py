@@ -364,15 +364,8 @@ class ChaDepMpcBase(ChaDepParent):
 
         return time, time_x, P_Grid, P_BTMS, P_BTMS_Ch, P_BTMS_DCh, E_BTMS, E_Shift, P_Charge, P_Shift, t_wait_val, cost_t_wait, cost
 
-    def runMpc(self, timestep, N, SimBroker: components.SimBroker, M1 = 1e6, M2 = 1e7):
+    def runMpc(self, timestep, N, SimBroker: components.SimBroker, M1 = 10000, M2 = 15000):
         # N is the MPC optimization horizon
-
-        # define variables 
-        x = cp.Variable((2, N+1))
-        u = cp.Variable((5, N))
-        t1 = cp.Variable((1,N)) # this goes from [0, N]: for control output variable
-        t2 = cp.Variable((1,N)) # this goes from [1, N+1]: for state variable, first (0) is already bound
-        P_avg = cp.Variable((1,1))
 
         # obtain inputs
         P_GridLast          = self.P_GridLast             # grid power from last control step
@@ -388,7 +381,7 @@ class ChaDepMpcBase(ChaDepParent):
         E_V_upper = np.zeros(N+1)
         for x in self.ChBaVehicles:
             if x != False:
-                upper, lower = x.getChargingTrajectory(SimBroker.t_act, timestep, N)
+                upper, lower = x.getChargingTrajectories(SimBroker.t_act, timestep, N)
                 E_V_upper = np.add(E_V_upper, upper)
                 E_V_lower = np.add(E_V_lower, lower)
 
@@ -397,6 +390,14 @@ class ChaDepMpcBase(ChaDepParent):
         eta = self.BtmsEfficiency
 
         # set up control problem
+
+        # define variables 
+        x = cp.Variable((2, N+1))
+        u = cp.Variable((5, N))
+        t1 = cp.Variable((1,N)) # this goes from [0, N]: for control output variable
+        t2 = cp.Variable((1,N)) # this goes from [1, N+1]: for state variable, first (0) is already bound
+        P_avg = cp.Variable((1,1))
+
         constr = []
 
         for k in range(N):
@@ -425,7 +426,7 @@ class ChaDepMpcBase(ChaDepParent):
             constr += [
                         x[0, k] >= E_BtmsLower[i_act + k], # correct position in planning results is i_act + k
                         x[0, k] <= E_BtmsUpper[i_act + k],
-                        x[1, k] >= E_V_lower[k] - t1[0, k], 
+                        x[1, k] >= E_V_lower[k] - t1[0, k-1], # we defined t1 as a vector of length N+1-1, so we need to subtract 1 to get the correct index
                         x[1, k] <= E_V_upper[k],            
             ]
         # initial constraints
@@ -445,7 +446,13 @@ class ChaDepMpcBase(ChaDepParent):
 
         # solve control problem
         prob = cp.Problem(cp.Minimize(cost), constr)
-        prob.solve()
+        try:
+            prob.solve(verbose = False)
+        except:
+            prob.solve(verbose = True)
+            print('ups, this went wrong')
+            print(' This is Iteration {SimBroker.iteration}')
+        
 
         # add routine to deal with infeasibilty (even control problem should always be feasible)
         if prob.status == 'infeasible':
@@ -473,6 +480,10 @@ class ChaDepMpcBase(ChaDepParent):
         '''
         # run MPC to obtain max power for charging vehicles and charging power for BTMS
         P_BTMS, P_Charge = self.runMpc(timestep, self.N, self.SimBroker)
+        print('P_BTMS: ', P_BTMS)
+        print('P_Charge: ', P_Charge)
+        print('Charging Station Id: ', self.ChargingStationId)	
+        print('iteration ', self.SimBroker.iteration)
         P_max = P_Charge
         # distribute MPC powers to vehicles (by charging desire)
         self.distributeChargingPowerToVehicles(timestep, P_max)

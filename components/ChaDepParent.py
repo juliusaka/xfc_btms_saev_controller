@@ -320,7 +320,7 @@ class ChaDepParent:
         idx_Bays = np.argsort(CD_Bays)
         for i in range(0, len(self.ChBaVehicles)): # go through charging bays sorted by their charging desire
             j = idx_Bays[i] # save index of current charging bay in j
-            if type(self.ChBaVehicles[j]) == Vehicle: # only assign charging power, if a vehicle is in the bay
+            if self.ChBaVehicles[j] != False: # only assign charging power, if a vehicle is in the bay
                 maxPower = min([self.ChBaMaxPower[j], self.ChBaVehicles[j].getMaxChargingPower(timestep)]) # the maximum power of the current bay is the minimum of the chargingbay max power and the vehicle max power
                 sumPowers = sum(self.ChBaPower)
                 if  sumPowers + maxPower <= P_max: # test if maxPower of current bay can be fully added
@@ -329,6 +329,8 @@ class ChaDepParent:
                     self.ChBaPower[j] = P_max - sumPowers
                 else: # if no power adding is possible, we can leave this loop.
                     break
+        # TODO: delete this
+        print('ChBaPower: ', self.ChBaPower)
 
     def step(self, timestep): # call with t_act = SimBroker.t_act
         '''TEMPLATE FOR OTHER CONTROLLERS:'''
