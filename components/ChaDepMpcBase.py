@@ -1,3 +1,4 @@
+from multiprocessing.sharedctypes import Value
 import pandas as pd
 import os
 from typing import List
@@ -32,7 +33,7 @@ class ChaDepMpcBase(ChaDepParent):
         self.E_BtmsLower            = []        # btms energy from planning
         self.E_BtmsUpper            = []        # btms energy from planning
 
-        self.N                      = 10      # number of short horizoned steps in MPC
+        self.N                      = 5      # number of short horizoned steps in MPC
 
 
 
@@ -368,11 +369,14 @@ class ChaDepMpcBase(ChaDepParent):
         # N is the MPC optimization horizon
 
         # obtain inputs
-        P_GridLast          = self.P_GridLast             # grid power from last control step
+        P_GridLast          = cp.Parameter(value=self.P_GridLast)
         i_act               = SimBroker.iteration         # actual iteration to read out from planning results
-        P_GridMaxPlanning   = self.P_GridMaxPlanning     
+        P_GridMaxPlanning   = self.P_GridMaxPlanning  
+        P_GridMaxPlanning   = cp.Parameter(value=P_GridMaxPlanning)   
         P_GridUpper         = self.GridPowerUpper 
+        P_GridUpper         = cp.Parameter(value=P_GridUpper)
         btms_size           = self.BtmsSize
+        # this is a bit harder to implement for parameters
         E_BtmsLower         = self.E_BtmsLower
         E_BtmsUpper         = self.E_BtmsUpper
         E_Btms              = self.BtmsEn
@@ -440,18 +444,33 @@ class ChaDepMpcBase(ChaDepParent):
         ]
         # objective function
         cost = cp.square(P_GridLast - P_avg)
-        cost += cp.sum(cp.square(u[0, :] - P_avg))
+        #cost += cp.sum(cp.square(u[0, :] - P_avg))
+        for i in range(N):
+            cost += cp.square(u[0, i] - P_avg)
         cost += M1 * cp.sum(cp.square(t1[0, :] ))
         cost += M2 * cp.sum(cp.square(t2[0, :] ))
 
         # solve control problem
         prob = cp.Problem(cp.Minimize(cost), constr)
         try:
+            print(f'\n solving control problem... at iteration {SimBroker.iteration}')
             prob.solve(verbose = False)
+            print('Solved. Solver Status: ', prob.status)
+            print('Iterations: ', prob.solver_stats.num_iters)	
         except:
-            prob.solve(verbose = True)
-            print('ups, this went wrong')
-            print(' This is Iteration {SimBroker.iteration}')
+            print('\nSolver failed')
+            print(f' This is Iteration {SimBroker.iteration}')
+            print(prob)
+            print('setting up the problem again with MOSEK, solving with verbose = True')
+            prob = cp.Problem(cp.Minimize(cost), constr)
+            try:
+                prob.solve(solver = 'CVXOPT', verbose = True)
+                print('now solver succeeded')
+            except:
+                print('\n solving the problem again, solving with verbose = True')
+                prob.solve(solver = 'CVXOPT', verbose = True)
+                print('now solver succeeded')
+        print(f'optimal value: {prob.value}')
         
 
         # add routine to deal with infeasibilty (even control problem should always be feasible)
