@@ -9,7 +9,7 @@ class VehicleGenerator:
     def __init__(self, path_Sim, dtype_Sim, path_DataBase):
 
         # find out which vehicles are in the simulation, and map them with their vehicleTypes.
-            # this is only saved in RefuelSessionEvents
+        # this is only saved in RefuelSessionEvents, but a charging session starts with a PlugInEvent, which is why need to create this map.
         self.SimRes     = pd.read_csv(path_Sim, dtype = dtype_Sim, index_col= "time") # save length of pd dataframe, time is set as index!
         self.SimRes     = self.SimRes.sort_index()  # make sure that inputs are ascending
         length     = len(self.SimRes)     # save length of pd dataframe
@@ -18,7 +18,7 @@ class VehicleGenerator:
         # only RefuelSessionEvents contain this data:
         idx = self.SimRes["type"] == "RefuelSessionEvent"
         for i in range(0, length):
-            if idx.iloc[i] == True:
+            if idx.iloc[i] == True: # if this is a RefuelSessionEvent
                 vehicle_act = self.SimRes["vehicle"].iloc[i]
                 if not self.vehicles["vehicle"].isin( [vehicle_act] ).any():
                     dict = {"vehicle": self.SimRes["vehicle"].iloc[i],
@@ -28,7 +28,7 @@ class VehicleGenerator:
         self.vehicles = self.vehicles.astype({'vehicle': 'int64', 'vehicleType': 'category'})
         self.vehicles = self.vehicles.set_index("vehicle")
         self.vehicles = self.vehicles.sort_index()
-        #del self.SimRes
+        
         # leave self.SimRes open to find next data the desired charging energy
         
         # load now the vehicletype database. Here is specified, what data shall be loaded.
@@ -46,9 +46,9 @@ class VehicleGenerator:
             raise ValueError("You didn't pass a charging plug-in event to generateVehicle")
 
         VehicleId           = df_slice["vehicle"]
-        VehicleType         = self.vehicles.loc[VehicleId, "vehicleType"]
+        VehicleType         = self.vehicles.loc[VehicleId, "vehicleType"] # use map to find out the vehicleType
         VehicleArrival      = df_slice.name
-        VehicleEngy         = df_slice["primaryFuelLevel"]/3.6e6 # conversion to kWh
+        VehicleEngy         = df_slice["primaryFuelLevel"] / 3.6e6 # conversion to kWh
         VehicleMaxEngy      = self.DataBase.loc[VehicleType, "primaryFuelCapacityInJoule"] / 3.6e6 # conversion to kWh
         # generate here the maximum power of the vehicle:
         chargingCap = self.DataBase.loc[VehicleType, "chargingCapability"]
