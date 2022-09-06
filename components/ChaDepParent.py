@@ -18,7 +18,7 @@ class ChaDepParent:
         '''BTMS'''
         # properties
         if calcBtmsGridProp:
-            self.BtmsSize       = sum(ChBaMaxPower)/2 #empirical formula (check with literature)
+            self.BtmsSize       = sum(ChBaMaxPower)/2 # empirical formula (check with literature), used for initializing
         else:
             self.BtmsSize       = BtmsSize          # size of the BTMS in kWh
         self.BtmsC              = BtmsC             # C-Rating of BTMS (1C is a complete charge an hour) C= [1/h]
@@ -31,7 +31,7 @@ class ChaDepParent:
         self.BtmsEfficiency  = 0.95                 # efficiency per charge/decharge
         '''Charging Bays'''
         #properties
-        self.ChBaNum            = ChBaNum # number of charging bays determined by ChBaMaxPower vector
+        self.ChBaNum            = ChBaNum           # number of charging bays determined by ChBaMaxPower vector
         self.ChBaMaxPower       = ChBaMaxPower      # list of maximum power for each charging bay in kW
         self.ChBaMaxPower_abs   = max(ChBaMaxPower) # maximum value from list above
         self.ChBaParkingZoneId  = ChBaParkingZoneId # list of parking zone ids associated with max power list; can be longer than ChBaMaxPower or ChBaNu for testing with reduced number of charging bays

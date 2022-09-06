@@ -141,11 +141,10 @@ class ChaDepMpcBase(ChaDepParent):
         ts = timestep / 3.6e3
         eta = self.BtmsEfficiency
 
-        # tuning parameters
         constr = []
         # define constraints
         for k in range(T):
-            constr += [x[:,k+1] == x[:,k] + ts * eta * u[2,k] + ts * 1/eta * u[3,k],
+            constr += [x[:,k+1] == x[:,k] + ts * eta * u[2,k] + ts * 1/eta * u[3,k], # btms charging equation
                         u[0,k] - u[1,k] == i_power[k], # energy flow equation
                         u[1,k] == u[2,k] + u[3,k], # P_BTMS is sum of charge and discharge
                         u[2,k] >= 0, # charging power always positive
@@ -158,7 +157,7 @@ class ChaDepMpcBase(ChaDepParent):
                     p_gridSlack >= P_free,]
         
         # define cost-funciton
-        cost = a * (p_gridSlack - P_free) # demand charg
+        cost = a * (p_gridSlack - P_free) # demand charge
         for k in range(T):       # cost of btms degradation and cost of energy loss
             cost += (b+c) * u[2,k] * ts + c * u[3,k] * ts # u[3,k] is always negative
 
@@ -184,6 +183,7 @@ class ChaDepMpcBase(ChaDepParent):
 
         #save results to csv-file
         param_vec = np.zeros_like(time)
+        param_vec = param_vec.tolist()
         param_vec[0] = self.determinedBtmsSize
         param_vec[1] = a
         param_vec[2] = b
