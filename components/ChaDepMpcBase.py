@@ -207,10 +207,10 @@ class ChaDepMpcBase(ChaDepParent):
 
         return time, time_x, btms_size, P_Grid, P_BTMS, P_BTMS_Ch, P_BTMS_DCh, E_BTMS, P_Charge, cost
 
-    def planning(self, t_act, t_max, timestep, a, b, c, d_param, P_free, P_ChargeAvg, beta, cRating=None):
-        time_start = time_module.time() # timewatch
+    def planning(self, t_act, t_max, timestep, a, b, c, d_param, P_free, P_ChargeAvg, beta, cRating=None, verbose=True):
+        time_start = time_module.time() # timing
         '''see mpcBase.md for explanations'''
-        # vector lengthes
+        # vector length T
         T = int(np.ceil((t_max - t_act) / timestep))
 
         # define variables 
@@ -220,7 +220,7 @@ class ChaDepMpcBase(ChaDepParent):
         t_wait = cp.Variable((1,T))
         n = cp.Variable((2,T))
         
-        # define disturbance i_power, which is the charging power demand
+        # define disturbance i_power for the needed time period, which is the charging power demand
         time = np.array(self.PredictionTime)
         power = np.array(self.PredictionPower)
         idx = np.logical_and(time >=t_act, time <= t_max)
@@ -231,7 +231,7 @@ class ChaDepMpcBase(ChaDepParent):
             print("length T", T)
             raise ValueError("length T and length of vector i_power are unequal")
 
-        #create array for cost-function parameter d
+        #create array for cost-function parameter d, if wait time cost is not flexible (given as an array)
         if type(d_param) != list:
             d = []
             for i in range(len(i_power)+1):
@@ -250,17 +250,27 @@ class ChaDepMpcBase(ChaDepParent):
         # define constraints (including system dynamics)
         constr = []
         for k in range(T):
-            constr += [x[0,k+1] == x[0,k] + ts * eta * u[2,k] + ts * 1/eta * u[3,k],    # BTMS equation
-                        x[1,k+1] == x[1,k] + ts * u[4,k],                               # shifted energy equation
-                        u[0,k] - u[1,k] == i_power[k] - u[4,k],                         # energy flow equation
-                        u[1,k] == u[2,k] + u[3,k],                                      # P_BTMS is sum of charge and discharge
-                        u[2,k] >= 0,                                                    # charging power always positive
-                        u[3,k] <= 0,                                                    # discharge power always negative
-                        t_wait[0,k] >= ts *( n[0,k] +n[1,k]),                           # wait time 
-                        n[0,k] >= x[1,k]/(P_ChargeAvg * ts),                            # wait time due to already shifted energy
-                        n[1,k] >= u[4,k] / P_ChargeAvg,                                 # wait time due to newly shifted energy
-                        n[1,k] >= 0,                                                    # wait time due to newly shifted energy is always positive
-                        ]
+            constr += [
+                        x[0, k+1] == x[0, k] + ts * eta * u[2, k] + ts * 1/eta * u[3, k],    # BTMS equation
+                       # shifted energy equation
+                       x[1, k+1] == x[1, k] + ts * u[4, k],
+                       # energy flow equation
+                       u[0, k] - u[1, k] == i_power[k] - u[4, k],
+                       # P_BTMS is sum of charge and discharge
+                       u[1, k] == u[2, k] + u[3, k],
+                       # charging power always positive
+                       u[2, k] >= 0,
+                       # discharge power always negative
+                       u[3, k] <= 0,
+                       # wait time
+                       t_wait[0, k] >= ts * (n[0, k] + n[1, k]),
+                       # wait time due to already shifted energy
+                       n[0, k] >= x[1, k]/(P_ChargeAvg * ts),
+                       # wait time due to newly shifted energy
+                       n[1, k] >= u[4, k] / P_ChargeAvg,
+                       # wait time due to newly shifted energy is always positive
+                       n[1, k] >= 0,
+                       ]
 
         # btms power limits
         if cRating != None:
@@ -269,12 +279,14 @@ class ChaDepMpcBase(ChaDepParent):
                             u[3,k] >= -cRating*self.BtmsSize,   # discharge power always negative
                             ]
 
+        # btms size limits
         for k in range(T+1):
             constr += [x[0,k] >= 0,                 # lower limit of BTMS size
                         x[0,k] <= self.BtmsSize,    # upper limit of BTMS size
                         x[1,k] >= 0,                # shifted energy is only a positive bin
                         ]
-        # insert initial constraint, bound BTMS size and define free power level
+
+        # insert initial constraint, bound BTMS charge/discharge and define free power level
         constr +=  [x[0,0] == x[0,T],               # ensure not to discharge BTMS to minimize cost function
                     x[1,0] == 0,                    # set shifted Energy at beginning to zero
                     x[1,T] == 0,                    # shifted energy should be zero at end
@@ -295,7 +307,7 @@ class ChaDepMpcBase(ChaDepParent):
 
         time_end2=time_module.time()    # timewatch
 
-        # determine BTMS size and unpack over values
+        # unpack results
         P_Grid = u[0,:].value
         P_BTMS = u[1,:].value
         E_BTMS = x[0,:].value
@@ -355,17 +367,18 @@ class ChaDepMpcBase(ChaDepParent):
         df.to_csv(os.path.join(dir, filename))
 
         # print solver stats
-        print(self.ChargingStationId)
-        print('solver name: ',prob.solver_stats.solver_name)
-        print('setup time: ',time_end1-time_start)
-        print('solve time: ',time_end2-time_end1)
-        print('total control action time: ', time_end2-time_start)
-        print(prob.status)
-        print('')
+        if verbose:
+            print(self.ChargingStationId)
+            print('solver name: ',prob.solver_stats.solver_name)
+            print('setup time: ',time_end1-time_start)
+            print('solve time: ',time_end2-time_end1)
+            print('total control action time: ', time_end2-time_start)
+            print(prob.status)
+            print('')
 
         return time, time_x, P_Grid, P_BTMS, P_BTMS_Ch, P_BTMS_DCh, E_BTMS, E_Shift, P_Charge, P_Shift, t_wait_val, cost_t_wait, cost
 
-    def runMpc(self, timestep, N, SimBroker: components.SimBroker, M1 = 10000, M2 = 15000):
+    def runMpc(self, timestep, N, SimBroker: components.SimBroker, M1 = 10000, M2 = 15000, verbose = False):
         # N is the MPC optimization horizon
 
         # obtain inputs
@@ -450,26 +463,20 @@ class ChaDepMpcBase(ChaDepParent):
         cost += M1 * cp.sum(cp.square(t1[0, :] ))
         cost += M2 * cp.sum(cp.square(t2[0, :] ))
 
-        # solve control problem
+        # solve control problem and print outputs
         prob = cp.Problem(cp.Minimize(cost), constr)
         try:
-            print(f'\n solving control problem... at iteration {SimBroker.iteration}')
             prob.solve(verbose = False)
             print('Solved. Solver Status: ', prob.status)
-            print('Iterations: ', prob.solver_stats.num_iters)	
+            print('solver iterations: ', prob.solver_stats.num_iters)	
         except:
-            print('\nSolver failed')
-            print(f' This is Iteration {SimBroker.iteration}')
-            print(prob)
-            print('setting up the problem again with MOSEK, solving with verbose = True')
+            print(f'\nSolver failed in iteration {SimBroker.iteration}')
+            #print(prob)
+            print('setting up the problem again, solving with verbose = True')
             prob = cp.Problem(cp.Minimize(cost), constr)
-            try:
-                prob.solve(solver = 'CVXOPT', verbose = True)
-                print('now solver succeeded')
-            except:
-                print('\n solving the problem again, solving with verbose = True')
-                prob.solve(solver = 'CVXOPT', verbose = True)
-                print('now solver succeeded')
+            prob.solve(verbose = True)
+            print('now solver succeeded')
+
         print(f'optimal value: {prob.value}')
         
 
@@ -485,25 +492,31 @@ class ChaDepMpcBase(ChaDepParent):
 
         return P_BTMS, P_Charge
 
-
-    def step(self, timestep):
-
+    def step(self, timestep, verbose = False):
         '''repark vehicles based on their charging desire with the parent method'''
         self.repark()
 
         '''insert here the control action'''
-        
+
         '''assign values to:
         self.ChBaPower
         self.BtmsPower
         '''
+
+        ''' get control action'''
         # run MPC to obtain max power for charging vehicles and charging power for BTMS
-        P_BTMS, P_Charge = self.runMpc(timestep, self.N, self.SimBroker)
-        print('P_BTMS: ', P_BTMS)
-        print('P_Charge: ', P_Charge)
-        print('Charging Station Id: ', self.ChargingStationId)	
-        print('iteration ', self.SimBroker.iteration)
+        if verbose:
+            print(f'\nsolving control problem... at iteration {self.SimBroker.iteration}')
+            print("connected vehicles: ", len(self.ChBaVehicles)-self.ChBaVehicles.count(False))
+
+        P_BTMS, P_Charge = self.runMpc(timestep, self.N, self.SimBroker, verbose = verbose)
+
+        if verbose:
+            print('P_BTMS: ', P_BTMS)
+            print('P_Charge: ', P_Charge)
+            print('Charging Station Id: ', self.ChargingStationId)
         P_max = P_Charge
+
         # distribute MPC powers to vehicles (by charging desire)
         self.distributeChargingPowerToVehicles(timestep, P_max)
         # assign MPC btms power to btms
@@ -517,15 +530,17 @@ class ChaDepMpcBase(ChaDepParent):
 
         '''determine power desire for next time step'''
         PowerDesire = 0
-        for i in range(0,len(self.ChBaVehicles)):
+        for i in range(0, len(self.ChBaVehicles)):
             if self.ChBaVehicles[i] != False:
-                PowerDesire += min([self.ChBaVehicles[i].getMaxChargingPower(timestep), self.ChBaMaxPower[i]])
+                PowerDesire += min(
+                    [self.ChBaVehicles[i].getMaxChargingPower(timestep), self.ChBaMaxPower[i]])
 
         self.PowerDesire = PowerDesire
         self.BtmsPowerDesire = self.getBtmsMaxPower(timestep)
 
         '''Write chargingStation states in ResultWriter'''
-        self.ResultWriter.updateChargingStationState(self.SimBroker.t_act, self)
+        self.ResultWriter.updateChargingStationState(
+            self.SimBroker.t_act, self)
 
         '''release vehicles when full and create control outputs'''
         self.resetOutput()
@@ -534,9 +549,10 @@ class ChaDepMpcBase(ChaDepParent):
         released_Vehicles = r1 + r2
         # add release events
         for x in released_Vehicles:
-            self.ResultWriter.releaseEvent(self.SimBroker.t_act, x, self.ChargingStationId)
+            self.ResultWriter.releaseEvent(
+                self.SimBroker.t_act, x, self.ChargingStationId)
         # TODO: create control outputs
 
         '''checks'''
-        if len(self.ChBaVehicles)!=self.ChBaNum:
+        if len(self.ChBaVehicles) != self.ChBaNum:
             raise ValueError("Size of ChargingBay List shouldn't change")
