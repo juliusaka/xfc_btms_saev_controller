@@ -95,6 +95,7 @@ class Vehicle:
         v = self.copy()
         
         # set energy level to desired energy
+        v.VehicleEngy_Arrival = v.VehicleEngy
         v.VehicleEngy = v.VehicleDesEngy
 
         # if we are already over the desired end time, we just have to charge with maximal power
@@ -106,10 +107,9 @@ class Vehicle:
             k = int(np.ceil((self.VehicleDesEnd - t_act)/timestep)) # number of timestep from end to charging to beginning, must go back this steps
 
             if k < N: # if prediction horizon is larger then desired charging duration
-                for i in range(N-k-1): # fill up N-k-1 with Vehicle desired energy, this is until charging ends -1, because the last energy level when charging ends is appended in the loop below
+                for i in range(N-k): # fill up N-k with Vehicle desired energy, this is until charging ends -1, because the last energy level when charging ends is appended in the loop below
                     traj_lower.append(v.VehicleDesEngy)
-
-                for i in range(k+1): # start "de-charging" at k
+                for i in range(k): # start "de-charging" at k
                     traj_lower.append(v.VehicleEngy)
                     power = v.getMaxChargingPower(timestep, inverse=True)
                     v.addPower( -1 * power, timestep)
@@ -118,25 +118,33 @@ class Vehicle:
                 # reverse the list
                 traj_lower.reverse()
             else:
-                for i in range(k+2): #decharging for k+1 states, with +1 steps to also note the last charge.
+                for i in range(k): #decharging for k+1 steps, with +1 steps to also note the last charge.
                     traj_lower.append(v.VehicleEngy)
                     power = v.getMaxChargingPower(timestep, inverse=True)
+                    # we do assume here that the function power = f(energy) is decreasing with increasing energy level, meaning that if we "charge backwards in time" we always take a lower charging power than it would be possible. If we wanna do this with a better approximation, we should increase the discretization rate to keep the error lower, and then synthezise from that function the lower charging trajectory.
                     v.addPower( -1 * power, timestep)
                     # reverse the list
+                traj_lower.append(v.VehicleEngy) # add last energy level
                 traj_lower.reverse()
                 # take the first N + 1 elements
-                traj_lower = traj_lower[0:N+1]
-            # substract energy at k = 0
-            E0 = traj_lower[0]
+                traj_lower = traj_lower[0:N+1] 
+            
+            # the lower charging trajectory isn't sufficient if traj_lower[0] is greater then self.VehicleEngy
+            if traj_lower[0] > self.VehicleEngy:
+                # use upper charging trajectory
+                traj_upper = self.getChargingTrajectoryUpper(t_act, timestep, N)
+                traj_lower = traj_upper.copy()
+            else:
+                # substract energy of t = 0
+                for i in range(len(traj_lower)):
+                    traj_lower[i] = traj_lower[i] - self.VehicleEngy
+                traj_upper = self.getChargingTrajectoryUpper(t_act, timestep, N)
 
-            '''maybe we can fix this glitch by checking if E0 is larger than VehicleEn at the actual time.'''
-
-            for i in range(len(traj_lower)):
-                traj_lower[i] = traj_lower[i] - E0
-            # make sure that this isn't higher then the upper trajectory
-            traj_upper = self.getChargingTrajectoryUpper(t_act, timestep, N)
-            for i in range(len(traj_upper)):
-                traj_lower[i] = min([traj_lower[i], traj_upper[i]])
+            # check that traj_lower isn't higher than the upper trajectory 
+            # (left here because of coder's suspicion that there is a bug, but the coder is pretty sure that is not the case)
+            for i in range(N+1):
+                if traj_lower[i] > traj_upper[i]:
+                    raise ValueError("Lower charging trajectory is higher than upper charging trajectory")
         del v
         traj_lower = np.array(traj_lower)
         traj_upper = np.array(traj_upper)
