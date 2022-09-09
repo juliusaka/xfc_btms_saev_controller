@@ -27,7 +27,7 @@ class ChaDepParent:
         self.BtmsMinSoc         = BtmsMinSOC        # minimal allowed SOC of BTMS
         #variables:
         self.BtmsEn             = BtmsSoc0 * self.BtmsSize # start BTMS energy content at initialization [kWh]
-        self.BtmsPower       = 0                    # actual charging power of the btms
+        self.P_BTMS       = 0                    # actual charging power of the btms
         self.BtmsEfficiency  = 0.95                 # efficiency per charge/decharge
         '''Charging Bays'''
         #properties
@@ -44,8 +44,8 @@ class ChaDepParent:
         # variables
         self.ChBaPower          = []                # this is the variable for which charging power for each bay is assigned.
         
-        
-
+        '''Grid'''
+        self.P_Grid                 = 0.0                 # actual power of the grid   [kW]
         '''Grid Constraints'''
         if calcBtmsGridProp:
             self.GridPowerMax_Nom   = 0.35*sum(ChBaMaxPower) # empirical formula (check with literature)
@@ -293,7 +293,7 @@ class ChaDepParent:
         # reset energy and time lag
         self.EnergyLagSum = 0
         self.TimeLagSum = 0
-        
+
         for i in range(0, len(self.ChBaVehicles)):
             if isinstance(self.ChBaVehicles[i], components.Vehicle):
                 # calculate maximum charging power possible in period under energy conservation
@@ -344,6 +344,7 @@ class ChaDepParent:
                     self.ChBaPower[j] = P_max - sumPowers
                 else: # if sumPowers is already bigger than P_max, we don't add charging power
                     break
+        return sum(self.ChBaPower) # P_ChargeDelivered
 
     def step(self, timestep): # call with t_act = SimBroker.t_act
         '''TEMPLATE FOR OTHER CONTROLLERS:'''
@@ -367,7 +368,7 @@ class ChaDepParent:
 
         '''# update BTMS state for k+1'''
         # BTMS
-        self.BtmsAddPower(self.BtmsPower, timestep)
+        self.BtmsAddPower(self.P_BTMS, timestep)
 
         '''write vehicle states for k in ResultWriter and update vehicle states for k+1'''
         # Vehicles
@@ -382,9 +383,6 @@ class ChaDepParent:
 
         self.PowerDesire = PowerDesire
         self.BtmsPowerDesire = self.getBtmsMaxPower(timestep)
-
-        '''Write chargingStation states in ResultWriter'''
-        self.ResultWriter.updateChargingStationState(self.SimBroker.t_act, self)
 
         '''release vehicles when full and create control outputs'''
         self.resetOutput()

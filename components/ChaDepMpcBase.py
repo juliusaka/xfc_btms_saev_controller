@@ -27,13 +27,16 @@ class ChaDepMpcBase(ChaDepParent):
         self.PredictionGridUpper    = []   # TODO used so far?
         self.PredictionGridLower    = []   # TODO used so far?
 
+        '''Variables'''
         self.P_GridLast             = None      # last Grid Power, used to flatten the MPC power curve
         self.P_GridMaxPlanning      = None      # maximal P_Grid from planning, used to keep demand charge low
+        self.P_ChargeGranted        = 0      # power granted by MPC 
+        self.P_ChargeDelivered      = 0      # power delivered to vehicles
 
         self.E_BtmsLower            = []        # btms energy from planning
         self.E_BtmsUpper            = []        # btms energy from planning
 
-        self.N                      = 5      # number of short horizoned steps in MPC
+        self.N                      = 4      # number of short horizoned steps in MPC
 
 
 
@@ -334,7 +337,7 @@ class ChaDepMpcBase(ChaDepParent):
             self.E_BtmsUpper.append(min([self.BtmsSize, (1+beta) * E_BTMS[i]]))
         
         # initialize charging station with planning results
-        self.P_GridLast = P_Grid[0]   # grid power last with first planning value
+        self.P_Grid = P_Grid[0]   # grid power last with first planning value
         self.BtmsEn = E_BTMS[0]       # BTMS energy with first planning value
         
         #save results to csv-file
@@ -378,7 +381,7 @@ class ChaDepMpcBase(ChaDepParent):
 
         return time, time_x, P_Grid, P_BTMS, P_BTMS_Ch, P_BTMS_DCh, E_BTMS, E_Shift, P_Charge, P_Shift, t_wait_val, cost_t_wait, cost
 
-    def runMpc(self, timestep, N, SimBroker: components.SimBroker, M1 = 10000, M2 = 15000, verbose = False):
+    def runMpc(self, timestep, N, SimBroker: components.SimBroker, M1 = 20, M2 = 40, verbose = False):
         # N is the MPC optimization horizon
 
         # obtain inputs
@@ -398,7 +401,7 @@ class ChaDepMpcBase(ChaDepParent):
         E_V_upper = np.zeros(N+1)
         for x in self.ChBaVehicles:
             if x != False:
-                upper, lower = x.getChargingTrajectories(SimBroker.t_act, timestep, N)
+                lower, upper = x.getChargingTrajectories(SimBroker.t_act, timestep, N)
                 E_V_upper = np.add(E_V_upper, upper)
                 E_V_lower = np.add(E_V_lower, lower)
 
@@ -466,15 +469,21 @@ class ChaDepMpcBase(ChaDepParent):
         # solve control problem and print outputs
         prob = cp.Problem(cp.Minimize(cost), constr)
         try:
-            prob.solve(verbose = False)
+            prob.solve(verbose = False, solver='ECOS', abstol=1e-6)
             print('Solved. Solver Status: ', prob.status)
-            print('solver iterations: ', prob.solver_stats.num_iters)	
+            print('solver iterations: ', prob.solver_stats.num_iters)
+            print('values of slack variables: t1: ', t1.value, ', \nt2: ', t2.value)	
         except:
             print(f'\nSolver failed in iteration {SimBroker.iteration}')
             #print(prob)
             print('setting up the problem again, solving with verbose = True')
-            prob = cp.Problem(cp.Minimize(cost), constr)
-            prob.solve(verbose = True)
+            try: 
+                prob = cp.Problem(cp.Minimize(cost), constr)
+                prob.solve(verbose = True)
+            except:
+                print('solver failed again, now we try a different solver (ECOS)')
+                prob = cp.Problem(cp.Minimize(cost), constr)
+                prob.solve(verbose = True, solver='ECOS', abstol=1e-6)
             print('now solver succeeded')
 
         print(f'optimal value: {prob.value}')
@@ -483,19 +492,19 @@ class ChaDepMpcBase(ChaDepParent):
         # add routine to deal with infeasibilty (even control problem should always be feasible)
         if prob.status == 'infeasible':
             print('The problem is infeasible!')
+            raise ValueError('The problem is infeasible.')
             # TODO: add additional code to deal with this
             
         # return control action
-        '''our control outputs are P_BTMS  and P_Charge, P_Grid is the sum of both'''
+        '''our control outputs are P_BTMS  and P_ChargeGranted, P_Grid is the sum of both'''
         P_BTMS = u[1, 0].value
-        P_Charge = u[4, 0].value
+        P_ChargeGranted = u[4, 0].value
 
-        return P_BTMS, P_Charge
+        return P_BTMS, P_ChargeGranted
 
     def step(self, timestep, verbose = False):
         '''repark vehicles based on their charging desire with the parent method'''
         self.repark()
-
         '''insert here the control action'''
 
         '''assign values to:
@@ -506,21 +515,26 @@ class ChaDepMpcBase(ChaDepParent):
         ''' get control action'''
         # run MPC to obtain max power for charging vehicles and charging power for BTMS
         if verbose:
-            print(f'\nsolving control problem... at iteration {self.SimBroker.iteration}')
+            print(f'\nsolving control problem... at iteration {self.SimBroker.iteration}, charging station:', self.ChargingStationId)
             print("connected vehicles: ", len(self.ChBaVehicles)-self.ChBaVehicles.count(False))
 
-        P_BTMS, P_Charge = self.runMpc(timestep, self.N, self.SimBroker, verbose = verbose)
+        self.P_GridLast = self.P_Grid
+        P_BTMS, P_Charge_Granted = self.runMpc(timestep, self.N, self.SimBroker, verbose = verbose)
 
         if verbose:
             print('P_BTMS: ', P_BTMS)
-            print('P_Charge: ', P_Charge)
-            print('Charging Station Id: ', self.ChargingStationId)
-        P_max = P_Charge
+            print('P_ChargeGranted: ', P_Charge_Granted)
 
         # distribute MPC powers to vehicles (by charging desire)
-        self.distributeChargingPowerToVehicles(timestep, P_max)
+        self.P_ChargeDelivered = self.distributeChargingPowerToVehicles(timestep, P_Charge_Granted)
+        if verbose:
+            print('P_ChargeDelivered: ', self.P_ChargeDelivered)
         # assign MPC btms power to btms
-        self.BtmsPower = P_BTMS
+        self.P_BTMS = P_BTMS
+        # calculate grid power from delivered charge and BTMS power
+        self.P_Grid = self.P_ChargeDelivered + self.P_BTMS
+        if verbose:
+            print('P_Grid: ', self.P_Grid)
 
         '''Write chargingStation states for k in ResultWriter'''
         self.ResultWriter.updateChargingStationState(
@@ -528,7 +542,7 @@ class ChaDepMpcBase(ChaDepParent):
 
         '''# update BTMS state for k+1'''
         # BTMS
-        self.BtmsAddPower(self.BtmsPower, timestep)
+        self.BtmsAddPower(self.P_BTMS, timestep)
 
         '''write vehicle states for k in ResultWriter and update vehicle states for k+1'''
         # Vehicles
@@ -543,10 +557,6 @@ class ChaDepMpcBase(ChaDepParent):
 
         self.PowerDesire = PowerDesire
         self.BtmsPowerDesire = self.getBtmsMaxPower(timestep)
-
-        '''Write chargingStation states in ResultWriter'''
-        self.ResultWriter.updateChargingStationState(
-            self.SimBroker.t_act, self)
 
         '''release vehicles when full and create control outputs'''
         self.resetOutput()

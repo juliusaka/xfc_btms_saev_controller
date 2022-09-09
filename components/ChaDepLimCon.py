@@ -30,20 +30,20 @@ class ChaDepLimCon(ChaDepParent):
         sumPowers = sum(self.ChBaPower)
         # if sum of charging power is greater than grid power limit, the btms must be discharged
         if sumPowers >= self.GridPowerUpper:
-            self.BtmsPower = self.GridPowerUpper - sumPowers # result is negative
+            self.P_BTMS = self.GridPowerUpper - sumPowers # result is negative
         # if that is not the case, we might be able to charge for one timestep, if SOC < Max SOC
         elif self.BtmsEn < self.BtmsSize * self.BtmsMaxSoc:
-            self.BtmsPower = min([self.getBtmsMaxPower(timestep), self.GridPowerUpper - sumPowers])
+            self.P_BTMS = min([self.getBtmsMaxPower(timestep), self.GridPowerUpper - sumPowers])
         # if that doesn't work, it seems like Btms is full, then charging power is 0.
         else:
-            self.BtmsPower = 0
+            self.P_BTMS = 0
 
         '''Write chargingStation states for k in ResultWriter'''
         self.ResultWriter.updateChargingStationState(self.SimBroker.t_act, self)
 
         '''# update BTMS state for k+1'''
         # BTMS
-        self.BtmsAddPower(self.BtmsPower, timestep)
+        self.BtmsAddPower(self.P_BTMS, timestep)
 
         '''write vehicle states for k in ResultWriter and update vehicle states for k+1'''
         # Vehicles

@@ -44,8 +44,6 @@ With this formulization, the BTMS-size is determined as $\max(E_{BTMS}) - \min(E
 
 After determining the BTMS-size for unconstrained charging, it is possible to reduce the size to e.g. assess the impact of this on SAEV-fleets.
 
-**option**: We might add a constraint to implement a maximal C-Rating of the BTMS. Need to investigate if problem is still convex then.
-
 ### correct implementation of charging losses
 
 You might assume that the equation for the dynamics of the energy content is
@@ -71,7 +69,7 @@ delivers for the same cycle
 $\begin{equation}
 P_{BTMS,DCh}(1) = -\eta^2 P_{BTMS,Ch}(0)
 \end{equation}$
-which represents the energy loss correctly. Likewise, we are also able to implement the cost of the energy los as ($P_{BTMS,DCh} \leq 0$)
+which represents the energy loss correctly. Likewise, we are also able to implement the cost of the energy loss as ($P_{BTMS,DCh} \leq 0$)
 $\begin{equation}
 C_{loss} = c_{el} \cdot (\Sigma_{k=0}^{k=T} P_{BTMS,Ch}(k)dt + \Sigma_{k=0}^{k=T}P_{BTMS,DCh}(k)dt)
 \end{equation}$
@@ -110,7 +108,7 @@ P_{slack} &\geq P_{free}\\
 \end{align}$
 We added the BTMS size $\Delta E_{BTMS}$ to the constraint, and ensured that the energy level is between this and 0. Furthermore, we set $E_{BTMS}(0) = E_{BTMS}(T+1)$ to ensure that the BTMS isn't completly discharged in our case of a one day simulation. For real-world usage, optimization for 2 or 3 days in advance might be better solution, with just using the results for the first day.
 
-Compared to the approach described in 1st level for determining BTMS-size, we added the ability to shift charging power, i.e. to decrease charging speed of vehicles. For this, we increase the state of shifted energy $E_{Shift}$ which serves as a stock for the shifted power and has an equal defintion of the earlier introduced energy lag. We then derive from the shifted energy the generated waiting time $t_{wait}$, which can be penalized with the tuning parameter $d(k)$. This parameter $d(k)$ is defined for every timestep, so that e.g. higher waiting time cost at ride-hailing peak-demand times could be implemented, to further prioritize having enough available charging power at these times. Please look down in the document to understand, how we dervie the waiting time.
+Compared to the approach described in 1st level for determining BTMS-size, we added the ability to shift charging power, i.e. to decrease charging speed of vehicles. For this, we increase the state of shifted energy $E_{Shift}$ which serves as a stock for the shifted power [?and has an equal defintion of the earlier introduced energy lag]. We then derive from the shifted energy the generated waiting time $t_{wait}$, which can be penalized with the tuning parameter $d(k)$. This parameter $d(k)$ is defined for every timestep, so that e.g. higher waiting time cost at ride-hailing peak-demand times could be implemented, to further prioritize having enough available charging power at these times. Please look down in the document to understand, how we dervie the waiting time.
 
 We define our state, control, disturbance and slack variables as:
 $\begin{align}
@@ -127,7 +125,7 @@ E_{BTMS,lower}(k) &= \max([0\text{kWh}, E_{BTMS}(k)-\beta\Delta E_{BTMS}])\\
 E_{BTMS,upper}(k) &= \min([\Delta E_{BTMS}, E_{BTMS}(k)+\beta\Delta E_{BTMS}])
 \end{align}$
 
-**remark 1**: We might have to add a constraint to ensure that the shifted energy does match 0 at the end, but ideally, the cost function should do this (e.g. $E_{Shift}(T) = 0$).
+**remark 1**: We might have to add a constraint to ensure that the shifted energy does match 0 at the end (e.g. $E_{Shift}(T) = 0$), but ideally, the cost function should do this .
 
 **remark 2**: In order to correctly weigh the parameters of the cost-function to each other, we assume that we optimize over one day. For that, we divide the demand charge in such a way, that it is projected to one day. e.g. if it is given for one month, we divide it by 30 days. 
 
