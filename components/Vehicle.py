@@ -20,7 +20,7 @@ class Vehicle:
     
     def __str__(self):
         # print method
-        return ("Vehicle with the following properties: \nVehicleId: " + str(self.VehicleId) + " VehicleType: " + str(self.VehicleType) + " Arrival: " + str(self.VehicleArrival) + " Desired End Time: " + str(self.VehicleDesEnd) + " Vehicle Energy: " + str(self.VehicleEngy) + " Desired Energy: " + str(self.VehicleDesEngy) + " SOC: " + str(self.VehicleSoc) + " Maximal Energy: " + str(self.VehicleMaxEngy) + " Max Charging Power: "  + str(self.VehicleMaxPower))
+        return ("Vehicle with the following properties: \nVehicleId: " + str(self.VehicleId) + " VehicleType: " + str(self.VehicleType) + " Arrival: " + str(self.VehicleArrival) + " Desired End Time: " + str(self.VehicleDesEnd) + " Vehicle Energy: " + str(self.VehicleEngy) + " Desired Energy: " + str(self.VehicleDesEngy) + " SOC: " + str(self.VehicleSoc) + " Maximal Energy: " + str(self.VehicleMaxEngy) + " Max Charging Power: "  + str(self.VehicleMaxPower) + " Charging Desire: " + str(self.ChargingDesire) + " Energy Lag: " + str(self.EnergyLag) + " Time Lag: " + str(self.TimeLag))
 
     def getMaxChargingPower(self, timestep, inverse = False):
 
@@ -105,18 +105,20 @@ class Vehicle:
             traj_lower = [] #trajectory is inversed if we go back in time
             k = int(np.ceil((self.VehicleDesEnd - t_act)/timestep)) # number of timestep from end to charging to beginning, must go back this steps
 
-            if k < N: # if prediction horizon is larger then charging duration
-                for i in range(N-k-1): # fill up N-k-1 with Vehicle desired energy, this is until charging ends -1, because the last energy level when charging ends is calculated in the loop below
+            if k < N: # if prediction horizon is larger then desired charging duration
+                for i in range(N-k-1): # fill up N-k-1 with Vehicle desired energy, this is until charging ends -1, because the last energy level when charging ends is appended in the loop below
                     traj_lower.append(v.VehicleDesEngy)
 
-                for i in range(k+2): # start "de-charging" at k, need one more step than k+1 states to copy the last energy level.
+                for i in range(k+1): # start "de-charging" at k
                     traj_lower.append(v.VehicleEngy)
                     power = v.getMaxChargingPower(timestep, inverse=True)
                     v.addPower( -1 * power, timestep)
+                traj_lower.append(v.VehicleEngy) # add last energy level
+
                 # reverse the list
                 traj_lower.reverse()
             else:
-                for i in range(k+2): #decharging for k+1 states, with +1 steps to also note down last charge.
+                for i in range(k+2): #decharging for k+1 states, with +1 steps to also note the last charge.
                     traj_lower.append(v.VehicleEngy)
                     power = v.getMaxChargingPower(timestep, inverse=True)
                     v.addPower( -1 * power, timestep)
@@ -126,6 +128,9 @@ class Vehicle:
                 traj_lower = traj_lower[0:N+1]
             # substract energy at k = 0
             E0 = traj_lower[0]
+
+            '''maybe we can fix this glitch by checking if E0 is larger than VehicleEn at the actual time.'''
+
             for i in range(len(traj_lower)):
                 traj_lower[i] = traj_lower[i] - E0
             # make sure that this isn't higher then the upper trajectory

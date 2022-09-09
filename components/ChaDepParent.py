@@ -131,7 +131,7 @@ class ChaDepParent:
         out = []
         for i in range(0, len(self.ChBaVehicles)):
             # find sufficient charged vehicle, put them in the out array and replace them with false
-            if type(self.ChBaVehicles[i]) == components.Vehicle:
+            if isinstance(self.ChBaVehicles[i], components.Vehicle):
                 self.output_vehicles.append(self.ChBaVehicles[i].VehicleId) # for control output
                 self.output_power.append(self.ChBaPower[i]) # for control ouput
                 if self.ChBaVehicles[i].VehicleEngy > threshold * self.ChBaVehicles[i].VehicleDesEngy:
@@ -149,7 +149,7 @@ class ChaDepParent:
         out = []
         for i in range(0, len(self.Queue)):
             # find out which indices need to be popped out
-            if type(self.Queue[i]) == components.Vehicle:
+            if isinstance(self.Queue[i], components.Vehicle):
                 self.output_vehicles.append(self.ChBaVehicles[i].VehicleId) # for control output
                 self.output_power.append(0) # for control output
                 if self.Queue[i].VehicleEngy > threshold * self.Queue[i].VehicleDesEngy:
@@ -213,7 +213,7 @@ class ChaDepParent:
         for vehicle in self.Queue:
             CD_Queue.append(self.chargingDesire(vehicle))
         for vehicle in self.ChBaVehicles:
-            if type(vehicle) == Vehicle:
+            if isinstance(vehicle, components.Vehicle):
                 CD_Bays.append(self.chargingDesire(vehicle))
             else:
                 CD_Bays.append(-float('inf')) # shouldn't be used at all later
@@ -274,7 +274,7 @@ class ChaDepParent:
             CD = f1/f2
         else:
             CD = float("inf")
-        v.ChargingDesire = CD
+        v.ChargingDesire = CD #this value is saved in the object as its passed by reference
         return CD
     
     def initialize(self, GridPowerLower, GridPowerUpper):
@@ -289,28 +289,39 @@ class ChaDepParent:
         pass
         #self.BtmsEn = self.BtmsSize * CesSoc
 
-    def updateVehicleStatesAndWriteResults(self, ChBaPower, timestep):
+    def updateVehicleStatesAndWriteStates(self, ChBaPower, timestep):
+        # reset energy and time lag
         self.EnergyLagSum = 0
-        self.TimeLagSum   = 0
-
+        self.TimeLagSum = 0
+        
         for i in range(0, len(self.ChBaVehicles)):
-            if self.ChBaVehicles[i] != False:
-                chargingCapabilityEnergyConsv = self.ChBaVehicles[i].getMaxChargingPower(timestep) # calculate maximum charging power possible in period under energy conservation
-                self.ChBaVehicles[i].addPower(ChBaPower[i], timestep)# add energy to the vehicle
-                self.EnergyLagSum   += self.ChBaVehicles[i].updateEnergyLag(self.SimBroker.t_act + timestep) 
-                self.TimeLagSum     += self.ChBaVehicles[i].updateTimeLag(self.SimBroker.t_act + timestep)
+            if isinstance(self.ChBaVehicles[i], components.Vehicle):
+                # calculate maximum charging power possible in period under energy conservation
+                possiblePower = self.ChBaVehicles[i].getMaxChargingPower(
+                    timestep)
+                # save vehicle state of current time step
+                self.ResultWriter.updateVehicleStates(
+                    t_act=self.SimBroker.t_act, vehicle=self.ChBaVehicles[i], ChargingStationId=self.ChargingStationId, QueueOrBay=False, ChargingPower=ChBaPower[i], possiblePower=possiblePower)
+                # add energy to the vehicle - this is the state for t_act + timestep
+                self.ChBaVehicles[i].addPower(ChBaPower[i], timestep)
+                # update energy and time lag for the next time step
+                self.EnergyLagSum += self.ChBaVehicles[i].updateEnergyLag(
+                    self.SimBroker.t_act + timestep)
+                self.TimeLagSum += self.ChBaVehicles[i].updateTimeLag(
+                    self.SimBroker.t_act + timestep)
+
         for x in self.Queue:
-            chargingCapabilityEnergyConsv = self.ChBaVehicles[i].getMaxChargingPower(timestep) # calculate maximum charging power possible in period under energy conservation
-            self.EnergyLagSum   += x.updateEnergyLag(self.SimBroker.t_act + timestep)
-            self.TimeLagSum     += self.ChBaVehicles[i].updateTimeLag(self.SimBroker.t_act + timestep)
-
-        # result Writer for chargingStation states and vehicle states
-        # TODO: this has to be moved up!!!!
-        for i in range(0, len(self.ChBaVehicles)):
-            if type(self.ChBaVehicles[i]) == Vehicle:
-                self.ResultWriter.updateVehicleStates(t_act = self.SimBroker.t_act + timestep, vehicle=self.ChBaVehicles[i], ChargingStationId=self.ChargingStationId, QueueOrBay=False, ChargingPower=ChBaPower[i], ChargingCapabilityEnergyConsv=chargingCapabilityEnergyConsv) 
-        for i in range(0, len(self.Queue)):
-            self.ResultWriter.updateVehicleStates(t_act = self.SimBroker.t_act + timestep, vehicle=self.Queue[i], ChargingStationId=self.ChargingStationId, QueueOrBay=True, ChargingPower=0)
+            # calculate maximum charging power possible in period under energy conservation
+            possiblePower = self.ChBaVehicles[i].getMaxChargingPower(
+                timestep)
+            # save vehicle state of current time step
+            self.ResultWriter.updateVehicleStates(
+                t_act=self.SimBroker.t_act, vehicle=self.ChBaVehicles[i], ChargingStationId=self.ChargingStationId, QueueOrBay=False, ChargingPower=ChBaPower[i], possiblePower=possiblePower)
+            # update energy and time lag
+            self.EnergyLagSum += x.updateEnergyLag(
+                self.SimBroker.t_act + timestep)
+            self.TimeLagSum += self.ChBaVehicles[i].updateTimeLag(
+                self.SimBroker.t_act + timestep)
 
     def distributeChargingPowerToVehicles(self, timestep, P_max):
         self.ChBaPower = [] # delete charging power of previous timestep
@@ -323,9 +334,8 @@ class ChaDepParent:
                 CD_Bays.append(float('nan')) # add nan if no vehicle is in Bay
         idx_Bays = np.argsort(CD_Bays) # this is a list of indices of the vehicles sorted by their descending charging desire
 
-        for i in idx_Bays: # go through charging bays sorted by their charging desire
-            j = i 
-            if isinstance(self.ChBaVehicles[i], components.Vehicle): # only assign charging power, if a vehicle is in the bay
+        for j in idx_Bays: # go through charging bays sorted by their charging desire 
+            if isinstance(self.ChBaVehicles[j], components.Vehicle): # only assign charging power, if a vehicle is in the bay
                 maxPower = min([self.ChBaMaxPower[j], self.ChBaVehicles[j].getMaxChargingPower(timestep)]) # the maximum power of the current bay is the minimum of the chargingbay max power and the vehicle max power
                 sumPowers = sum(self.ChBaPower)
                 if  sumPowers + maxPower <= P_max: # test if maxPower of current bay can be fully added
@@ -351,11 +361,17 @@ class ChaDepParent:
         DONE: self.BtmsPowerDesire # for DERMS
         '''
 
-        '''update SOC and Result Writer for Vehicles'''
+        '''Write chargingStation states for k in ResultWriter'''
+        self.ResultWriter.updateChargingStationState(
+            self.SimBroker.t_act, self)
+
+        '''# update BTMS state for k+1'''
         # BTMS
         self.BtmsAddPower(self.BtmsPower, timestep)
+
+        '''write vehicle states for k in ResultWriter and update vehicle states for k+1'''
         # Vehicles
-        self.updateVehicleStatesAndWriteResults(self.ChBaPower, timestep)
+        self.updateVehicleStatesAndWriteStates(self.ChBaPower, timestep)
 
         '''determine power desire for next time step
                 this must be done after Vehicle and BTMS states are updated, so that charging curves can be taken into account'''

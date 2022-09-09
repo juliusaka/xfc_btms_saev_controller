@@ -522,11 +522,17 @@ class ChaDepMpcBase(ChaDepParent):
         # assign MPC btms power to btms
         self.BtmsPower = P_BTMS
 
-        '''# update BTMS and vehicles states and update the result writer with their states'''
+        '''Write chargingStation states for k in ResultWriter'''
+        self.ResultWriter.updateChargingStationState(
+            self.SimBroker.t_act, self)
+
+        '''# update BTMS state for k+1'''
         # BTMS
         self.BtmsAddPower(self.BtmsPower, timestep)
+
+        '''write vehicle states for k in ResultWriter and update vehicle states for k+1'''
         # Vehicles
-        self.updateVehicleStatesAndWriteResults(self.ChBaPower, timestep)
+        self.updateVehicleStatesAndWriteStates(self.ChBaPower, timestep)
 
         '''determine power desire for next time step'''
         PowerDesire = 0

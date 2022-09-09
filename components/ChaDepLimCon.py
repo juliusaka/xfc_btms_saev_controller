@@ -4,6 +4,7 @@ import numpy as np
 
 from components.SimBroker import SimBroker
 from components.Vehicle import Vehicle
+import components
 
 class ChaDepLimCon(ChaDepParent):
 
@@ -36,24 +37,26 @@ class ChaDepLimCon(ChaDepParent):
         # if that doesn't work, it seems like Btms is full, then charging power is 0.
         else:
             self.BtmsPower = 0
-        
-        '''# update BTMS and vehicles states and update the result writer with their states'''
+
+        '''Write chargingStation states for k in ResultWriter'''
+        self.ResultWriter.updateChargingStationState(self.SimBroker.t_act, self)
+
+        '''# update BTMS state for k+1'''
         # BTMS
         self.BtmsAddPower(self.BtmsPower, timestep)
+
+        '''write vehicle states for k in ResultWriter and update vehicle states for k+1'''
         # Vehicles
-        self.updateVehicleStatesAndWriteResults(self.ChBaPower, timestep)
+        self.updateVehicleStatesAndWriteStates(self.ChBaPower, timestep)
 
         '''determine power desire for next time step'''
         PowerDesire = 0
         for i in range(0,len(self.ChBaVehicles)):
-            if type(self.ChBaVehicles[i]) == Vehicle:
+            if isinstance(self.ChBaVehicles[i], components.Vehicle):
                 PowerDesire += min([self.ChBaVehicles[i].getMaxChargingPower(timestep), self.ChBaMaxPower[i]])
 
         self.PowerDesire = PowerDesire
         self.BtmsPowerDesire = self.getBtmsMaxPower(timestep)
-
-        '''Write chargingStation states in ResultWriter'''
-        self.ResultWriter.updateChargingStationState(self.SimBroker.t_act, self)
 
         '''release vehicles when full and create control outputs'''
         self.resetOutput()

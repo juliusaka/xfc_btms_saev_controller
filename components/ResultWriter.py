@@ -29,7 +29,7 @@ class ResultWriter:
             "time", "Event", "ChargingStationId", "VehicleId", "QueueOrBay", "ChargingDesire", "VehicleType", "VehicleArrival", "VehicleDesiredEnd", "VehicleEnergy", "VehicleDesiredEnergy", "VehicleSoc", "VehicleMaxEnergy", "VehicleMaxPower", "ChargingBayMaxPower"
         ])
         self.VehicleStates                   = pd.DataFrame(columns=[
-            "time", "VehicleId", "ChargingStationId", "QueueOrBay", "ChargingPower", "ChargingDesire", "VehicleDesiredEnd", "VehicleEnergy", "VehicleDesiredEnergy", "VehicleSoc", "EnergyLag", "TimeLag"
+            "time", "VehicleId", "ChargingStationId", "QueueOrBay", "ChargingPower", "possiblePower",  "ChargingDesire", "VehicleDesiredEnd", "VehicleEnergy", "VehicleDesiredEnergy", "VehicleSoc", "EnergyLag", "TimeLag"
         ])
 
         ####
@@ -85,13 +85,13 @@ class ResultWriter:
             {"time": t_act, "Event": "ForcedReleaseEvent", "ChargingStationId": ChargingStationId, "VehicleId": Vehicle.VehicleId, "QueueOrBay": "", "ChargingDesire": float("NaN"), "VehicleType": Vehicle.VehicleType, "VehicleArrival": Vehicle.VehicleArrival, "VehicleDesiredEnd": Vehicle.VehicleDesEnd, "VehicleEnergy": Vehicle.VehicleEngy, "VehicleDesiredEnergy": Vehicle.VehicleDesEngy, "VehicleSoc": Vehicle.VehicleSoc, "VehicleMaxEnergy": Vehicle.VehicleMaxEngy, "VehicleMaxPower": Vehicle.VehicleMaxPower, "ChargingBayMaxPower": float("nan")
         }, ignore_index=True)
 
-    def updateVehicleStates(self, t_act, vehicle: Vehicle, ChargingStationId, QueueOrBay, ChargingPower, ChargingCapabilityEnergyConsv):
+    def updateVehicleStates(self, t_act, vehicle: Vehicle, ChargingStationId, QueueOrBay, ChargingPower, possiblePower):
         if QueueOrBay == True:
             QueueOrBay = 'Queue'
         else:
             QueueOrBay = 'Bay'
         self.VehicleStates = self.VehicleStates.append(
-            {"time": t_act, "VehicleId": vehicle.VehicleId, "ChargingStationId": ChargingStationId, "QueueOrBay": QueueOrBay , "ChargingPower": ChargingPower, "ChargingDesire": vehicle.ChargingDesire, "VehicleDesiredEnd": vehicle.VehicleDesEnd, "VehicleEnergy": vehicle.VehicleEngy, "VehicleDesiredEnergy": vehicle.VehicleDesEngy, "VehicleSoc": vehicle.VehicleSoc, "EnergyLag": vehicle.EnergyLag, "TimeLag": vehicle.TimeLag
+            {"time": t_act, "VehicleId": vehicle.VehicleId, "ChargingStationId": ChargingStationId, "QueueOrBay": QueueOrBay , "ChargingPower": ChargingPower, "possiblePower": possiblePower,            "ChargingDesire": vehicle.ChargingDesire, "VehicleDesiredEnd": vehicle.VehicleDesEnd, "VehicleEnergy": vehicle.VehicleEngy, "VehicleDesiredEnergy": vehicle.VehicleDesEngy, "VehicleSoc": vehicle.VehicleSoc, "EnergyLag": vehicle.EnergyLag, "TimeLag": vehicle.TimeLag
             }, ignore_index=True)
     
     def updateChargingStationState(self, t_act, ChargingStation: ChaDepParent):
@@ -111,8 +111,10 @@ class ResultWriter:
             CD_Queue.append(x.ChargingDesire)
             VehicleIdsQueue.append(x.VehicleId)
 
+        #make sure that energy and time lag was calculated (in updateVehicleStatesAndWriteStates in ChaDepParent)
+
         self.ChargingStationStates = self.ChargingStationStates.append({
-            "time": t_act, "ChargingStationID": ChargingStation.ChargingStationId, "BaysVehicleIds":VehicleIds, "BaysChargingPower": ChargingStation.ChBaPower, "TotalChargingPower": sum(ChargingStation.ChBaPower), "BaysChargingDesire": CD_Bays,"BaysNumberOfVehicles": numVehiclesBays, "QueueVehicleIds": VehicleIdsQueue, "QueueChargingDesire": CD_Queue, "QueueNumberOfVehicles": len(CD_Queue), "BtmsPower": ChargingStation.BtmsPower,"BtmsSoc": ChargingStation.BtmsSoc(), "BtmsEnergy": ChargingStation.BtmsEn, "TotalChargingPowerDesire": ChargingStation.PowerDesire, "GridPowerUpper": ChargingStation.GridPowerUpper, "GridPowerLower": ChargingStation.GridPowerLower,  "PowerDesire": ChargingStation.PowerDesire, "BtmsPowerDesire": ChargingStation.BtmsPowerDesire, "EnergyLagSum": ChargingStation.EnergyLagSum, "TimeLagSum": ChargingStation.TimeLagSum
+            "time": t_act, "ChargingStationID": ChargingStation.ChargingStationId, "BaysVehicleIds": VehicleIds, "BaysChargingPower": ChargingStation.ChBaPower, "TotalChargingPower": sum(ChargingStation.ChBaPower), "BaysChargingDesire": CD_Bays, "BaysNumberOfVehicles": numVehiclesBays, "QueueVehicleIds": VehicleIdsQueue, "QueueChargingDesire": CD_Queue, "QueueNumberOfVehicles": len(CD_Queue), "BtmsPower": ChargingStation.BtmsPower, "BtmsSoc": ChargingStation.BtmsSoc(), "BtmsEnergy": ChargingStation.BtmsEn, "TotalChargingPowerDesire": ChargingStation.PowerDesire, "GridPowerUpper": ChargingStation.GridPowerUpper, "GridPowerLower": ChargingStation.GridPowerLower,  "PowerDesire": ChargingStation.PowerDesire, "BtmsPowerDesire": ChargingStation.BtmsPowerDesire, "EnergyLagSum": ChargingStation.EnergyLagSum, "TimeLagSum": ChargingStation.TimeLagSum
         }, ignore_index=True)
 
     def saveChargingStationProperties(self, chargingStations):
