@@ -122,7 +122,7 @@ class ChaDepMpcBase(ChaDepParent):
     def determineBtmsSize(self, t_act, t_max, timestep, a, b, c, P_free):
         '''see mpcBase.md for explanations'''
         # vector lengthes
-        T = int(np.ceil((t_max - t_act) / timestep))
+        T = int(np.floor((t_max - t_act) / timestep)) + 1
 
         # define variables 
         x = cp.Variable((1, T+1))
@@ -137,7 +137,7 @@ class ChaDepMpcBase(ChaDepParent):
         i_power = power[idx]
         if len(i_power) != T:
             print("length input power", len(i_power))
-            print("length T", T)
+            print("length of control duration T", T)
             raise ValueError("length T and length of vector d are unequal")
 
         #parameters
@@ -214,7 +214,7 @@ class ChaDepMpcBase(ChaDepParent):
         time_start = time_module.time() # timing
         '''see mpcBase.md for explanations'''
         # vector length T
-        T = int(np.ceil((t_max - t_act) / timestep))
+        T = int(np.floor((t_max - t_act) / timestep)) + 1
 
         # define variables 
         x = cp.Variable((2, T+1))
@@ -333,8 +333,8 @@ class ChaDepMpcBase(ChaDepParent):
         self.E_BtmsLower        = []
         self.E_BtmsUpper        = []
         for i in range(T+1):
-            self.E_BtmsLower.append(max([0, (1-beta) * E_BTMS[i]]))
-            self.E_BtmsUpper.append(min([self.BtmsSize, (1+beta) * E_BTMS[i]]))
+            self.E_BtmsLower.append(max([0            , E_BTMS[i] - beta * self.BtmsSize]))
+            self.E_BtmsUpper.append(min([self.BtmsSize, E_BTMS[i] + beta * self.BtmsSize]))
         
         # initialize charging station with planning results
         self.P_Grid = P_Grid[0]   # grid power last with first planning value
@@ -446,7 +446,7 @@ class ChaDepMpcBase(ChaDepParent):
             constr += [
                         x[0, k] >= E_BtmsLower[i_act + k], # correct position in planning results is i_act + k
                         x[0, k] <= E_BtmsUpper[i_act + k],
-                        x[1, k] >= E_V_lower[k] - t1[0, k-1], # we defined t1 as a vector of length N+1-1, so we need to subtract 1 to get the correct index
+                        x[1, k] >= E_V_lower[k] ,#- t1[0, k-1], # we defined t1 as a vector of length N+1-1, so we need to subtract 1 to get the correct index
                         x[1, k] <= E_V_upper[k],            
             ]
         # initial constraints
@@ -458,6 +458,7 @@ class ChaDepMpcBase(ChaDepParent):
         constr += [
             P_avg == (cp.sum(u[0, :]) + P_GridLast)/ (N+1),
         ]
+
         # objective function
         cost = cp.square(P_GridLast - P_avg)
         #cost += cp.sum(cp.square(u[0, :] - P_avg))

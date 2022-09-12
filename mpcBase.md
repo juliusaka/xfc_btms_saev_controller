@@ -185,7 +185,7 @@ In order to align with the goal to show how control can benefit on keeping the s
 in *step()*:
 $\begin{equation}
 \begin{aligned}
-\min \quad \Sigma_{k=-1}^{N} (P_{Grid}(k) - P_{avg}(k))^2 + \Sigma_{k=0}^{N} M_1 t_1(k) + \Sigma_{k=1}^{N+1} M_2 t_2(k)
+\min \quad \Sigma_{k=-1}^{N} (P_{Grid}(k) - P_{avg}(k))^2 + \Sigma_{k=0}^{N} M_1 t_1^2(k) + \Sigma_{k=1}^{N+1} M_2 t_2^2(k)
 \end{aligned}
 \end{equation}$
 
