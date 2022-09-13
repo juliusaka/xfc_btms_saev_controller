@@ -332,9 +332,10 @@ class ChaDepMpcBase(ChaDepParent):
         self.P_GridMaxPlanning = max(P_Grid)
         self.E_BtmsLower        = []
         self.E_BtmsUpper        = []
-        for i in range(T+1):
-            self.E_BtmsLower.append(max([0            , E_BTMS[i] - beta * self.BtmsSize]))
-            self.E_BtmsUpper.append(min([self.BtmsSize, E_BTMS[i] + beta * self.BtmsSize]))
+        for repeat in range(2): # double the E_BTMSLower and Upper vector length to have sufficient long prediction vectors for the last time steps.
+            for i in range(T+1):
+                self.E_BtmsLower.append(max([0            , E_BTMS[i] - beta * self.BtmsSize]))
+                self.E_BtmsUpper.append(min([self.BtmsSize, E_BTMS[i] + beta * self.BtmsSize]))
         
         # initialize charging station with planning results
         self.P_Grid = P_Grid[0]   # grid power last with first planning value
@@ -423,10 +424,10 @@ class ChaDepMpcBase(ChaDepParent):
         for k in range(N):
             # system dynamics and control variable constraints
             constr += [
-                        x[0, k+1] == x[0, k] + ts * (eta * u[2,k] + 1/eta * u[3, k]),   # system dynamic btms
+                        x[0, k+1] == x[0, k]  + ts * u[1, k], #+ ts * (eta * u[2,k] + 1/eta * u[3, k]),   # system dynamic btms 
                         x[1, k+1] == x[1, k] + ts * u[4, k],    # system dynamic charged energy to vehicles
                         u[4, k] == u[0, k] - u[1, k],   # energy flow at station
-                        u[1, k] == u[2, k] + u[3, k],   # energy equation charge/discharge
+                        #u[1, k] == u[2, k] + u[3, k],   # energy equation charge/discharge
                         u[0, k] <= P_GridMaxPlanning + t2[0, k],  # grid power smaller than value from planning
                         u[0, k] <= P_GridUpper, # upper bound from derms
                         u[2, k] >= 0, 
@@ -446,7 +447,7 @@ class ChaDepMpcBase(ChaDepParent):
             constr += [
                         x[0, k] >= E_BtmsLower[i_act + k], # correct position in planning results is i_act + k
                         x[0, k] <= E_BtmsUpper[i_act + k],
-                        x[1, k] >= E_V_lower[k] ,#- t1[0, k-1], # we defined t1 as a vector of length N+1-1, so we need to subtract 1 to get the correct index
+                        x[1, k] >= E_V_lower[k]  - t1[0, k-1], # we defined t1 as a vector of length N+1-1, so we need to subtract 1 to get the correct index
                         x[1, k] <= E_V_upper[k],            
             ]
         # initial constraints
@@ -491,9 +492,15 @@ class ChaDepMpcBase(ChaDepParent):
         
 
         # add routine to deal with infeasibilty (even control problem should always be feasible)
-        if prob.status == 'infeasible':
-            print('The problem is infeasible!')
-            raise ValueError('The problem is infeasible.')
+        if prob.status == 'infeasible' or prob.status == 'infeasible_inaccurate':
+            print('infeasible with ECOS solver, trying OSQP')
+            prob = cp.Problem(cp.Minimize(cost), constr)
+            prob.solve(verbose = True, solver='OSQP')
+            if prob.status == 'infeasible' or prob.status == 'infeasible_inaccurate':
+                print('The problem is infeasible!')
+                raise ValueError('The problem is infeasible.')
+            else:
+                print('ECOS solver succeeded')
             # TODO: add additional code to deal with this
             
         # return control action
@@ -520,18 +527,19 @@ class ChaDepMpcBase(ChaDepParent):
             print("connected vehicles: ", len(self.ChBaVehicles)-self.ChBaVehicles.count(False))
 
         self.P_GridLast = self.P_Grid
-        P_BTMS, P_Charge_Granted = self.runMpc(timestep, self.N, self.SimBroker, verbose = verbose)
-
-        if verbose:
-            print('P_BTMS: ', P_BTMS)
-            print('P_ChargeGranted: ', P_Charge_Granted)
+        P_BTMSGranted, P_Charge_Granted = self.runMpc(timestep, self.N, self.SimBroker, verbose = verbose)
 
         # distribute MPC powers to vehicles (by charging desire)
         self.P_ChargeDelivered = self.distributeChargingPowerToVehicles(timestep, P_Charge_Granted)
         if verbose:
+            print('P_ChargeGranted: ', P_Charge_Granted)
             print('P_ChargeDelivered: ', self.P_ChargeDelivered)
-        # assign MPC btms power to btms
-        self.P_BTMS = P_BTMS
+        # calculate dispatachable BTMS power (checking that bounds aren't exceeded)
+        P_BTMSDeliverable = self.BtmsGetPowerDeliverable(P_BTMSGranted, timestep)
+        self.P_BTMS = P_BTMSDeliverable
+        if verbose:
+            print('P_BTMS granted: ', P_BTMSGranted)
+            print('P_BTMS deliverable: ', P_BTMSDeliverable)
         # calculate grid power from delivered charge and BTMS power
         self.P_Grid = self.P_ChargeDelivered + self.P_BTMS
         if verbose:

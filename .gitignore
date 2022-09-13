@@ -2,5 +2,5 @@
 #beam_output.csv/
 *.pyc
 settings.json
-/playground
-/results
+playground/**
+results/**

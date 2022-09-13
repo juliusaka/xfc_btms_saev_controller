@@ -82,15 +82,45 @@ class ChaDepParent:
         return self.BtmsEn/self.BtmsSize
     
     def getBtmsMaxPower(self, timestep):
+        # TODO: implement efficiency
         x = min([self.BtmsMaxPower, (self.BtmsSize * self.BtmsMaxSoc - self.BtmsEn) / (timestep/3.6e3)])
         if x<0:
             x=0
         return x
 
-    def BtmsAddPower(self, power, timestep):
+    def BtmsGetPowerDeliverable(self, power, timestep) -> float:
         # power in kW and timestep in s
-        self.BtmsEn += power * timestep/3.6e3
+        # charging loss implemented
+        BtmsEn_Last = self.BtmsEn
+        if power >= 0:
+            BtmsEn_New = BtmsEn_Last + self.BtmsEfficiency * power * timestep/3.6e3
+            if BtmsEn_New > self.BtmsSize: # make sure that the energy content is not larger than the capacity
+                BtmsEn_New = self.BtmsSize
+                power_return = (BtmsEn_New - BtmsEn_Last) / (timestep/3.6e3) / self.BtmsEfficiency
+            else:
+                power_return = power
+        else: # if power < 0 --> power is negative, so substraction
+            BtmsEn_New = BtmsEn_Last + 1/self.BtmsEfficiency * power * timestep/3.6e3
+            if BtmsEn_New < 0: # make sure that the energy content is not smaller than 0
+                BtmsEn_New = 0
+                power_return = (BtmsEn_New - BtmsEn_Last) / (timestep/3.6e3) * self.BtmsEfficiency # calculate actually discharged/charged power and return it
+            else:
+                power_return = power
+        return power_return
+
+    def BtmsAddPower(self, power, timestep):
+        if power >= 0:
+            self.BtmsEn += self.BtmsEfficiency * power * timestep/3.6e3
+            if self.BtmsEn > self.BtmsSize:
+                self.BtmsEn = self.BtmsSize
+                raise ValueError('Btms energy content is larger than capacity')
+        else: # if power < 0 --> power is negative, so substraction
+            self.BtmsEn += 1/self.BtmsEfficiency * power * timestep/3.6e3
+            if self.BtmsEn < 0:
+                self.BtmsEn = 0
+                raise ValueError('Btms energy content is smaller than 0')
     
+
     def chBaInit(self, ChBaNum):
         # initialize the list of ChargingBay Vehicles with False for no vehicles parked
         ChBaVehicles = []

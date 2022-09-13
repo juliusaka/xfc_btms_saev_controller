@@ -37,6 +37,9 @@ class ChaDepLimCon(ChaDepParent):
         # if that doesn't work, it seems like Btms is full, then charging power is 0.
         else:
             self.P_BTMS = 0
+        
+        '''calcualte dispatchable BTMS power'''
+        self.P_BTMS = self.BtmsGetPowerDeliverable(timestep, self.P_BTMS)
 
         '''Write chargingStation states for k in ResultWriter'''
         self.ResultWriter.updateChargingStationState(self.SimBroker.t_act, self)
