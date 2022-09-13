@@ -8,6 +8,7 @@ import numpy as np
 import cvxpy as cp
 import cvxpy.atoms.max as cpmax
 import time as time_module
+import logging
 
 class ChaDepMpcBase(ChaDepParent):
     '''see mpcBase.md for explanations'''
@@ -136,9 +137,8 @@ class ChaDepMpcBase(ChaDepParent):
         time = time[idx]
         i_power = power[idx]
         if len(i_power) != T:
-            print("length input power", len(i_power))
-            print("length of control duration T", T)
-            raise ValueError("length T and length of vector d are unequal")
+            logging.warning("length of i_power does not match T, length of i_power: " + str(len(i_power)) + ", T: " + str(T))
+            raise ValueError("length T and length of vector i_power are unequal, i_power: " + str(len(i_power)) + ", T: " + str(T))
 
         #parameters
         ts = timestep / 3.6e3
@@ -165,9 +165,22 @@ class ChaDepMpcBase(ChaDepParent):
             cost += (b+c) * u[2,k] * ts + c * u[3,k] * ts # u[3,k] is always negative
 
         # solve the problem
+        logging.info("\n----- \n btms size optimization for charging station %s \n-----" % self.ChargingStationId)
         prob = cp.Problem(cp.Minimize(cost), constr)
-        prob.solve()
-
+        try:
+            prob.solve(solver = 'ECOS')
+            if prob.status != 'optimal':
+                logging.warning("solver status: " + prob.status)
+                if prob.status == 'optimal_inaccurate':
+                    pass
+                else:
+                    raise ValueError("solver status: " + prob.status)
+        except:
+            prob = cp.Problem(cp.Minimize(cost), constr)
+            prob.solve(solver='OSQP')
+            logging.warning('solver status with OSQP: ' + prob.status)
+        logging.info('solver statistics: solver name: %s, solver status %s, iterations: %s, setup_time %s, solve_time %s' % (prob.solver_stats.solver_name, prob.status, prob.solver_stats.num_iters, prob.solver_stats.setup_time, prob.solver_stats.solve_time))
+        
         # determine BTMS size and unpack over values
         btms_size = np.max(x.value) - np.min(x.value)
         P_Grid = u[0,:].value
@@ -230,9 +243,8 @@ class ChaDepMpcBase(ChaDepParent):
         time = time[idx]
         i_power = power[idx]
         if len(i_power) != T:
-            print("length i_power", len(i_power))
-            print("length T", T)
-            raise ValueError("length T and length of vector i_power are unequal")
+            logging.warning("length of i_power is not equal to T, i_power: %s, T: %s" % (len(i_power), T))
+            raise ValueError("length T and length of vector i_power are unequal, T: %s, i_power: %s" % (T, len(i_power)))
 
         #create array for cost-function parameter d, if wait time cost is not flexible (given as an array)
         if type(d_param) != list:
@@ -242,9 +254,8 @@ class ChaDepMpcBase(ChaDepParent):
         else:
             d = d_param
             if len(d) != T:
-                print("length d", len(d))
-                print("length T", T)
-                raise ValueError("length T and length of vector d are unequal")
+                logging.warning("length of d is not equal to T, d: %s, T: %s" % (len(d), T))
+                raise ValueError("length T and length of vector d are unequal, d: %s, T: %s" % (len(d), T))
 
         #parameters
         ts = timestep / 3.6e3
@@ -305,10 +316,26 @@ class ChaDepMpcBase(ChaDepParent):
         time_end1 = time_module.time() # timewatch
 
         # solve the problem
+        logging.info("\n----- \n day planning for charging station %s \n-----" % self.ChargingStationId)
         prob = cp.Problem(cp.Minimize(cost), constr)
-        prob.solve()
+        try:
+            prob.solve(solver = 'ECOS')
+            if prob.status != 'optimal':
+                logging.warning("solver status: " + prob.status)
+                if prob.status == 'optimal_inaccurate':
+                    pass
+                else:
+                    raise ValueError("solver status: " + prob.status)
+        except:
+            prob = cp.problem(cp.Minimize(cost), constr)
+            prob.solve(solver='OSQP')
+            logging.warning('solver status with OSQP: ' + prob.status)
 
         time_end2=time_module.time()    # timewatch
+
+        # logging solver stats
+        logging.info('solver statistics: solver name: %s, solver status %s, iterations: %s, setup_time %s, solve_time %s' % (prob.solver_stats.solver_name, prob.status, prob.solver_stats.num_iters, prob.solver_stats.setup_time, prob.solver_stats.solve_time))
+        logging.info("self tracked times: setup time: %s, solve time: %s, total action time: %s" % (time_end1-time_start, time_end2-time_end1, time_end2-time_start))
 
         # unpack results
         P_Grid = u[0,:].value
@@ -369,16 +396,7 @@ class ChaDepMpcBase(ChaDepParent):
         os.makedirs(dir, exist_ok=True) 
         filename    = self.ChargingStationId + ".csv"
         df.to_csv(os.path.join(dir, filename))
-
-        # print solver stats
-        if verbose:
-            print(self.ChargingStationId)
-            print('solver name: ',prob.solver_stats.solver_name)
-            print('setup time: ',time_end1-time_start)
-            print('solve time: ',time_end2-time_end1)
-            print('total control action time: ', time_end2-time_start)
-            print(prob.status)
-            print('')
+        logging.info("planning results saved to %s" % os.path.join(dir, filename))
 
         return time, time_x, P_Grid, P_BTMS, P_BTMS_Ch, P_BTMS_DCh, E_BTMS, E_Shift, P_Charge, P_Shift, t_wait_val, cost_t_wait, cost
 

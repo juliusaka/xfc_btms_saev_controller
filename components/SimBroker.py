@@ -20,6 +20,7 @@ dtype = {
 
 '''
 import pandas as pd
+import logging
 
 class SimBroker:
 
