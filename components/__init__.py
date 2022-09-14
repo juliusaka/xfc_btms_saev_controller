@@ -9,5 +9,6 @@ from .chargingCapFromString import chargingCapFromString
 from .DermsDummy import DermsDummy
 from .PhySimDummy import PhySimDummy
 from .loggerConfig import loggerConfig
+from .solverAlgorithm import solverAlgorithm
 
 import components.GeminiWrapper

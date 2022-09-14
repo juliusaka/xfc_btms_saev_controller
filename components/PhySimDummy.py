@@ -21,4 +21,4 @@ class PhySimDummy:
 
     def output(self,chargingStationId: string):
         # return SOC
-        return self.data[chargingStationId][2]
+        return float("nan") #self.data[chargingStationId][2]

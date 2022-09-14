@@ -28,6 +28,10 @@ class ChaDepMpcBase(ChaDepParent):
         self.PredictionGridUpper    = []   # TODO used so far?
         self.PredictionGridLower    = []   # TODO used so far?
 
+        self.OptimalValues          = None
+        self.VectorT1               = None
+        self.VectorT2               = None    
+
         '''Variables'''
         self.P_GridLast             = None      # last Grid Power, used to flatten the MPC power curve
         self.P_GridMaxPlanning      = None      # maximal P_Grid from planning, used to keep demand charge low
@@ -167,19 +171,7 @@ class ChaDepMpcBase(ChaDepParent):
         # solve the problem
         logging.info("\n----- \n btms size optimization for charging station %s \n-----" % self.ChargingStationId)
         prob = cp.Problem(cp.Minimize(cost), constr)
-        try:
-            prob.solve(solver = 'ECOS')
-            if prob.status != 'optimal':
-                logging.warning("solver status: " + prob.status)
-                if prob.status == 'optimal_inaccurate':
-                    pass
-                else:
-                    raise ValueError("solver status: " + prob.status)
-        except:
-            prob = cp.Problem(cp.Minimize(cost), constr)
-            prob.solve(solver='OSQP')
-            logging.warning('solver status with OSQP: ' + prob.status)
-        logging.info('solver statistics: solver name: %s, solver status %s, iterations: %s, setup_time %s, solve_time %s' % (prob.solver_stats.solver_name, prob.status, prob.solver_stats.num_iters, prob.solver_stats.setup_time, prob.solver_stats.solve_time))
+        components.solverAlgorithm(prob)
         
         # determine BTMS size and unpack over values
         btms_size = np.max(x.value) - np.min(x.value)
@@ -195,6 +187,7 @@ class ChaDepMpcBase(ChaDepParent):
         time_x = np.array(time_x) # time_x is the time vector for states, time the time vector for control inputs
 
         self.determinedBtmsSize = btms_size
+        self.BtmsSize = btms_size
         self.determinedMaxPower = max(abs(P_BTMS))
 
         #save results to csv-file
@@ -318,23 +311,11 @@ class ChaDepMpcBase(ChaDepParent):
         # solve the problem
         logging.info("\n----- \n day planning for charging station %s \n-----" % self.ChargingStationId)
         prob = cp.Problem(cp.Minimize(cost), constr)
-        try:
-            prob.solve(solver = 'ECOS')
-            if prob.status != 'optimal':
-                logging.warning("solver status: " + prob.status)
-                if prob.status == 'optimal_inaccurate':
-                    pass
-                else:
-                    raise ValueError("solver status: " + prob.status)
-        except:
-            prob = cp.problem(cp.Minimize(cost), constr)
-            prob.solve(solver='OSQP')
-            logging.warning('solver status with OSQP: ' + prob.status)
+        components.solverAlgorithm(prob)
 
         time_end2=time_module.time()    # timewatch
 
-        # logging solver stats
-        logging.info('solver statistics: solver name: %s, solver status %s, iterations: %s, setup_time %s, solve_time %s' % (prob.solver_stats.solver_name, prob.status, prob.solver_stats.num_iters, prob.solver_stats.setup_time, prob.solver_stats.solve_time))
+        # logging additional solver stats
         logging.info("self tracked times: setup time: %s, solve time: %s, total action time: %s" % (time_end1-time_start, time_end2-time_end1, time_end2-time_start))
 
         # unpack results
@@ -400,7 +381,7 @@ class ChaDepMpcBase(ChaDepParent):
 
         return time, time_x, P_Grid, P_BTMS, P_BTMS_Ch, P_BTMS_DCh, E_BTMS, E_Shift, P_Charge, P_Shift, t_wait_val, cost_t_wait, cost
 
-    def runMpc(self, timestep, N, SimBroker: components.SimBroker, M1 = 20, M2 = 40, verbose = False):
+    def runMpc(self, timestep, N, SimBroker: components.SimBroker, M1 = 100, M2 = 200, verbose = False):
         # N is the MPC optimization horizon
 
         # obtain inputs
@@ -488,43 +469,21 @@ class ChaDepMpcBase(ChaDepParent):
 
         # solve control problem and print outputs
         prob = cp.Problem(cp.Minimize(cost), constr)
-        try:
-            prob.solve(verbose = False, solver='ECOS', abstol=1e-6)
-            print('Solved. Solver Status: ', prob.status)
-            print('solver iterations: ', prob.solver_stats.num_iters)
-            print('values of slack variables: t1: ', t1.value, ', \nt2: ', t2.value)	
-        except:
-            print(f'\nSolver failed in iteration {SimBroker.iteration}')
-            #print(prob)
-            print('setting up the problem again, solving with verbose = True')
-            try: 
-                prob = cp.Problem(cp.Minimize(cost), constr)
-                prob.solve(verbose = True)
-            except:
-                print('solver failed again, now we try a different solver (ECOS)')
-                prob = cp.Problem(cp.Minimize(cost), constr)
-                prob.solve(verbose = True, solver='ECOS', abstol=1e-6)
-            print('now solver succeeded')
-
-        print(f'optimal value: {prob.value}')
+        components.solverAlgorithm(prob)
+        logging.info("vector t1: %s |--| vector t2: %s" % (t1.value, t2.value))
         
-
-        # add routine to deal with infeasibilty (even control problem should always be feasible)
-        if prob.status == 'infeasible' or prob.status == 'infeasible_inaccurate':
-            print('infeasible with ECOS solver, trying OSQP')
-            prob = cp.Problem(cp.Minimize(cost), constr)
-            prob.solve(verbose = True, solver='OSQP')
-            if prob.status == 'infeasible' or prob.status == 'infeasible_inaccurate':
-                print('The problem is infeasible!')
-                raise ValueError('The problem is infeasible.')
-            else:
-                print('ECOS solver succeeded')
-            # TODO: add additional code to deal with this
+        #TODO add routine to deal with infeasibilty 
             
         # return control action
         '''our control outputs are P_BTMS  and P_ChargeGranted, P_Grid is the sum of both'''
         P_BTMS = u[1, 0].value
         P_ChargeGranted = u[4, 0].value
+
+        # note optimal value and slack variables
+        self.OptimalValues          = prob.value
+        self.VectorT1               = t1.value
+        self.VectorT2               = t2.value
+        self.ResultWriter.updateMpcStats(SimBroker.t_act, self, prob, t1, t2)
 
         return P_BTMS, P_ChargeGranted
 
@@ -540,40 +499,36 @@ class ChaDepMpcBase(ChaDepParent):
 
         ''' get control action'''
         # run MPC to obtain max power for charging vehicles and charging power for BTMS
-        if verbose:
-            print(f'\nsolving control problem... at iteration {self.SimBroker.iteration}, charging station:', self.ChargingStationId)
-            print("connected vehicles: ", len(self.ChBaVehicles)-self.ChBaVehicles.count(False))
-
         self.P_GridLast = self.P_Grid
         P_BTMSGranted, P_Charge_Granted = self.runMpc(timestep, self.N, self.SimBroker, verbose = verbose)
 
         # distribute MPC powers to vehicles (by charging desire)
         self.P_ChargeDelivered = self.distributeChargingPowerToVehicles(timestep, P_Charge_Granted)
-        if verbose:
-            print('P_ChargeGranted: ', P_Charge_Granted)
-            print('P_ChargeDelivered: ', self.P_ChargeDelivered)
+        logging.info('P_ChargeGranted: {:.2f}, P_ChargeDelivered: {:.2f}'.format(P_Charge_Granted, self.P_ChargeDelivered))
+
         # calculate dispatachable BTMS power (checking that bounds aren't exceeded)
         P_BTMSDeliverable = self.BtmsGetPowerDeliverable(P_BTMSGranted, timestep)
         self.P_BTMS = P_BTMSDeliverable
-        if verbose:
-            print('P_BTMS granted: ', P_BTMSGranted)
-            print('P_BTMS deliverable: ', P_BTMSDeliverable)
+        logging.info('P_BTMS granted: {:.2f}, P_BTMS deliverable: {:.2f}'.format(P_BTMSGranted, P_BTMSDeliverable))
+
         # calculate grid power from delivered charge and BTMS power
         self.P_Grid = self.P_ChargeDelivered + self.P_BTMS
-        if verbose:
-            print('P_Grid: ', self.P_Grid)
+        logging.info('P_Grid: {:.2f}'.format(self.P_Grid))
 
         '''Write chargingStation states for k in ResultWriter'''
         self.ResultWriter.updateChargingStationState(
             self.SimBroker.t_act, self)
+        logging.debug("results written for charging station {}".format(self.ChargingStationId))
 
         '''# update BTMS state for k+1'''
         # BTMS
         self.BtmsAddPower(self.P_BTMS, timestep)
+        logging.debug("BTMS state updated for charging station {}".format(self.ChargingStationId))
 
         '''write vehicle states for k in ResultWriter and update vehicle states for k+1'''
         # Vehicles
         self.updateVehicleStatesAndWriteStates(self.ChBaPower, timestep)
+        logging.debug("vehicle states updated for charging station {}".format(self.ChargingStationId))
 
         '''determine power desire for next time step'''
         PowerDesire = 0
@@ -581,20 +536,23 @@ class ChaDepMpcBase(ChaDepParent):
             if self.ChBaVehicles[i] != False:
                 PowerDesire += min(
                     [self.ChBaVehicles[i].getMaxChargingPower(timestep), self.ChBaMaxPower[i]])
-
         self.PowerDesire = PowerDesire
-        self.BtmsPowerDesire = self.getBtmsMaxPower(timestep)
+        self.BtmsPowerDesire = self.getBtmsMaxPower(timestep) # TODO this should be changed for DERMS to MPC output
+        logging.debug("power desires updated for charging station {}".format(self.ChargingStationId))
 
         '''release vehicles when full and create control outputs'''
         self.resetOutput()
         r1 = self.chBaReleaseThresholdAndOutput()
         r2 = self.queueReleaseThresholdAndOutput()
+        logging.debug("vehicles released for charging station {}".format(self.ChargingStationId))
         released_Vehicles = r1 + r2
+
         # add release events
         for x in released_Vehicles:
             self.ResultWriter.releaseEvent(
                 self.SimBroker.t_act, x, self.ChargingStationId)
         # TODO: create control outputs
+        logging.debug("vehicle release events written for charging station {}".format(self.ChargingStationId))
 
         '''checks'''
         if len(self.ChBaVehicles) != self.ChBaNum:

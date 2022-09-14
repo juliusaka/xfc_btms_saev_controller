@@ -6,6 +6,7 @@ import pandas as pd
 from components import ChaDepParent
 from components import Vehicle
 import components
+import cvxpy as cp
 
 class ResultWriter:
 
@@ -17,42 +18,115 @@ class ResultWriter:
         os.makedirs(self.directory, exist_ok=True)
         self.simName                            = simName            # save for use in other functions
         self.ChargingStationState_Filename      = os.path.join(self.directory, "ChargingStationState"       + format)
+        self.MpcStats_Filename                  = os.path.join(self.directory, "MpcStats"                   + format)
         self.Events_Filename                    = os.path.join(self.directory, "Events"                     + format)
         self.VehicleStates_Filename             = os.path.join(self.directory, "VehicleStates"              + format)
         self.ChargingStationProperties_Filename = os.path.join(self.directory, "ChargingStationProperties"  + format)
 
         '''initialize pandas dataframes'''
         self.ChargingStationStates          = pd.DataFrame(columns= [
-            "time", "ChargingStationID", "BaysVehicleIds", "BaysChargingPower", "TotalChargingPower", "BaysChargingDesire","BaysNumberOfVehicles", "QueueVehicleIds", "QueueChargingDesire", "QueueNumberOfVehicles", "BtmsPower","BtmsSoc","BtmsEnergy", "TotalChargingPowerDesire", "GridPower", "GridPowerUpper", "GridPowerLower", "PowerDesire", "BtmsPowerDesire", "EnergyLagSum", "TimeLagSum",
+            "time", 
+            "ChargingStationID", 
+            "BaysVehicleIds", 
+            "BaysChargingPower", 
+            "TotalChargingPower", 
+            "BaysChargingDesire",
+            "BaysNumberOfVehicles", 
+            "QueueVehicleIds", 
+            "QueueChargingDesire", 
+            "QueueNumberOfVehicles", 
+            "BtmsPower",
+            "BtmsSoc",
+            "BtmsEnergy", 
+            "TotalChargingPowerDesire", 
+            "GridPower", 
+            "GridPowerUpper", 
+            "GridPowerLower", 
+            "PowerDesire", 
+            "BtmsPowerDesire", 
+            "EnergyLagSum", 
+            "TimeLagSum",
         ])
+        self.MpcStats                         = pd.DataFrame(columns= [
+            "time",
+            "ChargingStationID",
+            "Status",
+            "Iterations",
+            "OptimalValue",
+            "SetupTime",
+            "SolveTime",
+            "SolverName",
+            "sum_t1",
+            "sum_t2",
+            "T1",
+            "T2",
+        ])  
         self.Events                         = pd.DataFrame(columns=[
-            "time", "Event", "ChargingStationId", "VehicleId", "QueueOrBay", "ChargingDesire", "VehicleType", "VehicleArrival", "VehicleDesiredEnd", "VehicleEnergy", "VehicleDesiredEnergy", "VehicleSoc", "VehicleMaxEnergy", "VehicleMaxPower", "ChargingBayMaxPower"
+            "time", 
+            "Event", 
+            "ChargingStationId", 
+            "VehicleId", 
+            "QueueOrBay", 
+            "ChargingDesire", 
+            "VehicleType", 
+            "VehicleArrival", 
+            "VehicleDesiredEnd", 
+            "VehicleEnergy", 
+            "VehicleDesiredEnergy", 
+            "VehicleSoc", 
+            "VehicleMaxEnergy", 
+            "VehicleMaxPower", 
+            "ChargingBayMaxPower"
         ])
         self.VehicleStates                   = pd.DataFrame(columns=[
-            "time", "VehicleId", "ChargingStationId", "QueueOrBay", "ChargingPower", "possiblePower",  "ChargingDesire", "VehicleDesiredEnd", "VehicleEnergy", "VehicleDesiredEnergy", "VehicleSoc", "EnergyLag", "TimeLag"
+            "time", 
+            "VehicleId", 
+            "ChargingStationId", 
+            "QueueOrBay", 
+            "ChargingPower", 
+            "possiblePower",  
+            "ChargingDesire", 
+            "VehicleDesiredEnd", 
+            "VehicleEnergy", 
+            "VehicleDesiredEnergy", 
+            "VehicleSoc", 
+            "EnergyLag", 
+            "TimeLag"
         ])
 
         ####
         self.chargingStationProperties           = pd.DataFrame(columns = [
-            "ChargingStationId", "BtmsSize", "BtmsC", "BtmsMaxPower", "BtmsMaxSoc", "BtmsMinSoc", "ChBaNum", "ChBaMaxPower", "ChBaMaxPower_abs", "ChBaParkingZoneId", "GridPowerMax_Nom"
+            "ChargingStationId", 
+            "BtmsSize", 
+            "BtmsC", 
+            "BtmsMaxPower", 
+            "BtmsMaxSoc", 
+            "BtmsMinSoc", 
+            "ChBaNum", 
+            "ChBaMaxPower", 
+            "ChBaMaxPower_abs",
+            "ChBaParkingZoneId", 
+            "GridPowerMax_Nom",
         ])
 
     def reset(self):
         list1 = self.ChargingStationStates.columns
-        list2 = self.Events.columns
-        list3 = self.VehicleStates.columns
+        list2 = self.MpcStats.columns
+        list3 = self.Events.columns
+        list4 = self.VehicleStates.columns
 
         self.ChargingStationStates = pd.DataFrame(columns=list1)
-        self.Events = pd.DataFrame(columns=list2)
-        self.VehicleStates = pd.DataFrame(columns=list3)
+        self.MpcStats = pd.DataFrame(columns=list2)
+        self.Events = pd.DataFrame(columns=list3)
+        self.VehicleStates = pd.DataFrame(columns=list4)
 
 
     def save(self):
         # save the three DataFrames
-        saveDataFrames = [self.ChargingStationStates, self.Events, self.VehicleStates, self.chargingStationProperties]
-        saveFileNames  = [self.ChargingStationState_Filename, self.Events_Filename, self.VehicleStates_Filename, self.ChargingStationProperties_Filename] 
+        saveDataFrames = [self.ChargingStationStates, self.MpcStats, self.Events, self.VehicleStates, self.chargingStationProperties]
+        saveFileNames  = [self.ChargingStationState_Filename, self.MpcStats_Filename, self.Events_Filename, self.VehicleStates_Filename, self.ChargingStationProperties_Filename] 
         for i in range(0,len(saveDataFrames)):
-            if i<3:
+            if i<4:
                 save = saveDataFrames[i].set_index("time")
             else:
                 save = saveDataFrames[i]
@@ -117,10 +191,27 @@ class ResultWriter:
             "time": t_act, "ChargingStationID": ChargingStation.ChargingStationId, "BaysVehicleIds": VehicleIds, "BaysChargingPower": ChargingStation.ChBaPower, "TotalChargingPower": sum(ChargingStation.ChBaPower), "BaysChargingDesire": CD_Bays, "BaysNumberOfVehicles": numVehiclesBays, "QueueVehicleIds": VehicleIdsQueue, "QueueChargingDesire": CD_Queue, "QueueNumberOfVehicles": len(CD_Queue), "BtmsPower": ChargingStation.P_BTMS, "BtmsSoc": ChargingStation.BtmsSoc(), "BtmsEnergy": ChargingStation.BtmsEn, "TotalChargingPowerDesire": ChargingStation.PowerDesire, "GridPower": ChargingStation.P_Grid, "GridPowerUpper": ChargingStation.GridPowerUpper, "GridPowerLower": ChargingStation.GridPowerLower,  "PowerDesire": ChargingStation.PowerDesire, "BtmsPowerDesire": ChargingStation.BtmsPowerDesire, "EnergyLagSum": ChargingStation.EnergyLagSum, "TimeLagSum": ChargingStation.TimeLagSum
         }, ignore_index=True)
 
+    def updateMpcStats(self, t_act, ChargingStation , prob: cp.Problem, T1: cp.Variable , T2: cp.Variable):
+        if not isinstance(ChargingStation, components.ChaDepMpcBase):
+            raise ValueError("ResultWriter.MpcStats: ChargingStation is not of type ChaDepMpcBase")
+        self.MpcStats = self.MpcStats.append({
+            "time": t_act,
+            "ChargingStationID": ChargingStation.ChargingStationId,
+            "Status": prob.status,
+            "Iterations": prob.solver_stats.num_iters,
+            "OptimalValue": prob.value,
+            "SetupTime": prob.solver_stats.setup_time,
+            "SolveTime": prob.solver_stats.solve_time,
+            "SolverName": prob.solver_stats.solver_name,
+            "sum_t1": sum(T1.value),
+            "sum_t2": sum(T2.value),
+            "T1": T1.value, 
+            "T2": T2.value,
+        }, ignore_index=True)
+
     def saveChargingStationProperties(self, chargingStations):
         # chargingStations is a list of chargingStations
         for x in chargingStations:
             self.chargingStationProperties = self.chargingStationProperties.append({"ChargingStationId": x.ChargingStationId, "BtmsSize": x.BtmsSize, "BtmsC": x.BtmsC, "BtmsMaxPower": x.BtmsMaxPower, "BtmsMaxSoc": x.BtmsMaxSoc, "BtmsMinSoc": x.BtmsMinSoc, "ChBaNum": x.ChBaNum, "ChBaMaxPower": x.ChBaMaxPower, "ChBaMaxPower_abs": x.ChBaMaxPower_abs, "ChBaParkingZoneId": x.ChBaParkingZoneId, "GridPowerMax_Nom": x.GridPowerMax_Nom}, ignore_index=True)
             
     # TODO: add some dataframe like planning results
-        
