@@ -12,10 +12,10 @@ class ChaDepParent:
         '''ChargingStationIdentity'''
         self.ChargingStationId  = ChargingStationId
 
-        '''Result Writer'''
+        '''Result Writer''' # reference to result writer object
         self.ResultWriter       = ResultWriter
 
-        '''BTMS'''
+        '''BTMS''' 
         # properties
         if calcBtmsGridProp:
             self.BtmsSize       = sum(ChBaMaxPower)/2 # empirical formula (check with literature), used for initializing
@@ -26,9 +26,9 @@ class ChaDepParent:
         self.BtmsMaxSoc         = BtmsMaxSoc        # maximal allowed SOC of BTMS
         self.BtmsMinSoc         = BtmsMinSOC        # minimal allowed SOC of BTMS
         #variables:
-        self.BtmsEn             = BtmsSoc0 * self.BtmsSize # start BTMS energy content at initialization [kWh]
-        self.P_BTMS       = 0                    # actual charging power of the btms
-        self.BtmsEfficiency  = 0.95                 # efficiency per charge/decharge
+        self.BtmsEn             = BtmsSoc0 * self.BtmsSize # BTMS energy content at initialization [kWh]
+        self.P_BTMS             = 0                 # actual charging power of the btms
+        self.BtmsEfficiency     = 0.95              # efficiency per charge/decharge
         '''Charging Bays'''
         #properties
         self.ChBaNum            = ChBaNum           # number of charging bays determined by ChBaMaxPower vector
@@ -36,7 +36,7 @@ class ChaDepParent:
         self.ChBaMaxPower_abs   = max(ChBaMaxPower) # maximum value from list above
         self.ChBaParkingZoneId  = ChBaParkingZoneId # list of parking zone ids associated with max power list; can be longer than ChBaMaxPower or ChBaNu for testing with reduced number of charging bays
         #variables
-        self.ChBaVehicles       = self.chBaInit(self.ChBaNum) # list for Vehicles objects, which are in charging bays.
+        self.ChBaVehicles       = self.chBaInit(self.ChBaNum) # list for Vehicles objects, which are in charging bays. False, if no vehicle
         if len(ChBaMaxPower) != ChBaNum:
             print(len(ChBaMaxPower))
             print(ChBaNum)
@@ -45,14 +45,14 @@ class ChaDepParent:
         self.ChBaPower          = []                # this is the variable for which charging power for each bay is assigned.
         
         '''Grid'''
-        self.P_Grid                 = 0.0                 # actual power of the grid   [kW]
+        self.P_Grid                 = 0.0                       # actual power of the grid   [kW]
         '''Grid Constraints'''
         if calcBtmsGridProp:
-            self.GridPowerMax_Nom   = 0.35*sum(ChBaMaxPower) # empirical formula (check with literature)
+            self.GridPowerMax_Nom   = 0.35*sum(ChBaMaxPower)    # empirical formula (check with literature)
         else:
-            self.GridPowerMax_Nom   = GridPowerMax_Nom  # maximum power withdrawal from grid, nominal value (can be time-varying)
-        self.GridPowerLower         = 0                     # will be assigned in step function
-        self.GridPowerUpper         = self.GridPowerMax_Nom  # will be assigned in step function
+            self.GridPowerMax_Nom   = GridPowerMax_Nom          # maximum power withdrawal from grid, nominal value (can be time-varying)
+        self.GridPowerLower         = 0                         # will be assigned for each step through DERMS
+        self.GridPowerUpper         = self.GridPowerMax_Nom     # will be assigned for each step through DERMS
 
         '''Power Desire'''
         #variables
@@ -64,7 +64,7 @@ class ChaDepParent:
         self.Queue                  = []                # list for Vehicles objects, which are in the queue.
 
         '''Simulation Data'''
-        self.SimBroker              = SimBroker
+        self.SimBroker              = SimBroker         # reference to SimBroker object
 
         '''Rating Metric'''
         #variables
@@ -72,7 +72,6 @@ class ChaDepParent:
         self.TimeLagSum             = 0                 # sum of time lags of vehicles as rating metric
 
         ''' Control Output Results'''
-        # TODO Did I use this?
         # control output should be saved to these variables after each step
         self.output_vehicles           = []                # list of vehicle ids
         self.output_power              = []                # list of associated charging power commands
@@ -180,7 +179,7 @@ class ChaDepParent:
         for i in range(0, len(self.Queue)):
             # find out which indices need to be popped out
             if isinstance(self.Queue[i], components.Vehicle):
-                self.output_vehicles.append(self.ChBaVehicles[i].VehicleId) # for control output
+                self.output_vehicles.append(self.Queue[i].VehicleId) # for control output
                 self.output_power.append(0) # for control output
                 if self.Queue[i].VehicleEngy > threshold * self.Queue[i].VehicleDesEngy:
                     pop.append(i)
@@ -204,10 +203,14 @@ class ChaDepParent:
         # calculate charging desire
         vehicle.ChargingDesire = self.chargingDesire(vehicle)
         vehicle.updateEnergyLag(t_act)
-        self.Queue.append(vehicle)
-        self.ResultWriter.arrivalEvent(self.SimBroker.t_act, vehicle, self.ChargingStationId)
-
-        #self.ResultWriter.updateVehicleStates(t_act = self.SimBroker.t_act, vehicle=vehicle, ChargingStationId=self.ChargingStationId, QueueOrBay=True, ChargingPower=0) #TODO: not sure if this is needed
+        if vehicle.VehicleEngy < vehicle.VehicleDesEngy:
+            # if vehicle is not fully charged, add to queue
+            self.Queue.append(vehicle)
+            self.ResultWriter.arrivalEvent(self.SimBroker.t_act, vehicle, self.ChargingStationId)
+        else:
+            # if vehicle is fully charged, don't add it, but throw an arrival and a release event
+            self.ResultWriter.arrivalEvent(self.SimBroker.t_act, vehicle, self.ChargingStationId)
+            self.ResultWriter.releaseEvent(self.SimBroker.t_act, vehicle, self.ChargingStationId)
         
     def departure(self, vehicleIds, t_act):
         # TODO: Did I use this?

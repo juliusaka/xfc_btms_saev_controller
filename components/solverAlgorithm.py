@@ -4,13 +4,17 @@ import cvxpy as cp
 def solverAlgorithm(prob: cp.Problem, verbose = False):
 
     try:
-        prob.solve(solver = 'ECOS', verbose = verbose)#, abstol = 1e-6, reltol = 1e-6, feastol = 1e-6, max_iters = 10000)
+        try:
+            prob.solve(solver = 'ECOS', verbose = verbose, abstol = 1e-6, reltol = 1e-6, feastol = 1e-6, max_iters = 10000)
+        except: 
+            logging.warning("---- ECOS solver failed, trying OSQP ----")
+            raise ValueError("ECOS solver failed") # --> brings this to the next loop, like this we have a dedicated logging message for ECOS
         if prob.status != 'optimal':
             logging.warning(" ---- ECOS solver status: " + prob.status)
             if prob.status == 'optimal_inaccurate':
                 pass
             else:
-                raise ValueError("solver status: " + prob.status)
+                raise ValueError("ECOS solver status: " + prob.status)
     except:
         prob.solve(solver='OSQP', verbose = verbose)
         logging.warning('---- solved with OSQP | solver status: %s ' %(prob.status))

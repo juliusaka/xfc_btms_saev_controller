@@ -17,30 +17,33 @@ class ChaDepMpcBase(ChaDepParent):
 
         super().__init__(ChargingStationId, ResultWriter, SimBroker, ChBaMaxPower, ChBaParkingZoneId, ChBaNum, BtmsSize, BtmsC, BtmsMaxSoc, BtmsMinSOC, BtmsSoc0, calcBtmsGridProp, GridPowerMax_Nom, GridPowerLower, GridPowerUpper)
 
-        '''additional variables for btms size optimization'''
-        self.determinedBtmsSize = None
-        self.determinedMaxPower = None
+        '''additional parameters for results of btms size optimization'''
+        self.determinedBtmsSize     = None
+        self.determinedMaxPower     = None
 
         '''additional variables for MPC:'''
+        #variables for storing data
         self.PredictionTime         = []    # time vector
-        self.PredictionPower        = []    
-        self.power_sum_original     = []    
-        self.PredictionGridUpper    = []   # TODO used so far?
-        self.PredictionGridLower    = []   # TODO used so far?
+        self.PredictionPower        = []    # predicted, unconstrained power
+        self.PredictionTimeLag      = []    # associated time lag vector
+        self.PredictionEnergyLag    = []    # associated energy lag vector
+        self.power_sum_original     = []    # predicted, unconstrained power, with no noise applied
+        self.PredictionGridUpper    = []    # TODO used so far?
+        self.PredictionGridLower    = []    # TODO used so far?
+        self.E_BtmsLower            = []    # btms energy from planning
+        self.E_BtmsUpper            = []    # btms energy from planning
 
-        self.OptimalValues          = None
-        self.VectorT1               = None
-        self.VectorT2               = None    
+        self.OptimalValues          = None  # optimal values of MPC solver
+        self.VectorT1               = None  # vector t1, which is the feasibility guaranteeing variable for the vehicle charge trajectory
+        self.VectorT2               = None  # vector t2, which is the feasibility guaranteeing variable for the energy conservation, in case the BTMS is fully empty.
 
-        '''Variables'''
+        # variables
         self.P_GridLast             = None      # last Grid Power, used to flatten the MPC power curve
         self.P_GridMaxPlanning      = None      # maximal P_Grid from planning, used to keep demand charge low
-        self.P_ChargeGranted        = 0      # power granted by MPC 
-        self.P_ChargeDelivered      = 0      # power delivered to vehicles
-
-        self.E_BtmsLower            = []        # btms energy from planning
-        self.E_BtmsUpper            = []        # btms energy from planning
-
+        self.P_ChargeGranted        = 0         # power granted by MPC to vehicles
+        self.P_ChargeDelivered      = 0         # power delivered to vehicles
+        self.P_BTMSGranted          = 0         # power granted by MPC to BTMS
+        self.P_BTMSDeliverable      = 0         # power deliverable by BTMS
         self.N                      = 4      # number of short horizoned steps in MPC
 
 
@@ -55,16 +58,17 @@ class ChaDepMpcBase(ChaDepParent):
         # open a VehicleGenerator for this:
         VehicleGenerator = components.VehicleGenerator(path_BeamPredictionFile, dtype, path_DataBase)
         
-        # open lists for power and time, initialize with a value to synchronize with iteration counter of prediction broker (at iteration 0, the power is 0, because no vehicles have arrived. all the vehicles of the last timestep seconds start charging at the start of the iteration)
-        time = [PredBroker.t_act]
-        power_sum = [0]
+        # open lists for power and time
+        time = []
+        power_sum = []
+        # calculate also time lag and energy lag as reference values
+        time_lag = []
+        energy_lag = []
 
         #add all vehicle to queue which arrive at this charging station
         while not PredBroker.eol():
-            #print("check 1.5")
             slice = PredBroker.step(timestep)
             for i in range(0, len(slice)):
-                #print("check 1.9")
                 if slice.iloc[i]["type"] == "ChargingPlugInEvent":
                     vehicle = VehicleGenerator.generateVehicleSO(slice.iloc[i])
                     if np.isin(element=self.ChBaParkingZoneId, test_elements=vehicle.BeamDesignatedParkingZoneId).any():
@@ -81,6 +85,9 @@ class ChaDepMpcBase(ChaDepParent):
             #save result in vectors
             time.append(PredBroker.t_act)
             power_sum.append(sum(power_i))
+            # calculate time lag and energy lag
+            time_lag.append(sum([x.updateTimeLag(PredBroker.t_act) for x in ChBaVehicles]))
+            energy_lag.append(sum([x.updateEnergyLag(PredBroker.t_act) for x in ChBaVehicles]))
             #release vehicles which are full
             pop_out = []
             for i in range(0,len(ChBaVehicles)):
@@ -94,8 +101,10 @@ class ChaDepMpcBase(ChaDepParent):
         # add noise to produce prediction:
         self.power_sum_original = power_sum.copy()
         if addNoise:
-            param = 0.10
+            param = 0.15
             avg = np.average(power_sum)
+            # seed random variable
+            np.random.seed(1)
             for i in range(0,len(power_sum)):
                  power_sum[i] = power_sum[i] + avg * (np.random.randn() * param)
                  if power_sum[i] < 0:
@@ -103,6 +112,8 @@ class ChaDepMpcBase(ChaDepParent):
         # save to Prediction Variables
         self.PredictionTime = time
         self.PredictionPower = power_sum
+        self.PredictionTimeLag = time_lag
+        self.PredictionEnergyLag = energy_lag
 
         # generate a prediction for power limits
         # TODO: so far no implemented deviations
@@ -115,6 +126,8 @@ class ChaDepMpcBase(ChaDepParent):
             'time': time,
             'Power_original': self.power_sum_original,
             'Power_noise': self.PredictionPower,
+            'TimeLag': self.PredictionTimeLag,
+            'EnergyLag': self.PredictionEnergyLag,
             'PredictionGridUpper': self.PredictionGridUpper,
             'PredictionGridLower': self.PredictionGridLower,
         }
@@ -127,7 +140,7 @@ class ChaDepMpcBase(ChaDepParent):
     def determineBtmsSize(self, t_act, t_max, timestep, a, b, c, P_free):
         '''see mpcBase.md for explanations'''
         # vector lengthes
-        T = int(np.floor((t_max - t_act) / timestep)) + 1
+        T = int(np.ceil((t_max - t_act) / timestep))
 
         # define variables 
         x = cp.Variable((1, T+1))
@@ -137,7 +150,7 @@ class ChaDepMpcBase(ChaDepParent):
         # define disturbance i_power, which is the charging power demand
         time = np.array(self.PredictionTime)
         power = np.array(self.PredictionPower)
-        idx = np.logical_and(time >=t_act, time <= t_max)
+        idx = np.logical_and(time >=t_act, time <= t_act + T*timestep)
         time = time[idx]
         i_power = power[idx]
         if len(i_power) != T:
@@ -220,7 +233,7 @@ class ChaDepMpcBase(ChaDepParent):
         time_start = time_module.time() # timing
         '''see mpcBase.md for explanations'''
         # vector length T
-        T = int(np.floor((t_max - t_act) / timestep)) + 1
+        T = int(np.ceil((t_max - t_act) / timestep))
 
         # define variables 
         x = cp.Variable((2, T+1))
@@ -232,7 +245,7 @@ class ChaDepMpcBase(ChaDepParent):
         # define disturbance i_power for the needed time period, which is the charging power demand
         time = np.array(self.PredictionTime)
         power = np.array(self.PredictionPower)
-        idx = np.logical_and(time >=t_act, time <= t_max)
+        idx = np.logical_and(time >=t_act, time <= t_act + T*timestep)
         time = time[idx]
         i_power = power[idx]
         if len(i_power) != T:
@@ -488,28 +501,23 @@ class ChaDepMpcBase(ChaDepParent):
         return P_BTMS, P_ChargeGranted
 
     def step(self, timestep, verbose = False):
+        
         '''repark vehicles based on their charging desire with the parent method'''
         self.repark()
-        '''insert here the control action'''
-
-        '''assign values to:
-        self.ChBaPower
-        self.BtmsPower
-        '''
 
         ''' get control action'''
         # run MPC to obtain max power for charging vehicles and charging power for BTMS
         self.P_GridLast = self.P_Grid
-        P_BTMSGranted, P_Charge_Granted = self.runMpc(timestep, self.N, self.SimBroker, verbose = verbose)
+        self.P_BTMSGranted, P_Charge_Granted = self.runMpc(timestep, self.N, self.SimBroker, verbose = verbose)
 
         # distribute MPC powers to vehicles (by charging desire)
         self.P_ChargeDelivered = self.distributeChargingPowerToVehicles(timestep, P_Charge_Granted)
         logging.info('P_ChargeGranted: {:.2f}, P_ChargeDelivered: {:.2f}'.format(P_Charge_Granted, self.P_ChargeDelivered))
 
         # calculate dispatachable BTMS power (checking that bounds aren't exceeded)
-        P_BTMSDeliverable = self.BtmsGetPowerDeliverable(P_BTMSGranted, timestep)
-        self.P_BTMS = P_BTMSDeliverable
-        logging.info('P_BTMS granted: {:.2f}, P_BTMS deliverable: {:.2f}'.format(P_BTMSGranted, P_BTMSDeliverable))
+        self.P_BTMSDeliverable = self.BtmsGetPowerDeliverable(self.P_BTMSGranted, timestep)
+        self.P_BTMS = self.P_BTMSDeliverable
+        logging.info('P_BTMS granted: {:.2f}, P_BTMS deliverable: {:.2f}'.format(self.P_BTMSGranted, self.P_BTMSDeliverable))
 
         # calculate grid power from delivered charge and BTMS power
         self.P_Grid = self.P_ChargeDelivered + self.P_BTMS
@@ -533,25 +541,34 @@ class ChaDepMpcBase(ChaDepParent):
         '''determine power desire for next time step'''
         PowerDesire = 0
         for i in range(0, len(self.ChBaVehicles)):
-            if self.ChBaVehicles[i] != False:
+            if isinstance(self.ChBaVehicles[i], components.Vehicle):
                 PowerDesire += min(
                     [self.ChBaVehicles[i].getMaxChargingPower(timestep), self.ChBaMaxPower[i]])
         self.PowerDesire = PowerDesire
         self.BtmsPowerDesire = self.getBtmsMaxPower(timestep) # TODO this should be changed for DERMS to MPC output
         logging.debug("power desires updated for charging station {}".format(self.ChargingStationId))
 
-        '''release vehicles when full and create control outputs'''
-        self.resetOutput()
+        '''release vehicles when fully charged, but this is already at the next timestep'''
+        self.resetOutput() # here we reset the control output
         r1 = self.chBaReleaseThresholdAndOutput()
         r2 = self.queueReleaseThresholdAndOutput()
         logging.debug("vehicles released for charging station {}".format(self.ChargingStationId))
         released_Vehicles = r1 + r2
+        
+        # write vehicle states before releasing them (to have final SOC)
+        for x in r1:
+            possiblePower = x.getMaxChargingPower(timestep)
+            self.ResultWriter.updateVehicleStates(
+                    t_act=self.SimBroker.t_act + timestep, vehicle=x, ChargingStationId=self.ChargingStationId, QueueOrBay=False, ChargingPower=0, possiblePower=possiblePower)
+        for x in r2:
+            possiblePower = x.getMaxChargingPower(timestep)
+            self.ResultWriter.updateVehicleStates(
+                    t_act=self.SimBroker.t_act + timestep, vehicle=x, ChargingStationId=self.ChargingStationId, QueueOrBay=True, ChargingPower=0, possiblePower=possiblePower)
 
         # add release events
         for x in released_Vehicles:
             self.ResultWriter.releaseEvent(
-                self.SimBroker.t_act, x, self.ChargingStationId)
-        # TODO: create control outputs
+                self.SimBroker.t_act + timestep, x, self.ChargingStationId)
         logging.debug("vehicle release events written for charging station {}".format(self.ChargingStationId))
 
         '''checks'''
