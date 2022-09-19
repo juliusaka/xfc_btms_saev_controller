@@ -504,7 +504,8 @@ class ChaDepMpcBase(ChaDepParent):
         
         '''repark vehicles based on their charging desire with the parent method'''
         self.repark()
-
+        logging.info("Vehicles reparked in %s" % self.ChargingStationId)
+        
         ''' get control action'''
         # run MPC to obtain max power for charging vehicles and charging power for BTMS
         self.P_GridLast = self.P_Grid

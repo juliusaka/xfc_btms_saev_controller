@@ -149,7 +149,7 @@ class ChaDepParent:
         return j
 
     def resetOutput(self):
-        # TODO: Did I use this?
+        # This is to provide an output to beam for every vehicle
         self.output_vehicles   = []
         self.output_power      = []
         self.output_release    = []
