@@ -11,4 +11,4 @@ from .PhySimDummy import PhySimDummy
 from .loggerConfig import loggerConfig
 from .solverAlgorithm import solverAlgorithm
 
-import components.GeminiWrapper
+import GeminiWrapper

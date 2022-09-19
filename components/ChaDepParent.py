@@ -206,11 +206,11 @@ class ChaDepParent:
         if vehicle.VehicleEngy < vehicle.VehicleDesEngy:
             # if vehicle is not fully charged, add to queue
             self.Queue.append(vehicle)
-            self.ResultWriter.arrivalEvent(self.SimBroker.t_act, vehicle, self.ChargingStationId)
+            self.ResultWriter.arrivalEvent(t_act, vehicle, self.ChargingStationId)
         else:
             # if vehicle is fully charged, don't add it, but throw an arrival and a release event
-            self.ResultWriter.arrivalEvent(self.SimBroker.t_act, vehicle, self.ChargingStationId)
-            self.ResultWriter.releaseEvent(self.SimBroker.t_act, vehicle, self.ChargingStationId)
+            self.ResultWriter.arrivalEvent(t_act, vehicle, self.ChargingStationId)
+            self.ResultWriter.releaseEvent(t_act, vehicle, self.ChargingStationId)
         
     def departure(self, vehicleIds, t_act):
         # TODO: Did I use this?
@@ -309,10 +309,6 @@ class ChaDepParent:
             CD = float("inf")
         v.ChargingDesire = CD #this value is saved in the object as its passed by reference
         return CD
-    
-    def initialize(self, GridPowerLower, GridPowerUpper):
-        self.GridPowerLower = GridPowerLower
-        self.GridPowerUpper = GridPowerUpper
     
     def updateFromDerms(self, GridPowerLower: float, GridPowerUpper: float) -> None:
         self.GridPowerLower = GridPowerLower

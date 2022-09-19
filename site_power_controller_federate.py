@@ -1,0 +1,254 @@
+# this file creates an intermediate federate
+# it maps the coordinates from TEMPO to the nearest charging
+# station modeled in PyDSS
+import time
+import helics as h
+import pandas as pd
+import logging
+import json
+import itertools
+import os
+
+#from rudimentary_spmc import SPM_Control
+
+# import xfc-btms-saev-controller
+import components
+
+
+# if len(sys.argv) < 2:
+#     logging.error("infrastructure file is missing")
+
+def create_federate(fedinfo, tazId):
+    fed_name = "SPMC_FEDERATE_" + str(tazId)
+
+    # create federate
+    cfed = h.helicsCreateCombinationFederate(fed_name, fedinfo)
+    logging.info(fed_name + " created")
+
+    logging.info("Register a publication of control signals")
+
+    # Register a publication of control signals
+    h.helicsFederateRegisterTypePublication(cfed, "CHARGING_PROFILE", "string", "")
+    logging.info("publications registered")
+
+    # register subscriptions
+    # subscribe to information from TEMPO such that you can map to PyDSS modeled charging stations
+    h.helicsFederateRegisterSubscription(cfed, "BEAM_SPM_FEDERATE_" + str(tazId) + "/CHARGING_SESSION_EVENTS", "string")
+    logging.info("subscriptions registered")
+    return cfed
+
+
+def run_spmc_federate(cfed):
+    # enter execution mode
+    h.helicsFederateEnterExecutingMode(cfed)
+    fed_name = h.helicsFederateGetName(cfed)
+    logging.debug(fed_name + " in execution mode")
+    subs_charging_events = h.helicsFederateGetInputByIndex(cfed, 0)
+    pubs_control = h.helicsFederateGetPublicationByIndex(cfed, 0)
+
+    # SPMC INITIALIZE HERE
+    # TODO JULIUS: @HL I initialized my SPMC here
+    # @ HL can you provide the missing infromation
+    initMpc                 = False
+    t_start                 = int()
+    timestep_intervall      = int()
+    result_directory        = '' 
+    simName                 = 'myFirstSimulation'
+    RideHailDepotId         = ''
+    ChBaMaxPower            = [] # list of floats in kW for each plug, for first it should be the same maximum power for all
+    ChBaParkingZoneId       = [] # list of strings, could just be a list of empty strings as not further used so far
+    ChBaNum                 = len(ChBaMaxPower) # number of plugs in one depot
+    # only needed for MPC
+    path_BeamPredictionFile = '' # path to a former run of the same simulation to obtain predicitions. the beam result file should be reduced before to only contain the relevant data
+    dtype_Predictions       = {} # dictionary containing the data types in the beam prediction file
+    t_max                   = int() # maximum time up to which we simulate (for prediciting in MPC)
+
+    depotController = components.GeminiWrapper.ControlWrapper(initMpc, t_start, timestep_intervall, result_directory, simName, RideHailDepotId, ChBaMaxPower, ChBaParkingZoneId, ChBaNum, path_BeamPredictionFile, dtype_Predictions, t_max)
+
+
+    # TODO MYUNGSOO
+    # spmc = SPM_Control(time_step_mins=1, max_power_evse=[], min_power_evse=[])
+
+    def key_func(k):
+        return k['siteId']
+
+    def syncTime(requestedtime):
+        grantedtime = -1
+        while grantedtime < requestedtime:
+            grantedtime = h.helicsFederateRequestTime(cfed, requestedtime)
+
+    timebin = 300
+    # start execution loop
+    for t in range(0, 60 * 3600 - timebin, timebin):
+        syncTime(t)
+        logging.info("charger loads received at currenttime: " + str(t) + " seconds")
+        logging.info("charger loads received at currenttime: " + str(t) + " seconds")
+        charging_events_json = json.loads(h.helicsInputGetString(subs_charging_events))
+        logging.info('Logging this as CSV')
+        logging.info('stationId,estimatedLoad,currentTime')
+        
+        # for vehicle in charging_events_json:
+        #     vehicleId = vehicle['vehicleId']
+        #     tazId = vehicle['tazId']
+        #     siteId = vehicle['siteId']
+        #     vehicleType = vehicle['vehicleType']
+        #     primaryFuelLevelInJoules = vehicle['primaryFuelLevelInJoules']
+        #     arrivalTime = vehicle['arrivalTime']
+        #     desiredDepartureTime = vehicle['departureTime']
+        #     desiredFuelLevelInJoules = vehicle['desiredFuelLevelInJoules']
+        #     powerInKW = vehicle['powerInKW']
+        #     logging.info(str(vehicleId)+','+str(vehicleType)+','+str(primaryFuelLevelInJoules)+','+str(desiredDepartureTime)+','+str(t))
+
+        ############### This section should be un-commented and debugged when we have a controller signal to send to BEAM
+        control_commands_list = []
+        for siteId, charging_events in itertools.groupby(charging_events_json, key_func):
+            print(siteId)
+            print(list(charging_events))
+            
+            vehicleId = []
+            tazId = []
+            siteId = []
+            vehicleType = []
+            primaryFuelLevelInKWh = []
+            arrivalTime = []
+            desiredDepartureTime = []
+            desiredFuelLevelInKWh = []
+            maxPowerInKW = []
+            chargingCapacityInKW = [] # TODO Julius @ HL can you please add this to the BEAM output?
+            batteryCapacityInKWh = [] # TODO Julius @ HL can you please add this to the BEAM output?
+            for vehicle in charging_events:
+                vehicleId.append(int(vehicle['vehicleId']))
+                tazId.append(int(vehicle['tazId']))
+                siteId.append(int(vehicle['siteId']))
+                vehicleType.append(vehicle['vehicleType'])
+                primaryFuelLevelInKWh.append(float(vehicle['primaryFuelLevelInJoules'])/3600000) ### MJ: What is this? Is it the current energy level of each EV? Or battery size?
+                arrivalTime.append(float(vehicle['arrivalTime'])) ### MJ: Should be in minutes of day. What is the unit of this?
+                desiredDepartureTime.append(float(vehicle['departureTime']))  ### MJ: Should be in minutes of day. What is the unit of this?
+                desiredFuelLevelInKWh.append(float(vehicle['desiredFuelLevelInJoules'])/3600000)  ### MJ: I assume that this is remaining energy to be delivered to each EV and updated each time, right?
+                maxPowerInKW.append(float(vehicle['maxPowerInKW']))  ### MJ: I assume that this is the EV charging power
+                chargingCapacityInKW = 100 # TODO Julius @ HL can you please add this to the BEAM output?
+                batteryCapacityInKWh = 60 # TODO Julius @ HL can you please add this to the BEAM output?
+            
+
+            if not siteId.str.lower().startswith('depot'):
+                # Myungsoo is SPMC (NOT RIDE HAIL DEPOT)
+                # 1) SPMC takes list(charging_events) (and/or siteId)
+                # 2) SPMC returns control_commands
+                # 2.a) example
+                spmc.max_power_evse = maxPowerInKW
+                spmc.min_power_evse = [0]*len(spmc.max_power_evse)
+                Pmin_siteInKW = 0 
+                Pmax_siteInKW = sum(maxPowerInKW)
+                Tdep = (desiredDepartureTime - t)/60.0  ### MJ: What is the unit of t? 
+                [p_evse_opt, e_evse_opt, delta_t] = spmc.get_evse_setpoint(Tdep, desiredFuelLevelInKWh, Pmin_siteInKW, Pmax_siteInKW)
+                i = 0
+                for vehicle in charging_events:
+                    control_commands = [{
+                        'vehicleId': vehicle['vehicleId'],
+                        'powerInKw': str(p_evse_opt[i])
+                    }]
+                    control_commands_list = control_commands_list + control_commands
+                    i = i + 1
+                    
+                    
+                # control_commands = [{
+                #     'vehicleId': str(""),
+                #     'powerInKw': str(9.5)
+                # }]
+                # # 3) add control_commands to control_commands_list
+                # control_commands_list = control_commands_list + control_commands
+            else:
+                # Julius Is SPMC (IS RIDE HAIL DEPOT)
+
+                # 1) SPMC takes list(charging_events) (and/or siteId)
+                # 1.a) Maybe a loop with => juliusObject.arrival(vehicle) and/or juliusObject.departure(vehicle)
+                # We decide to share vehicle information every interval and when they disappear they plugged out
+                # 2) SPMC returns control_commands => juliusObject.step(t)
+                # 2.a) example
+                # 3) add control_commands to control_commands_list
+
+                # Julius @ HL we need to add every vehicle which arrives to the depotController
+                # Julius @ HL do you send a list of all vehicles which are currently at the depot or of the ones which are just arriving? - I implemented a routine here to check if they are already in the station. If not, they are added. Do we need to synchronize the SOC of vehicles in my controller with the one in the BEAM output?
+                # Julius @ HL do we need to check if all vehicles which are already in my charging depot are still there in every loop of this run? i.e. could there be vehicles which just leave without me sending a departure signal?
+
+                # VEHICLE ARRIVAL
+                vehicleInDepot = []
+                for vehicle in depotController.ChargingStation.ChBaVehicles:
+                    vehicleInDepot.append(vehicle.vehicleId)
+                for vehicle in depotController.ChargingStation.Queue:
+                    vehicleInDepot.append(vehicle.vehicleId)
+                
+                for i in range(0, len(vehicleId)):
+                    if vehicleId[i] not in vehicleInDepot:
+                        depotController.arrival(VehicleId = vehicleId[i], 
+                                VehicleType = vehicleType[i], 
+                                VehicleArrival = arrivalTime[i], 
+                                VehicleDesEnd = desiredDepartureTime[i], 
+                                VehicleEngyInKwh = primaryFuelLevelInKWh[i], 
+                                VehicleDesEngyInKwh = desiredFuelLevelInKWh[i], 
+                                VehicleMaxEngy = batteryCapacityInKWh[i], 
+                                VehicleMaxPower = chargingCapacityInKW[i], 
+                                t_act = int()) # Julius @ HL can you provide the actual time
+
+                # OBTAIN CONTROL COMMANDS
+                vehicles, power, release = depotController.step(
+                timestep = int(), # julius @ HL can you provide the timestep, 
+                t_act = int(), # julius @ HL can you provide the actual time)
+                GridPowerUpper = 1e10, # Update from DERMS, for the first we turn this off with a big number
+                GridPowerLower = -1e10, # Update from DERMS, for the first we turn this off with a big number
+                BtmsEnergy = 0, # Update from PyDSS, for first this is deactivated in components.ChaDepParent
+                )
+
+                for i in range(0, len(vehicles)):
+                    control_commands = [{
+                        'vehicleId': str(vehicles[i]),
+                        'power': str(power[i]),
+                        'release': str(release[i])
+                    }]
+                    control_commands_list = control_commands_list + control_commands
+
+        return control_commands_list
+        # END LOOP
+
+        h.helicsPublicationPublishString(pubs_control, json.dumps(control_commands_list, separators=(',', ':')))
+        syncTime(t + 1)
+
+    # close the federate
+    h.helicsFederateFinalize(cfed)
+    logging.info("beam_to_pydss_federate finalized")
+
+    h.helicsFederateFree(cfed)
+    h.helicsCloseLibrary()
+
+    # depotController: save results
+    depotController.save()
+
+
+###############################################################################
+
+
+data = pd.read_csv("../../../../production/sfbay/parking/sfbay_taz_unlimited_charging_point.csv")
+tazes = data["taz"].unique()
+logging.info(tazes)
+
+fedinfo = h.helicsCreateFederateInfo()
+
+# set core type
+h.helicsFederateInfoSetCoreTypeFromString(fedinfo, "zmq")
+
+# set initialization string
+h.helicsFederateInfoSetCoreInitString(fedinfo, f"--federates={len(tazes)}")
+
+# set message interval
+deltat = 1.0  # smallest discernable interval to this federate
+h.helicsFederateInfoSetTimeProperty(fedinfo, h.helics_property_time_delta, deltat)
+
+feds = [create_federate(fedinfo, taz) for taz in tazes]
+
+print(len(feds))
+
+from threading import Thread
+
+for fed in feds:
+    t = Thread(target=run_spmc_federate, args=(fed,))
+    t.start()
