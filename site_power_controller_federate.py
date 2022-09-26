@@ -54,13 +54,18 @@ def run_spmc_federate(cfed):
     timestep_intervall      = int()
     result_directory        = '' 
     simName                 = 'myFirstSimulation'
-    RideHailDepotId         = ''
-    ChBaMaxPower            = [] # list of floats in kW for each plug, for first it should be the same maximum power for all
+    RideHailDepotId         = '' 
+    ChBaMaxPower            = [] # list of floats in kW for each plug, for first it should be the same maximum power for all -> could set 10 000 kW if message contains data --> list with length of number of plugs from infrastructure file?
     ChBaParkingZoneId       = [] # list of strings, could just be a list of empty strings as not further used so far
-    ChBaNum                 = len(ChBaMaxPower) # number of plugs in one depot
+    ChBaNum                 = len(ChBaMaxPower) # number of plugs in one depot --> infrastructure file?
     # only needed for MPC
     path_BeamPredictionFile = '' # path to a former run of the same simulation to obtain predicitions. the beam result file should be reduced before to only contain the relevant data
-    dtype_Predictions       = {} # dictionary containing the data types in the beam prediction file
+    dtype_Predictions       = {
+       'time': 'int64', 'type': 'category', 'vehicle': 'int64', 'parkingTaz': 'category','chargingPointType': 'category', 
+       'primaryFuelLevel': 'float64', 'mode': 'category', 'currentTourMode': 'category', 'vehicleType': 'category', 
+       'arrivalTime': 'float64', 'departureTime': 'float64', 'linkTravelTime': 'string', 'primaryFuelType': 'category', 
+       'parkingZoneId': 'category','duration': 'float64' 
+        } # dictionary containing the data types in the beam prediction file
     t_max                   = int() # maximum time up to which we simulate (for prediciting in MPC)
 
     depotController = components.GeminiWrapper.ControlWrapper(initMpc, t_start, timestep_intervall, result_directory, simName, RideHailDepotId, ChBaMaxPower, ChBaParkingZoneId, ChBaNum, path_BeamPredictionFile, dtype_Predictions, t_max)
@@ -113,8 +118,7 @@ def run_spmc_federate(cfed):
             arrivalTime = []
             desiredDepartureTime = []
             desiredFuelLevelInKWh = []
-            maxPowerInKW = []
-            chargingCapacityInKW = [] # TODO Julius @ HL can you please add this to the BEAM output?
+            maxPowerInKW = [] # min [plug, vehicle]
             batteryCapacityInKWh = [] # TODO Julius @ HL can you please add this to the BEAM output?
             for vehicle in charging_events:
                 vehicleId.append(int(vehicle['vehicleId']))
@@ -126,8 +130,7 @@ def run_spmc_federate(cfed):
                 desiredDepartureTime.append(float(vehicle['departureTime']))  ### MJ: Should be in minutes of day. What is the unit of this?
                 desiredFuelLevelInKWh.append(float(vehicle['desiredFuelLevelInJoules'])/3600000)  ### MJ: I assume that this is remaining energy to be delivered to each EV and updated each time, right?
                 maxPowerInKW.append(float(vehicle['maxPowerInKW']))  ### MJ: I assume that this is the EV charging power
-                chargingCapacityInKW = 100 # TODO Julius @ HL can you please add this to the BEAM output?
-                batteryCapacityInKWh = 60 # TODO Julius @ HL can you please add this to the BEAM output?
+                batteryCapacityInKWh.append(60) # TODO Julius @ HL can you please add this to the BEAM output?
             
 
             if not siteId.str.lower().startswith('depot'):
@@ -169,7 +172,10 @@ def run_spmc_federate(cfed):
 
                 # Julius @ HL we need to add every vehicle which arrives to the depotController
                 # Julius @ HL do you send a list of all vehicles which are currently at the depot or of the ones which are just arriving? - I implemented a routine here to check if they are already in the station. If not, they are added. Do we need to synchronize the SOC of vehicles in my controller with the one in the BEAM output?
-                # Julius @ HL do we need to check if all vehicles which are already in my charging depot are still there in every loop of this run? i.e. could there be vehicles which just leave without me sending a departure signal?
+                # Julius @ HL do we need to check if all vehicles which are already in my charging depot are still there in every loop of this run? i.e. could there be vehicles which just leave without me sending a departure signal? --> # @Julius yes, we should do that  --> implemented below
+
+                # synchronize vehicles which are at station: Remove vehicles which are not in the vehicleId list from BEAM anymore
+                depotController.synchronizeVehiclesAtStation(vehicleIdsAtStation = vehicleId, t_act = 0 ) # TODO Julius @ HL can you please add the actual time here?
 
                 # VEHICLE ARRIVAL
                 vehicleInDepot = []
@@ -187,7 +193,7 @@ def run_spmc_federate(cfed):
                                 VehicleEngyInKwh = primaryFuelLevelInKWh[i], 
                                 VehicleDesEngyInKwh = desiredFuelLevelInKWh[i], 
                                 VehicleMaxEngy = batteryCapacityInKWh[i], 
-                                VehicleMaxPower = chargingCapacityInKW[i], 
+                                VehicleMaxPower = maxPowerInKW[i], # this doesn't change within one charging session
                                 t_act = int()) # Julius @ HL can you provide the actual time
 
                 # OBTAIN CONTROL COMMANDS
@@ -207,7 +213,7 @@ def run_spmc_federate(cfed):
                     }]
                     control_commands_list = control_commands_list + control_commands
 
-        return control_commands_list
+        #return control_commands_list
         # END LOOP
 
         h.helicsPublicationPublishString(pubs_control, json.dumps(control_commands_list, separators=(',', ':')))

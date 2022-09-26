@@ -1,5 +1,7 @@
 import components
+from components.ResultWriter import ResultWriter
 from components.SimBroker import SimBroker
+import logging
 
 class ControlWrapper:
     # A Wrapper for the Limit Controller
@@ -61,9 +63,36 @@ class ControlWrapper:
         self.ResultWriter.saveChargingStationProperties([self.ChargingStation]) # this function takes a list of charging station objects as input argument
 
 
-    def departure(self, vehicleId) -> None:
-        # TODO for future implementation, should throw an error message to the results
-        pass
+    def synchronizeVehiclesAtStation(self, vehicleIdsAtStation, t_act) -> None:
+        # this is a routine to remove vehicles from the charging station list ChBaVehicles and Queue, which are not at the charging station anymore (in the list of vehicleIds we got from BEAM)
+
+        # make a list of vehicle ids which are in the charging station
+        vehicleInDepot = []
+        for vehicle in self.ChargingStation.ChBaVehicles:
+            vehicleInDepot.append(vehicle.vehicleId)
+        for vehicle in self.ChargingStation.Queue:
+            vehicleInDepot.append(vehicle.vehicleId)
+        
+        for vehicle in vehicleIdsAtStation:
+            # make a list of vehicles which are not in the charging station and need to be popped out
+            pop_out = []
+            if vehicle not in vehicleInDepot:
+                pop_out.append(vehicle.vehicleId)
+                logging.warning("Vehicle with id " + str(vehicle) + " is not in the charging station. This should not happen. But this vehicle will be removed now.")
+        
+        for vehicleId in pop_out:
+            # pop these vehicles out of the charging station
+            for i in range(0, len(self.ChargingStation.ChBaVehicles)):
+                if self.ChargingStation.ChBaVehicles[i].vehicleId == vehicleId:
+                    removedVehicle = self.ChargingStation.ChBaVehicles[i]
+                    self.ChargingStation.ChBaVehicles[i] = False # set the list at the index to false, so that the vehicle is removed
+                    break
+            for i in range(0, len(self.ChargingStation.Queue)):
+                if self.ChargingStation.Queue[i].vehicleId == vehicleId:
+                    removedVehicle = self.ChargingStation.Queue.pop(i)
+                    break
+            # write the removed vehicle to the result file
+            ResultWriter.forcedReleaseEvent(t_act, removedVehicle, self.ChargingStation.ChargingStationId)
 
     def arrival(self, VehicleId, VehicleType, VehicleArrival, VehicleDesEnd, VehicleEngyInKwh, VehicleDesEngyInKwh, VehicleMaxEngy, VehicleMaxPower, t_act) -> None:
         # generate a vehicle object
