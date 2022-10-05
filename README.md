@@ -24,7 +24,7 @@ below, there is a list of important used packages:
 - power is in kilowatt [kW]
 
 ## Installing with pip
-    pip install git+https://github.com/juliusaka/xfc-btms-saev-controller.git#egg=xfc-btms-saev-controller
+    pip install git+https://github.com/juliusaka/xfc-btms-saev-controller.git#egg=xfc_btms_saev_controller
 
 packaging based on [this](https://packaging.python.org/tutorials/packaging-projects/) tutorial and installing with pip based on [this](https://packaging.python.org/tutorials/installing-packages/) tutorial.
 
