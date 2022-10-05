@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>README</title>
+  <style>
+    html {
+      line-height: 1.5;
+      font-family: Georgia, serif;
+      font-size: 20px;
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      word-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 1em;
+      }
+    }
+    @media print {
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, 'Lucida Console', Consolas, monospace;
+      font-size: 85%;
+      margin: 0;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+  </style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">README</h1>
+</header>
+<h1 id="xfc-btms-saev-controller">xfc-btms-saev-controller</h1>
+<p>Developement of a controller for an extreme-fast-charging (XFC) depot with behind-the-meter storage (BTMS) for shared autonomous electric vehicle (SAEV) fleets in the project GEMINI-XFC with the transportation simulation software BEAM. This controller can be connected with HELICS to BEAM, PyDSS etc. Within the GEMINI-XFC project, we talk about Site Power Management Controllers (SPMC). Their task is to control charging power of a BTMS and the charging power of vehicles with low grid impact and high charging speed, constrained by grid power limits. The major difference of a SPMC for a SAEV-fleet compared to a SPMC for normal EVs is that its control strategy can influence the availability of ride-hailing services and should therefore work differently than a normal SPMC for private EVs.</p>
+<p>This code is set up so that it can be tested in a stand-alone version (without connection to other parts of the GEMINI-XFC framework), and also implemented in the GEMINI-XFC framework. The reason for this is, that the stand-alone version shall allow the user to quickly test changes of the control scheme, without waiting for results of the long-lasting BEAM simulation.</p>
+<h2 id="python-environment">python environment</h2>
+<p>this framework was developed using python 3.7.11. There is an Andaconda-Image, which can be used to import a fitting environment. Please make sure, that this environment is used.</p>
+<p><em>first, I couldn’t run python with anaconda on my PC. I then added path variables like described in this <a href="https://www.youtube.com/watch?v=3Wt00qGlh3s">video</a>. I also had to change the execution policy of Windows Powershell to RemoteSigned (Open PowerShell, Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser</em></p>
+<p>below, there is a list of important used packages:</p>
+<ul>
+<li><strong>dask</strong>: used for processing the large output-csv for the independent controller developement framework</li>
+<li><strong>numpy</strong></li>
+<li><strong>cvxopt</strong>:</li>
+</ul>
+<h2 id="units">Units</h2>
+<ul>
+<li>time is in seconds [s]</li>
+<li>energy is in kilowatthours [kWh] - Beam is in J, must be convert with 3.6e6 J/kWh</li>
+<li>power is in kilowatt [kW]</li>
+</ul>
+<h2 id="components">components</h2>
+<p>the components folder contains all objects which are necessary for the object oriented approach. All this objects are generated and used together in a main skript file.</p>
+<h3 id="chadepparent">ChaDepParent</h3>
+<p>This is the parent class for Charging Depots. You can inherit subclasses from this, in which you implement the different controllers.</p>
+<h4 id="properties-parts">Properties / parts:</h4>
+<ul>
+<li>ChargingStationId</li>
+<li>ResultWriter: Reference to ResultWriter Object</li>
+<li>BTMS properties:
+<ul>
+<li>parameters:
+<ul>
+<li>BtmsSize</li>
+<li>BtmsC: BTMS-C rating (e.g. 2C = max. charging speed is two full charges in one hour)</li>
+<li>BtmsMaxPower = BtmsC*BtmsSize</li>
+<li>BtmsMaxSoc, BtmsMinSoc</li>
+</ul></li>
+<li>Variables:
+<ul>
+<li>BtmsEn: BTMS Energy Content, initialized with Btms0*BtmsSize</li>
+<li>(BTMS SOC can be obtained by calling .BtmsSoc())</li>
+</ul></li>
+</ul></li>
+<li>Charging Bays properties:
+<ul>
+<li>parameters:
+<ul>
+<li>ChBaNum: Number of Charging Bays</li>
+<li>ChBaMaxPower: list of maximum power for each charging bay</li>
+<li>ChBaMaxPower_abs: maximum value from list above</li>
+<li>ChBaParkingZoneId: ParkingZoneId associated with charging bays and maximum power withdrawal</li>
+</ul></li>
+<li>Variables:
+<ul>
+<li>a list for Vehicle Objects which are in charging Bays</li>
+</ul></li>
+</ul></li>
+<li>Grid Constraints
+<ul>
+<li>Parameters:
+<ul>
+<li>GridPowerMax_Nom: nominal maximum grid power withdrawel of the whole charging station</li>
+</ul></li>
+<li>Variables:
+<ul>
+<li>GridPowerLower</li>
+<li>GridPowerUpper</li>
+</ul></li>
+</ul></li>
+<li>Queue: for vehicles, if charging station is full.
+<ul>
+<li>Variables:
+<ul>
+<li>Queue: list for vehicles -Simulation Data:</li>
+</ul></li>
+<li>SimBroker: Reference to SimBroker object to obtain actual time.</li>
+</ul></li>
+</ul>
+<p>if calcBtmsGridProp = True when you create the chargingStationObject, BtmsSize and GridPowerMax_Nom are determined on heuristics. If you don’t specify all variables and parameters, standard values are used.</p>
+<p>before the first step, an initilization function can be called: def initialize(self, t_start, GridPowerLower, GridPowerUpper):</p>
+<h4 id="methods">methods:</h4>
+<ul>
+<li><p><em>repark()</em>: Adds first vehicles to the charging bays until capacity is reached. Then, it reparks the vehicles based on their need to charge. The charging desire of a vehicle can be calculated as</p>
+<p><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">CD</mtext><mo>=</mo><mfrac><msub><mi>E</mi><mtext mathvariant="normal">necessary</mtext></msub><msub><mi>E</mi><mtext mathvariant="normal">possible</mtext></msub></mfrac><mo>=</mo><mfrac><mrow><msub><mi>E</mi><mrow><mtext mathvariant="normal">desired,Vehicle</mtext><mo stretchy="false" form="prefix">(</mo><msub><mi>t</mi><mtext mathvariant="normal">end</mtext></msub><mo stretchy="false" form="postfix">)</mo></mrow></msub><mo>−</mo><msub><mi>E</mi><mrow><mtext mathvariant="normal">Vehicle</mtext><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow></msub></mrow><mrow><mo stretchy="false" form="prefix">(</mo><msub><mi>t</mi><mtext mathvariant="normal">end</mtext></msub><mo>−</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>⋅</mo><msub><mi>P</mi><mtext mathvariant="normal">max</mtext></msub></mrow></mfrac></mrow><annotation encoding="application/x-tex">\text{CD} = \frac{E_\text{necessary}}{E_\text{possible}} = \frac{E_{\text{desired,Vehicle}(t_\text{end})} - E_{\text{Vehicle}(t)}} { (t_\text{end} - t) \cdot P_\text{max}}</annotation></semantics></math></p>
+<p>with</p>
+<p><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>P</mi><mtext mathvariant="normal">max</mtext></msub><mo>=</mo><mtext mathvariant="normal">min</mtext><mo stretchy="false" form="prefix">(</mo><msub><mi>P</mi><mtext mathvariant="normal">Charging Depot, max</mtext></msub><mo>,</mo><msub><mi>P</mi><mtext mathvariant="normal">Vehicle, max</mtext></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">P_\text{max} = \text{min}(P_\text{Charging Depot, max} , P_\text{Vehicle, max})</annotation></semantics></math></p>
+<p>with an excemption: if $t &gt;= t_ $, then <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">CD</mtext><mo>=</mo><mtext mathvariant="normal">inf</mtext></mrow><annotation encoding="application/x-tex">\text{CD} = \text{inf}</annotation></semantics></math></p>
+<p>The underlying sorting algorithm sorts the vehicles based on their charging desire and makes sure in the same vein, that vehicle in the charging bays don’t unnecessarily switch postions. It throws an repark event each time a vehicle changes its position from charging bay to queue and reversed. The repark process assumes that all charging bays have the same charging capability. TODO: leverage for use in Beam</p></li>
+<li><p>updateFromDerms: updates the Grid Power Limit based on DERMS output</p></li>
+<li><p>updateFromPhySim: updates the CES Soc based on the output of the physical Simulation. <em>not used so far to prevent mistakes for debugging</em></p></li>
+<li><p>chBaInit, chBaActiveCharges, chBaAdd, chBaReleaseThreshold: This are functions to handle the fact, that a list with the same length than number of charging plugs is needed. ChBaInit initializes this array and sets all elements to False, which means that no vehicle is present. ChBaAdd adds an vehicle to the first available charging bay, chBaReleaseThreshold releases vehicles which are fully charged.</p></li>
+</ul>
+<h3 id="subclasses-of-chadepparent">subclasses of ChaDepParent:</h3>
+<h3 id="chadeplimcon">ChaDepLimCon</h3>
+<p>Charging Depot with Limit Controller Algorithm overview, implemented in <em>step()</em>-function:</p>
+<ul>
+<li><em>self.repark()</em>: sorts the vehicles with the inherited repark method to charging bays and queue.</li>
+<li>calculate maximum total charge power: if BTMS is sufficiently charge, maximum charging power is the grid limit + the BTMS power. If BTMS is close to reach min SOC, an intermediate value for the BTMS power is chosen, which maintains SOC &gt;= min SOC. If BTMS SOC is &lt;= min SOC, the maximum charging power is the grid limit.</li>
+<li>sorted by the charging desire CD, charging power is now distributed to the vehicles until the maximum charge power is reached. the actual charging power of each vehicle is determined by the Vehicle method <em>getMaxChargingPower(timestep)</em>.</li>
+<li>determine on how to charge or discharge the BTMS: if the sum of all charging powers of the vehicles does not exceed the grid power limit the BTMS can be charged with a power, up to reaching the grid limit or the maximum BTMS charging power. Intermediate Charging Power for BTMS is choosen if BTMS is close to reach maximal SOC.</li>
+<li>update the BTMS and vehicle SOC</li>
+<li>write new chargingStation and vehicle states for the end of the timestep</li>
+<li>calculate power desires for charging vehicles and btms for the next time step to pass it to the DERMS</li>
+<li>release vehicles when full (delete them from charging bays or queue and throw ResultWriter Events)</li>
+</ul>
+<h3 id="chadepmpcbase">ChaDepMpcBase:</h3>
+<p>This is the base MPC model. It has three main methods:</p>
+<ul>
+<li><em>determineBtmsSize()</em>: In this function, an optimization is ran, which determines the BTMS size based on predictions for charging demand. The prediction for this are generated from Beam output with random noise in <em>.generatePredictions()</em>. <em>determineBtmsSize()</em> saves the informations of the planning process to results.</li>
+<li><em>planning()</em>: In this function, (day-) planning is performed. This means the control variables are determined in an optimization problem depended on prediction for charging demand and grid constraints. Runtime of this method can be longer, as a long horizon is optimized. The prediction for this are generated from Beam output with random noise in <em>.generatePredictions()</em>. Planning saves the informations of the planning process to results.</li>
+<li><em>step()</em>: This is the function which determines the control signals for each time step. Runtime of this should be short and has a short horizon.</li>
+</ul>
+<p>Further information about the MpcBase controller can be found in the MpcBase File.</p>
+<p>The <em>determineBtmsSize()</em> and <em>planning():</em>-function needs as input information all the properties of the charging station, [prediction about grid power limit (P_Lim(t))] and the uncurtailed Charging Demand (P_Charge,total(t)). <em>determineBtmsSize()</em> determines the storage size and <em>planning()</em> delivers and optimal trajectory for the collocated energy storage.</p>
+<p>To determine the uncurtailed charging demand based on given BEAM results, we assume:</p>
+<ul>
+<li>charging depots are rather large (law of big numbers), so that individual arrivals does not have that large influence</li>
+<li>the charging demand can be quiet well predicted, e.g. with machine learning models.</li>
+</ul>
+<p>Because of this, we use the BEAM-results for each TAZ and add some random noise to the generated power profile to mimique a prediction through ML models. Another option would be, to use one general prediction for all charging stations and scale it based on numbers of plugs.</p>
+<h3 id="vehicle">Vehicle</h3>
+<p>an object as a datastructure for all the vehicle information. Has also methods to addEngy and addPower (give Power and duration). can be used in lists to represent the queue and charging bays.</p>
+<ul>
+<li>Vehicle Energy: the energy level of the vehicle</li>
+<li>desired Energy: the desired energy level of the vehicle (not the energy to be refilled)</li>
+</ul>
+<p>methods:</p>
+<p>-<em>getMaxChargePower(timestep)</em>: returns the maximum charge power at the actual time, ensuring that the vehicle doesn’t exceed the desired energy level. (for last step of charging, an intermediate power level is therefore choosen)</p>
+<p>-<em>updateEnergyLag</em>: returns the energy lag of a vehicle while charging. This is a rating metric and defined as the difference between anticipated energy level (by Beam) and real energy level.</p>
+<p>$ E_{}(t) = E_{}(t) - E_{}(t)$</p>
+<p>where <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>E</mi><mtext mathvariant="normal">anticipated</mtext></msub><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">E_{\text{anticipated}}(t)</annotation></semantics></math> is interpolated between desired energy level and arrival energy level based on the time, if actual time exceeds desired end, it is set to desired energy level. This function must be called in the charging controller.</p>
+<p>-<em>getChargingTrajectories</em>: returns charging trajectories, one as a lower, one as upper bound of the energy demand for charging. This uses the function <em>getMaxChargePower()</em>, which has a parameter inverse for calculating the power level when going backwards. For the lower energy trajectory, we simplify the problem a bit and use the charging power at the end of the step, as solving for the average power in the period is an iterative process and harder to implement. If you would somehow implement the trajectory as a function of time E(t), you would maybe find a more exact solution by shifting that function in time. But as charging trajectories can never be perfectly described by an equation, this approach will be considered as good enough to show the general behaviour.</p>
+<h3 id="vehiclegenerator">VehicleGenerator</h3>
+<p>generates vehicles objects based on the outputs (a pandas dataframe slice) of the SimBroker. Links vehicleType with their maximum energy. Implemented as an object, so that vehicle-properties-file isn’t loaded repeatedly. three major dataframes:</p>
+<ul>
+<li>Simulation Results SimRes: used to determine the following RefuelSessionEvent of ChargingPlugInEvent (loaded from csv) to calculated the desired final energy level.</li>
+<li>Vehicle Data Base: Contains the Vehicle Data Base (loaded from csv)</li>
+<li>Vehicle Dataframe: Connects VehicleIds with the Vehicle Type</li>
+</ul>
+<p>The VehicleGenerator automatically determines in the method generateVehicles the maximum charging power based on strings like “FC(150.0|DC)”, “XFC(400.0|DC)” the maximum charging power, it therefore searches for the symbols “(” and “|)”. If you change this format, the function must also be changed.</p>
+<h3 id="sim-broker">Sim Broker</h3>
+<p>Object, which provides the BEAM-simulation results to charging station simulation.</p>
+<ul>
+<li>with the initialization, the SimBroker looks for the first line with the start time</li>
+<li>for every call of <em>.step()</em>, the index of the rows from the last simulation time to the next simulation time is determined and a dataframe-slice with all the events happening in between given back.</li>
+<li>the Sim Broker also performs the time handling, the reference should therefore be passed to every object of the simulation which needs it.</li>
+</ul>
+<h3 id="result-writer">Result Writer</h3>
+<p>opens 4 pandas data frames and writes charging station states, vehicle states and events regularily in it and chargingStationProperties one time in it.</p>
+<p>Finally, the data frames are saved as .csv files.</p>
+<ul>
+<li><em>arrivalEvent</em>: writes states at vehicle arrival into events dataframe</li>
+<li><em>reparkEvent</em>: writes states when vehicle change from queue to charging bay (bay to queue) into events dataframe</li>
+<li><em>releaseEvent</em>: writes states when vehicle is released from station into events dataframe</li>
+</ul>
+<p><em>look for more information in the result writer module</em></p>
+<h3 id="rating-metrics-done-in-resultwriter">Rating Metrics (done in ResultWriter)</h3>
+<h3 id="physiscs-simulation-dummy-physimdummy">Physiscs Simulation Dummy (PhySimDummy)</h3>
+<p>likewise to the Signal-Flow chart we produced, this is a dummy for the grid simulation and the Colocated Energy Storage (CES) Simulation.</p>
+<ul>
+<li>INPUTS from SPMC:
+<ul>
+<li>Net Load = observed charging load + CES charge power</li>
+<li>CES charging power command</li>
+</ul></li>
+<li>OUTPUTS to SPMC:
+<ul>
+<li>SOC of CES</li>
+</ul></li>
+</ul>
+<p>This dummy must take from each charging station inputs and provide outputs as well.</p>
+<p>must be created after all charging stations are created, because it builds up based on them</p>
+<p>adds normal distributed noise on the storage charging command</p>
+<h3 id="derms-dummy-dermsdummy">DERMS Dummy (DermsDummy)</h3>
+<p>likewise to the signal flow chart we produced, this is a dummy for the Distributed Energy Resources Manager.</p>
+<ul>
+<li>INPUTS from SPMC:
+<ul>
+<li>Desired Charging Power</li>
+</ul></li>
+<li>OUTPUTS to SPMC:
+<ul>
+<li>Site net power limits (upper and lower bound)</li>
+</ul></li>
+</ul>
+<p>This dummy must take from each charging station inputs and provide outputs as well.</p>
+<p>adds normal distributed noise on grid power limits</p>
+<h3 id="beam-dummy">BEAM Dummy</h3>
+<p>this is the Simulation Broker. The simulation broker has the other task to distribute the time to each element.</p>
+<h2 id="adaption-to-use-within-gemini-xfc">Adaption to use within GEMINI-XFC</h2>
+<ul>
+<li><p>change VehicleGenerator, such that the vehicle generation with their properites(especially desired charging level) is directly passed, with no need to reconstruct them. Need for implementation for interaction with Beam. - <strong>Done</strong></p></li>
+<li><p>build of a wrapper package, with dummies for some components - <strong>Done</strong></p></li>
+<li><p>change in the long <em>repark()</em> algorithm to also contain different plug power levels / need to delete this. - To be done</p></li>
+<li><p>send power to Grid Simulation functions - To be done</p></li>
+</ul>
+</body>
+</html>

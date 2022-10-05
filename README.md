@@ -23,9 +23,20 @@ below, there is a list of important used packages:
 - energy is in kilowatthours [kWh] - Beam is in J, must be convert with 3.6e6 J/kWh
 - power is in kilowatt [kW]
 
+## Installing with pip
+    pip install git+https://github.com/juliusaka/xfc-btms-saev-controller.git#egg=xfc-btms-saev-controller
+
+packaging based on [this](https://packaging.python.org/tutorials/packaging-projects/) tutorial and installing with pip based on [this](https://packaging.python.org/tutorials/installing-packages/) tutorial.
+
+to create the package, modify the version number in pyproject.toml and run in python terminal:
+    
+    pip install build
+    python -m build
+    
 ## components
 
 the components folder contains all objects which are necessary for the object oriented approach. All this objects are generated and used together in a main skript file.
+
 
 ### ChaDepParent
 

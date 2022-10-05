@@ -1,5 +1,5 @@
 # MPC Base
-
+creat the html of this file in the terminal with pandoc mpcBase.md -f markdown -t html -s -o mpcBase.html --mathml --metadata title="mpc base"
 ## three level approach
 
 1. Level: economical optimization (sizing) of BTMS-size

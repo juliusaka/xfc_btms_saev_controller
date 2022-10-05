@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "xfc-btms-saev-controller"
+version = "1.0.0"
+authors = [
+  { name="Julius Aka", email="author@example.com" },
+]
+description = "A controller for an extreme-fast-charging (XFC) depot with behind-the-meter storage (BTMS) for shared autonomous electric vehicle (SAEV) fleets in the project GEMINI-XFC with the transportation simulation software BEAM"
+readme = "README.md"
+requires-python = ">=3.7.12"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/juliusaka/xfc-btms-saev-controller"
+"Bug Tracker" = "https://github.com/juliusaka/xfc-btms-saev-controller/issues"
