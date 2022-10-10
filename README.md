@@ -27,7 +27,7 @@ below, there is a list of important used packages:
 
 run the following with pip to install the package:
 
-    pip install git+https://github.com/juliusaka/xfc_btms_saev_controller.git@master#egg=xfc_btms_saev_controller
+    pip install git+https://github.com/juliusaka/xfc_btms_saev_controller.git@main#egg=xfccontroller
 
 you can now just use
 
