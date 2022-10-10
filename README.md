@@ -24,11 +24,20 @@ below, there is a list of important used packages:
 - power is in kilowatt [kW]
 
 ## Installing with pip
-    pip install git+https://github.com/juliusaka/xfc_btms_saev_controller.git#egg=xfc_btms_saev_controller
 
-packaging based on [this](https://packaging.python.org/tutorials/packaging-projects/) tutorial and installing with pip based on [this](https://packaging.python.org/tutorials/installing-packages/) tutorial.
+run the following with pip to install the package:
 
-to create the package, modify the version number in pyproject.toml and run in python terminal:
+    pip install git+https://github.com/juliusaka/xfc_btms_saev_controller.git@master#egg=xfc_btms_saev_controller
+
+you can now just use
+
+    import components
+
+within your script to import the package.
+
+packaging based on [this](https://packaging.python.org/tutorials/packaging-projects/) tutorial and installing with pip based on [this](https://packaging.python.org/tutorials/installing-packages/) tutorial. I added requirements for the needed pandas, numpy and cvxpy packages in "pyproject.toml". To find out which packages are used, you can use "pipreqs".
+
+to create the wheel for the package: modify the version number in pyproject.toml and run in python terminal:
     
     pip install build
     python -m build
