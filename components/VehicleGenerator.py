@@ -44,7 +44,7 @@ class VehicleGenerator:
         # (the slice of the event) which is given by the SimBroker.
         if df_slice.type != "ChargingPlugInEvent":
             raise ValueError("You didn't pass a charging plug-in event to generateVehicle")
-
+        
         VehicleId           = df_slice["vehicle"]
         VehicleType         = self.vehicles.loc[VehicleId, "vehicleType"] # use map to find out the vehicleType
         VehicleArrival      = df_slice.name

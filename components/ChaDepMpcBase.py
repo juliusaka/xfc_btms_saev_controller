@@ -101,7 +101,7 @@ class ChaDepMpcBase(ChaDepParent):
         # add noise to produce prediction:
         self.power_sum_original = power_sum.copy()
         if addNoise:
-            param = 0.15
+            param = 0.4
             avg = np.average(power_sum)
             # seed random variable
             np.random.seed(1)
