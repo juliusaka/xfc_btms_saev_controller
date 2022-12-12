@@ -110,12 +110,12 @@ class ChaDepParent:
     def BtmsAddPower(self, power, timestep):
         if power >= 0:
             self.BtmsEn += self.BtmsEfficiency * power * timestep/3.6e3
-            if self.BtmsEn > self.BtmsSize:
+            if self.BtmsEn > self.BtmsSize + 0.01:
                 self.BtmsEn = self.BtmsSize
                 raise ValueError('Btms energy content is larger than capacity')
         else: # if power < 0 --> power is negative, so substraction
             self.BtmsEn += 1/self.BtmsEfficiency * power * timestep/3.6e3
-            if self.BtmsEn < 0:
+            if self.BtmsEn < - 0.01:
                 self.BtmsEn = 0
                 raise ValueError('Btms energy content is smaller than 0')
     

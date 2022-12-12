@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "xfcController"
-version = "0.9.0"
+version = "0.9.01"
 authors = [
   { name="Julius Aka", email="author@example.com" },
 ]
