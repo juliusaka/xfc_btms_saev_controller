@@ -10,13 +10,9 @@ import cvxpy as cp
 
 class ResultWriter:
 
-    def __init__(self, directory: string, simName: string, format: string = ".csv", saveInGemini = False, chargingStationId: string = 'ID') -> None:
-        if not saveInGemini:
-            self.directory = os.path.join(directory,simName)         # save for use in other functions
-        else: 
-            self.directory = os.path.join(directory, simName, chargingStationId) # save for use in other functions, save results for each charging station federate seperatly
+    def __init__(self, directory: string, format: string = ".csv", saveInGemini = False, chargingStationId: string = 'ID') -> None:
+        self.directory = directory
         os.makedirs(self.directory, exist_ok=True)
-        self.simName                            = simName            # save for use in other functions
         self.ChargingStationState_Filename      = os.path.join(self.directory, "ChargingStationState"       + format)
         self.MpcStats_Filename                  = os.path.join(self.directory, "MpcStats"                   + format)
         self.Events_Filename                    = os.path.join(self.directory, "Events"                     + format)

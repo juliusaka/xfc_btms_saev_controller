@@ -7,7 +7,7 @@ import numpy as np
 
 class ChaDepParent:
     # TODO get rid of SimBroker and exchange with actual time t_act
-    def __init__(self, ChargingStationId, ResultWriter: ResultWriter, SimBroker: SimBroker, ChBaMaxPower, ChBaParkingZoneId, ChBaNum: int, BtmsSize = 100, BtmsC = 1, BtmsMaxSoc = 0.8, BtmsMinSOC = 0.2, BtmsSoc0 = 0.50, calcBtmsGridProp = False, GridPowerMax_Nom = 1 , GridPowerLower = -1, GridPowerUpper = 1):
+    def __init__(self, ChargingStationId, ResultWriter: ResultWriter, SimBroker: SimBroker, ChBaMaxPower, ChBaParkingZoneId, ChBaNum: int, BtmsSize = 100, BtmsC = 1, BtmsMaxSoc = 1.0, BtmsMinSOC = 0.0, BtmsSoc0 = 0.50, calcBtmsGridProp = False, GridPowerMax_Nom = 1 , GridPowerLower = -1, GridPowerUpper = 1):
 
         '''ChargingStationIdentity'''
         self.ChargingStationId  = ChargingStationId
@@ -76,6 +76,9 @@ class ChaDepParent:
         self.output_vehicles           = []                # list of vehicle ids
         self.output_power              = []                # list of associated charging power commands
         self.output_release            = []                # list of Booleans for Release
+    
+    def plotPrediction(directory):
+        pass
 
     def BtmsSoc(self):
         return self.BtmsEn/self.BtmsSize

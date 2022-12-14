@@ -9,11 +9,12 @@ import cvxpy as cp
 import cvxpy.atoms.max as cpmax
 import time as time_module
 import logging
+import matplotlib.pyplot as plt
 
 class ChaDepMpcBase(ChaDepParent):
     '''see mpcBase.md for explanations'''
 
-    def __init__(self, ChargingStationId, ResultWriter: components.ResultWriter, SimBroker: components.SimBroker, ChBaMaxPower, ChBaParkingZoneId, ChBaNum, BtmsSize=100, BtmsC=1, BtmsMaxSoc=0.8, BtmsMinSOC=0.2, BtmsSoc0=0.5, calcBtmsGridProp=False, GridPowerMax_Nom=1, GridPowerLower=-1, GridPowerUpper=1):
+    def __init__(self, ChargingStationId, ResultWriter: components.ResultWriter, SimBroker: components.SimBroker, ChBaMaxPower, ChBaParkingZoneId, ChBaNum, BtmsSize=100, BtmsC=1, BtmsMaxSoc=1.0, BtmsMinSOC=0.0, BtmsSoc0=0.5, calcBtmsGridProp=False, GridPowerMax_Nom=1, GridPowerLower=-1, GridPowerUpper=1):
 
         super().__init__(ChargingStationId, ResultWriter, SimBroker, ChBaMaxPower, ChBaParkingZoneId, ChBaNum, BtmsSize, BtmsC, BtmsMaxSoc, BtmsMinSOC, BtmsSoc0, calcBtmsGridProp, GridPowerMax_Nom, GridPowerLower, GridPowerUpper)
 
@@ -137,6 +138,18 @@ class ChaDepMpcBase(ChaDepParent):
         filename    = self.ChargingStationId + ".csv"
         df.to_csv(os.path.join(dir, filename))
 
+    def plotPrediction(self, directory):
+        time = self.PredictionTime
+        power = self.PredictionPower
+
+        ax = plt.subplot()
+        ax.plot(time,power, label = 'with noise')
+        ax.plot(time,self.power_sum_original, label = 'without noise')
+        ax.legend()
+        plt.savefig(os.path.join(directory, self.ChargingStationId + '_prediction.png'))
+        # return fig
+        return ax
+        
     def determineBtmsSize(self, t_act, t_max, timestep, a, b, c, P_free):
         '''see mpcBase.md for explanations'''
         # vector lengthes
@@ -473,10 +486,12 @@ class ChaDepMpcBase(ChaDepParent):
         ]
 
         # objective function
-        cost = cp.square(P_GridLast - P_avg)
+        #cost = cp.square(P_GridLast - P_avg)
+        cost = 0
         #cost += cp.sum(cp.square(u[0, :] - P_avg))
         for i in range(N):
-            cost += cp.square(u[0, i] - P_avg)
+            #cost += cp.square(u[0, i] - P_avg)
+            cost += cp.square(x[0, i] - (E_BtmsLower[i_act + i] + E_BtmsUpper[i_act + i])/2)
         cost += M1 * cp.sum(cp.square(t1[0, :] ))
         cost += M2 * cp.sum(cp.square(t2[0, :] ))
 

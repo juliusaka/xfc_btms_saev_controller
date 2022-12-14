@@ -6,7 +6,7 @@ import logging
 class ControlWrapper:
     # A Wrapper for the Limit Controller
 
-    def __init__(self, initMpc, t_start, timestep_intervall, result_directory, simName, RideHailDepotId, ChBaMaxPower, ChBaParkingZoneId, ChBaNum, path_BeamPredictionFile, dtype_Predictions, t_max)  -> None:
+    def __init__(self, initMpc, t_start, timestep_intervall, result_directory, RideHailDepotId, ChBaMaxPower, ChBaParkingZoneId, ChBaNum, path_BeamPredictionFile, dtype_Predictions, t_max)  -> None:
         ''' choose charging station type '''
         if initMpc == False:
             import components.ChaDepLimCon as chargingStationClass
@@ -16,10 +16,11 @@ class ControlWrapper:
         ''' init SimBroker Dummy , VehicleGenerator and ResultWriter'''
         self.SimBroker          = components.GeminiWrapper.SimBrokerDummy(t_start, timestep_intervall) # this is only a central clock
         self.VehicleGenerator   = components.GeminiWrapper.VehicleGeneratorBeam()
-        self.ResultWriter       = components.ResultWriter(result_directory, simName, saveInGemini=True, chargingStationId=str(RideHailDepotId))
+        self.ResultWriter       = components.ResultWriter(result_directory, chargingStationId=str(RideHailDepotId))
 
         '''create charging station object'''
         self.ChargingStation = chargingStationClass(ChargingStationId=RideHailDepotId, ResultWriter=self.ResultWriter, SimBroker = self.SimBroker, ChBaMaxPower=ChBaMaxPower, ChBaParkingZoneId=ChBaParkingZoneId, ChBaNum = ChBaNum ,calcBtmsGridProp = True)
+        
         '''For MPC: initializations'''
         if isinstance(self.ChargingStation, components.ChaDepMpcBase):
             '''generate predictions TODO: need old result file for this '''
