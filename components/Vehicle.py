@@ -43,6 +43,7 @@ class Vehicle:
         self.VehicleSoc     = self.VehicleEngy / self. VehicleMaxEngy # update SOC
         self.SOC_warning()
         self.power_warning(power)
+        return 0
 
     def SOC_warning(self):
         if self.VehicleEngy > self.VehicleMaxEngy:
@@ -141,7 +142,7 @@ class Vehicle:
             # check that traj_lower isn't higher than the upper trajectory 
             # (left here because of coder's suspicion that there is a bug, but the coder is pretty sure that is not the case)
             for i in range(N+1):
-                if traj_lower[i] > traj_upper[i]:
+                if traj_lower[i] > traj_upper[i] + 0.01:
                     raise ValueError("Lower charging trajectory is higher than upper charging trajectory")
         del v
         traj_lower = np.array(traj_lower)

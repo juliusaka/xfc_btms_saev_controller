@@ -26,76 +26,76 @@ class ResultWriter:
         self.VehicleStates_list                 = []
         self.ChargingStationProperties_list     = []
 
-        '''column names of the dataframes'''
-        self.ChargingStationStates          = pd.DataFrame(columns= [
-            "time", 
-            "ChargingStationID", 
-            "BaysVehicleIds", 
-            "BaysChargingPower", 
-            "TotalChargingPower", 
-            "BaysChargingDesire",
-            "BaysNumberOfVehicles", 
-            "QueueVehicleIds", 
-            "QueueChargingDesire", 
-            "QueueNumberOfVehicles", 
-            "BtmsPower",
-            "BtmsSoc",
-            "BtmsEnergy", 
-            "TotalChargingPowerDesire", 
-            "GridPower", 
-            "GridPowerUpper", 
-            "GridPowerLower", 
-            "PowerDesire", 
-            "BtmsPowerDesire", 
-            "EnergyLagSum", 
-            "TimeLagSum",
-        ])
-        self.MpcStats                         = pd.DataFrame(columns= [
-            "time",
-            "ChargingStationID",
-            "Status",
-            "Iterations",
-            "OptimalValue",
-            "SetupTime",
-            "SolveTime",
-            "SolverName",
-            "sum_t1",
-            "sum_t2",
-            "T1",
-            "T2",
-        ])  
-        self.Events                         = pd.DataFrame(columns=[
-            "time", 
-            "Event", 
-            "ChargingStationId", 
-            "VehicleId", 
-            "QueueOrBay", 
-            "ChargingDesire", 
-            "VehicleType", 
-            "VehicleArrival", 
-            "VehicleDesiredEnd", 
-            "VehicleEnergy", 
-            "VehicleDesiredEnergy", 
-            "VehicleSoc", 
-            "VehicleMaxEnergy", 
-            "VehicleMaxPower", 
-            "ChargingBayMaxPower"
-        ])
-        self.VehicleStates                   = pd.DataFrame(columns=[
-            "time", 
-            "VehicleId", 
-            "ChargingStationId", 
-            "QueueOrBay", 
-            "ChargingPower", 
-            "possiblePower",  
-            "ChargingDesire", 
-            "VehicleDesiredEnd", 
-            "VehicleEnergy", 
-            "VehicleDesiredEnergy", 
-            "VehicleSoc", 
-            "EnergyLag", 
-            "TimeLag"
-        ])
+        # '''column names of the dataframes'''
+        # self.ChargingStationStates          = pd.DataFrame(columns= [
+        #     "time", 
+        #     "ChargingStationID", 
+        #     "BaysVehicleIds", 
+        #     "BaysChargingPower", 
+        #     "TotalChargingPower", 
+        #     "BaysChargingDesire",
+        #     "BaysNumberOfVehicles", 
+        #     "QueueVehicleIds", 
+        #     "QueueChargingDesire", 
+        #     "QueueNumberOfVehicles", 
+        #     "BtmsPower",
+        #     "BtmsSoc",
+        #     "BtmsEnergy", 
+        #     "TotalChargingPowerDesire", 
+        #     "GridPower", 
+        #     "GridPowerUpper", 
+        #     "GridPowerLower", 
+        #     "PowerDesire", 
+        #     "BtmsPowerDesire", 
+        #     "EnergyLagSum", 
+        #     "TimeLagSum",
+        # ])
+        # self.MpcStats                         = pd.DataFrame(columns= [
+        #     "time",
+        #     "ChargingStationID",
+        #     "Status",
+        #     "Iterations",
+        #     "OptimalValue",
+        #     "SetupTime",
+        #     "SolveTime",
+        #     "SolverName",
+        #     "sum_t1",
+        #     "sum_t2",
+        #     "T1",
+        #     "T2",
+        # ])  
+        # self.Events                         = pd.DataFrame(columns=[
+        #     "time", 
+        #     "Event", 
+        #     "ChargingStationId", 
+        #     "VehicleId", 
+        #     "QueueOrBay", 
+        #     "ChargingDesire", 
+        #     "VehicleType", 
+        #     "VehicleArrival", 
+        #     "VehicleDesiredEnd", 
+        #     "VehicleEnergy", 
+        #     "VehicleDesiredEnergy", 
+        #     "VehicleSoc", 
+        #     "VehicleMaxEnergy", 
+        #     "VehicleMaxPower", 
+        #     "ChargingBayMaxPower"
+        # ])
+        # self.VehicleStates                   = pd.DataFrame(columns=[
+        #     "time", 
+        #     "VehicleId", 
+        #     "ChargingStationId", 
+        #     "QueueOrBay", 
+        #     "ChargingPower", 
+        #     "possiblePower",  
+        #     "ChargingDesire", 
+        #     "VehicleDesiredEnd", 
+        #     "VehicleEnergy", 
+        #     "VehicleDesiredEnergy", 
+        #     "VehicleSoc", 
+        #     "EnergyLag", 
+        #     "TimeLag"
+        # ])
 
         ####
         self.chargingStationProperties           = pd.DataFrame(columns = [
@@ -113,16 +113,6 @@ class ResultWriter:
         ])
 
     def reset(self):
-        list1 = self.ChargingStationStates.columns
-        list2 = self.MpcStats.columns
-        list3 = self.Events.columns
-        list4 = self.VehicleStates.columns
-
-        self.ChargingStationStates = pd.DataFrame(columns=list1)
-        self.MpcStats = pd.DataFrame(columns=list2)
-        self.Events = pd.DataFrame(columns=list3)
-        self.VehicleStates = pd.DataFrame(columns=list4)
-
         self.ChargingStationStates_list = []
         self.MpcStats_list = []
         self.Events_list = []

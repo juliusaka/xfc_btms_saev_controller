@@ -48,8 +48,8 @@ class ChaDepMpcBase(ChaDepParent):
         self.P_ChargeDelivered      = 0         # power delivered to vehicles
         self.P_BTMSGranted          = 0         # power granted by MPC to BTMS
         self.P_BTMSDeliverable      = 0         # power deliverable by BTMS
-        self.N                      = 3         # number of short horizoned steps in MPC
-        self.avgHorizon             = 4         # average horizon of charging demand in horizon in steps
+        self.N                      = 4         # number of short horizoned steps in MPC
+        self.avgHorizon             = 2         # average horizon of charging demand in horizon in steps
 
 
     def generatePredictions(self, path_BeamPredictionFile, dtype, path_DataBase, timestep=5*60, addNoise = True):
@@ -435,7 +435,18 @@ class ChaDepMpcBase(ChaDepParent):
                 E_V_upper = np.add(E_V_upper, upper)
                 E_V_lower = np.add(E_V_lower, lower)
         # calculate average of the last arrivals
-        '''continue here'''
+        upper = np.zeros(N+1)
+        lower = np.zeros(N+1)
+        diveder = 0
+        for i in range(max([0, self.SimBroker.iteration - self.avgHorizon]), self.SimBroker.iteration):
+            upper = np.add(upper, self.E_V_Upper_lastArrivals[i])
+            lower = np.add(lower, self.E_V_Lower_lastArrivals[i])
+            diveder += 1
+        upper = np.divide(upper, max([1, diveder])) # to prevent dividing by zero
+        lower = np.divide(lower, max([1, diveder]))
+        for i in range(1, N+1):
+            E_V_upper[i] = E_V_upper[i] + sum(upper[0:i])
+            E_V_lower[i] = E_V_lower[i] + sum(lower[0:i])
         #parameters
         ts = timestep / 3.6e3
         eta = self.BtmsEfficiency
@@ -519,8 +530,8 @@ class ChaDepMpcBase(ChaDepParent):
                 lower, upper = self.Queue[i].getChargingTrajectories(self.SimBroker.t_act, timestep, self.N, maxPowerPlug = self.ChBaMaxPower_abs)
                 E_V_upper = np.add(E_V_upper, upper)
                 E_V_lower = np.add(E_V_lower, lower)
-        self.E_V_Lower_lastArrivals = E_V_lower
-        self.E_V_Upper_lastArrivals = E_V_upper
+        self.E_V_Lower_lastArrivals.append(E_V_lower)
+        self.E_V_Upper_lastArrivals.append(E_V_upper)
         
         '''repark vehicles based on their charging desire with the parent method'''
         self.repark()
