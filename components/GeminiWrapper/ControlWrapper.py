@@ -24,7 +24,7 @@ class ControlWrapper:
         '''For MPC: initializations'''
         if isinstance(self.ChargingStation, components.ChaDepMpcBase):
             '''generate predictions TODO: need old result file for this '''
-            self.ChargingStation.generatePredictions(path_BeamPredictionFile, dtype_Predictions, timestep_intervall, addNoise = True)
+            self.ChargingStation.generate_prediction(path_BeamPredictionFile, dtype_Predictions, timestep_intervall, addNoise = True)
             # perform btms size optimization
             a = 20 / 30 * (t_max - self.SimBroker.t_act) / 3600 / 24 # demand charge per day
             P_free_Ratio = 0    # free power, after which demand charge is applied, as ratio to avg power
@@ -34,7 +34,7 @@ class ControlWrapper:
             avgPower = sum(self.ChargingStation.PredictionPower*timestep_intervall) / (max(self.ChargingStation.PredictionTime) - min(self.ChargingStation.PredictionTime))
             P_free = P_free_Ratio * avgPower
             
-            self.ChargingStation.determineBtmsSize(self.SimBroker.t_act, t_max, timestep_intervall, a, b, c, P_free)
+            self.ChargingStation.determine_btms_size(self.SimBroker.t_act, t_max, timestep_intervall, a, b, c, P_free)
             # TODO: add here logging information
 
             # save btms size optimization results
@@ -55,13 +55,13 @@ class ControlWrapper:
             avgPower = sum(self.ChargingStation.PredictionPower*timestep_intervall) / (max(self.ChargingStation.PredictionTime) - min(self.ChargingStation.PredictionTime))
             P_free = P_free_Ratio * avgPower
 
-            self.ChargingStation.planning(self.SimBroker.t_act, t_max, timestep_intervall, a, b, c, d_param, P_free, P_chAvg, beta, cRating)
+            self.ChargingStation.day_planning(self.SimBroker.t_act, t_max, timestep_intervall, a, b, c, d_param, P_free, P_chAvg, beta, cRating)
 
             # TODO: add here logging information
             # save optimal day ahead plan (TODO)
 
         '''write chargingStationProperties to ResultWriter'''
-        self.ResultWriter.saveChargingStationProperties([self.ChargingStation]) # this function takes a list of charging station objects as input argument
+        self.ResultWriter.save_charging_station_properties([self.ChargingStation]) # this function takes a list of charging station objects as input argument
 
 
     def synchronizeVehiclesAtStation(self, vehicleIdsAtStation, t_act) -> None:
@@ -93,7 +93,7 @@ class ControlWrapper:
                     removedVehicle = self.ChargingStation.Queue.pop(i)
                     break
             # write the removed vehicle to the result file
-            ResultWriter.forcedReleaseEvent(t_act, removedVehicle, self.ChargingStation.ChargingStationId)
+            ResultWriter.forced_release_event(t_act, removedVehicle, self.ChargingStation.ChargingStationId)
 
     def arrival(self, VehicleId, VehicleType, VehicleArrival, VehicleDesEnd, VehicleEngyInKwh, VehicleDesEngyInKwh, VehicleMaxEngy, VehicleMaxPower, t_act) -> None:
         # generate a vehicle object

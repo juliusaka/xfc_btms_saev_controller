@@ -18,7 +18,7 @@ class ChaDepLimCon(ChaDepParent):
         ''' control action'''
 
         '''# calculate maximum available power for charging, for 3 different cases'''
-        if self.BtmsSoc() <= self.BtmsMinSoc:
+        if self.get_btms_soc() <= self.BtmsMinSoc:
             P_max = self.GridPowerUpper
         # if Btms energy content is large enough to power for the next timestep full discharge rating
         elif self.BtmsEn - timestep/3.6e3 * self.BtmsMaxPower >= self.BtmsSize * self.BtmsMinSoc:
@@ -29,7 +29,7 @@ class ChaDepLimCon(ChaDepParent):
         logging.info("maximum power available for charging: %s" % P_max)
 
         '''# now assign the charging powers to each vehicle, prioritized by their charging desire'''
-        self.P_ChargeDelivered = self.distributeChargingPowerToVehicles(timestep, P_max)
+        self.P_ChargeDelivered = self.distribute_charging_power_to_vehicles(timestep, P_max)
         logging.debug("vehicle states updated for charging station {}".format(self.ChargingStationId))
 
         '''# now find out how to charge or discharge BTMS''' 
@@ -39,30 +39,30 @@ class ChaDepLimCon(ChaDepParent):
             self.P_BTMS = self.GridPowerUpper - sumPowers # result is negative
         # if that is not the case, we might be able to charge for one timestep, if SOC < Max SOC
         elif self.BtmsEn < self.BtmsSize * self.BtmsMaxSoc:
-            self.P_BTMS = min([self.getBtmsMaxPower(timestep), self.GridPowerUpper - sumPowers])
+            self.P_BTMS = min([self.get_btms_max_power(timestep), self.GridPowerUpper - sumPowers])
         # if that doesn't work, it seems like Btms is full, then charging power is 0.
         else:
             self.P_BTMS = 0
         
         '''calcualte dispatchable BTMS power'''
-        self.P_BTMS = self.BtmsGetPowerDeliverable(timestep, self.P_BTMS)
+        self.P_BTMS = self.get_btms_max_deliverable_power(timestep, self.P_BTMS)
 
         '''calculate grid power'''
         self.P_Grid = self.P_ChargeDelivered + self.P_BTMS
         logging.info('P_Grid: {:.2f}'.format(self.P_Grid))
 
         '''Write chargingStation states for k in ResultWriter'''
-        self.ResultWriter.updateChargingStationState(self.SimBroker.t_act, self)
+        self.ResultWriter.update_charging_station_state(self.SimBroker.t_act, self)
         logging.debug("results written for charging station {}".format(self.ChargingStationId))
 
         '''# update BTMS state for k+1'''
         # BTMS
-        self.BtmsAddPower(self.P_BTMS, timestep)
+        self.btms_add_power(self.P_BTMS, timestep)
         logging.debug("BTMS state updated for charging station {}".format(self.ChargingStationId))
 
         '''write vehicle states for k in ResultWriter and update vehicle states for k+1'''
         # Vehicles
-        self.updateVehicleStatesAndWriteStates(self.ChBaPower, timestep)
+        self.update_vehicle_states_and_write_states(self.ChBaPower, timestep)
         logging.debug("vehicle states updated for charging station {}".format(self.ChargingStationId))
 
         '''determine power desire for next time step'''
@@ -71,29 +71,29 @@ class ChaDepLimCon(ChaDepParent):
             if isinstance(self.ChBaVehicles[i], components.Vehicle):
                 PowerDesire += min([self.ChBaVehicles[i].getMaxChargingPower(timestep), self.ChBaMaxPower[i]])
         self.PowerDesire = PowerDesire
-        self.BtmsPowerDesire = self.getBtmsMaxPower(timestep)
+        self.BtmsPowerDesire = self.get_btms_max_power(timestep)
         logging.debug("power desires updated for charging station {}".format(self.ChargingStationId))
 
         '''release vehicles when full and create control outputs'''
-        self.resetOutput()
-        r1 = self.chBaReleaseThresholdAndOutput()
-        r2 = self.queueReleaseThresholdAndOutput()
+        self.reset_output()
+        r1 = self.charging_bays_release_vehicles_and_add_to_output()
+        r2 = self.queue_release_vehicles_and_add_to_output()
         logging.debug("vehicles released for charging station {}".format(self.ChargingStationId))
         released_Vehicles = r1 + r2
 
         # write vehicle states before releasing them (to have final SOC)
         for x in r1:
             possiblePower = x.getMaxChargingPower(timestep)
-            self.ResultWriter.updateVehicleStates(
+            self.ResultWriter.update_vehicle_states(
                     t_act=self.SimBroker.t_act + timestep, vehicle=x, ChargingStationId=self.ChargingStationId, QueueOrBay=False, ChargingPower=0, possiblePower=possiblePower)
         for x in r2:
             possiblePower = x.getMaxChargingPower(timestep)
-            self.ResultWriter.updateVehicleStates(
+            self.ResultWriter.update_vehicle_states(
                     t_act=self.SimBroker.t_act + timestep, vehicle=x, ChargingStationId=self.ChargingStationId, QueueOrBay=True, ChargingPower=0, possiblePower=possiblePower)
 
         # add release events
         for x in released_Vehicles:
-            self.ResultWriter.releaseEvent(self.SimBroker.t_act, x, self.ChargingStationId)
+            self.ResultWriter.release_event(self.SimBroker.t_act, x, self.ChargingStationId)
         logging.debug("vehicle release events written for charging station {}".format(self.ChargingStationId))
 
         '''checks'''

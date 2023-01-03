@@ -1,7 +1,7 @@
 import logging
 import cvxpy as cp
 
-def solverAlgorithm(prob: cp.Problem, verbose = False):
+def solver_algorithm(prob: cp.Problem, verbose = False):
 
     try:
         try:

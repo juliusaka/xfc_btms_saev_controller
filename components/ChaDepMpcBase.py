@@ -52,7 +52,7 @@ class ChaDepMpcBase(ChaDepParent):
         self.avgHorizon             = 2         # average horizon of charging demand in horizon in steps
 
 
-    def generatePredictions(self, path_BeamPredictionFile, dtype, path_DataBase, timestep=5*60, addNoise = True):
+    def generate_prediction(self, path_BeamPredictionFile, dtype, path_DataBase, timestep=5*60, addNoise = True):
         # generate a prediction for the charging station
         # neglection of charging desire, make this not too good
         ChBaVehicles = []
@@ -74,7 +74,7 @@ class ChaDepMpcBase(ChaDepParent):
             slice = PredBroker.step(timestep)
             for i in range(0, len(slice)):
                 if slice.iloc[i]["type"] == "ChargingPlugInEvent":
-                    vehicle = VehicleGenerator.generateVehicleSO(slice.iloc[i])
+                    vehicle = VehicleGenerator.generate_vechicle_from_df_slice(slice.iloc[i])
                     if np.isin(element=self.ChBaParkingZoneId, test_elements=vehicle.BeamDesignatedParkingZoneId).any():
                         Queue.append(vehicle)
             # add vehicle to charging bays if possible
@@ -83,15 +83,15 @@ class ChaDepMpcBase(ChaDepParent):
             # charge vehicles with maximum possible power
             power_i = []
             for x in ChBaVehicles:
-                p = min([x.getMaxChargingPower(timestep), self.ChBaMaxPower_abs])
+                p = min([x.get_max_charging_power(timestep), self.ChBaMaxPower_abs])
                 x.addPower(p, timestep)
                 power_i.append(p)
             #save result in vectors
             time.append(PredBroker.t_act)
             power_sum.append(sum(power_i))
             # calculate time lag and energy lag
-            time_lag.append(sum([x.updateTimeLag(PredBroker.t_act) for x in ChBaVehicles]))
-            energy_lag.append(sum([x.updateEnergyLag(PredBroker.t_act) for x in ChBaVehicles]))
+            time_lag.append(sum([x.update_time_lag(PredBroker.t_act) for x in ChBaVehicles]))
+            energy_lag.append(sum([x.update_energy_lag(PredBroker.t_act) for x in ChBaVehicles]))
             #release vehicles which are full
             pop_out = []
             for i in range(0,len(ChBaVehicles)):
@@ -141,7 +141,7 @@ class ChaDepMpcBase(ChaDepParent):
         filename    = self.ChargingStationId + ".csv"
         df.to_csv(os.path.join(dir, filename))
 
-    def plotPrediction(self, directory):
+    def plot_prediction(self, directory):
         time = self.PredictionTime
         power = self.PredictionPower
 
@@ -153,7 +153,7 @@ class ChaDepMpcBase(ChaDepParent):
         # return fig
         return ax
         
-    def determineBtmsSize(self, t_act, t_max, timestep, a, b, c, P_free):
+    def determine_btms_size(self, t_act, t_max, timestep, a, b, c, P_free):
         '''see mpcBase.md for explanations'''
         # vector lengthes
         T = int(np.ceil((t_max - t_act) / timestep))
@@ -200,7 +200,7 @@ class ChaDepMpcBase(ChaDepParent):
         # solve the problem
         logging.info("\n----- \n btms size optimization for charging station %s \n-----" % self.ChargingStationId)
         prob = cp.Problem(cp.Minimize(cost), constr)
-        components.solverAlgorithm(prob)
+        components.solver_algorithm(prob)
         
         # determine BTMS size and unpack over values
         btms_size = np.max(x.value) - np.min(x.value)
@@ -245,7 +245,7 @@ class ChaDepMpcBase(ChaDepParent):
 
         return time, time_x, btms_size, P_Grid, P_BTMS, P_BTMS_Ch, P_BTMS_DCh, E_BTMS, P_Charge, cost
 
-    def planning(self, t_act, t_max, timestep, a, b, c, d_param, P_free, P_ChargeAvg, beta, cRating=None, verbose=True):
+    def day_planning(self, t_act, t_max, timestep, a, b, c, d_param, P_free, P_ChargeAvg, beta, cRating=None, verbose=True):
         time_start = time_module.time() # timing
         '''see mpcBase.md for explanations'''
         # vector length T
@@ -340,7 +340,7 @@ class ChaDepMpcBase(ChaDepParent):
         # solve the problem
         logging.info("\n----- \n day planning for charging station %s \n-----" % self.ChargingStationId)
         prob = cp.Problem(cp.Minimize(cost), constr)
-        components.solverAlgorithm(prob)
+        components.solver_algorithm(prob)
 
         time_end2=time_module.time()    # timewatch
 
@@ -412,7 +412,7 @@ class ChaDepMpcBase(ChaDepParent):
 
         return time, time_x, P_Grid, P_BTMS, P_BTMS_Ch, P_BTMS_DCh, E_BTMS, E_Shift, P_Charge, P_Shift, t_wait_val, cost_t_wait, cost
 
-    def runMpc(self, timestep, N, SimBroker: components.SimBroker, A = 1, B=5000, M1 = 200, verbose = False):
+    def run_mpc(self, timestep, N, SimBroker: components.SimBroker, A = 1, B=5000, M1 = 200, verbose = False):
         # N is the MPC optimization horizon
 
         # obtain inputs
@@ -431,7 +431,7 @@ class ChaDepMpcBase(ChaDepParent):
         E_V_upper = np.zeros(N+1)
         for i in range(len(self.ChBaVehicles)):
             if self.ChBaVehicles[i] != False:
-                lower, upper = self.ChBaVehicles[i].getChargingTrajectories(SimBroker.t_act, timestep, N, maxPowerPlug = self.ChBaMaxPower[i])
+                lower, upper = self.ChBaVehicles[i].get_charging_trajectories(SimBroker.t_act, timestep, N, maxPowerPlug = self.ChBaMaxPower[i])
                 E_V_upper = np.add(E_V_upper, upper)
                 E_V_lower = np.add(E_V_lower, lower)
         # calculate average of the last arrivals
@@ -503,7 +503,7 @@ class ChaDepMpcBase(ChaDepParent):
 
         # solve control problem and print outputs
         prob = cp.Problem(cp.Minimize(cost), constr)
-        components.solverAlgorithm(prob)
+        components.solver_algorithm(prob)
         logging.info("vector t1: %s |--|" % (t1.value))
         
         #TODO add routine to deal with infeasibilty 
@@ -517,7 +517,7 @@ class ChaDepMpcBase(ChaDepParent):
         self.OptimalValues          = prob.value
         self.VectorT1               = t1.value
         self.VectorT2               = 0 #t2.value
-        self.ResultWriter.updateMpcStats(SimBroker.t_act, self, prob, t1, t1)
+        self.ResultWriter.update_mpc_stats(SimBroker.t_act, self, prob, t1, t1)
 
         return P_BTMS, P_ChargeGranted
 
@@ -540,14 +540,14 @@ class ChaDepMpcBase(ChaDepParent):
         ''' get control action'''
         # run MPC to obtain max power for charging vehicles and charging power for BTMS
         self.P_GridLast = self.P_Grid
-        self.P_BTMSGranted, P_Charge_Granted = self.runMpc(timestep, self.N, self.SimBroker, verbose = verbose)
+        self.P_BTMSGranted, P_Charge_Granted = self.run_mpc(timestep, self.N, self.SimBroker, verbose = verbose)
 
         # distribute MPC powers to vehicles (by charging desire)
-        self.P_ChargeDelivered = self.distributeChargingPowerToVehicles(timestep, P_Charge_Granted)
+        self.P_ChargeDelivered = self.distribute_charging_power_to_vehicles(timestep, P_Charge_Granted)
         logging.info('P_ChargeGranted: {:.2f}, P_ChargeDelivered: {:.2f}'.format(P_Charge_Granted, self.P_ChargeDelivered))
 
         # calculate dispatachable BTMS power (checking that bounds aren't exceeded)
-        self.P_BTMSDeliverable = self.BtmsGetPowerDeliverable(self.P_BTMSGranted, timestep)
+        self.P_BTMSDeliverable = self.get_btms_max_deliverable_power(self.P_BTMSGranted, timestep)
         self.P_BTMS = self.P_BTMSDeliverable
         logging.info('P_BTMS granted: {:.2f}, P_BTMS deliverable: {:.2f}'.format(self.P_BTMSGranted, self.P_BTMSDeliverable))
 
@@ -556,18 +556,18 @@ class ChaDepMpcBase(ChaDepParent):
         logging.info('P_Grid: {:.2f}'.format(self.P_Grid))
 
         '''Write chargingStation states for k in ResultWriter'''
-        self.ResultWriter.updateChargingStationState(
+        self.ResultWriter.update_charging_station_state(
             self.SimBroker.t_act, self)
         logging.debug("results written for charging station {}".format(self.ChargingStationId))
 
         '''# update BTMS state for k+1'''
         # BTMS
-        self.BtmsAddPower(self.P_BTMS, timestep)
+        self.btms_add_power(self.P_BTMS, timestep)
         logging.debug("BTMS state updated for charging station {}".format(self.ChargingStationId))
 
         '''write vehicle states for k in ResultWriter and update vehicle states for k+1'''
         # Vehicles
-        self.updateVehicleStatesAndWriteStates(self.ChBaPower, timestep)
+        self.update_vehicle_states_and_write_states(self.ChBaPower, timestep)
         logging.debug("vehicle states updated for charging station {}".format(self.ChargingStationId))
 
         '''determine power desire for next time step'''
@@ -577,29 +577,29 @@ class ChaDepMpcBase(ChaDepParent):
                 PowerDesire += min(
                     [self.ChBaVehicles[i].getMaxChargingPower(timestep), self.ChBaMaxPower[i]])
         self.PowerDesire = PowerDesire
-        self.BtmsPowerDesire = self.getBtmsMaxPower(timestep) # TODO this should be changed for DERMS to MPC output
+        self.BtmsPowerDesire = self.get_btms_max_power(timestep) # TODO this should be changed for DERMS to MPC output
         logging.debug("power desires updated for charging station {}".format(self.ChargingStationId))
 
         '''release vehicles when fully charged, but this is already at the next timestep'''
-        self.resetOutput() # here we reset the control output
-        r1 = self.chBaReleaseThresholdAndOutput()
-        r2 = self.queueReleaseThresholdAndOutput()
+        self.reset_output() # here we reset the control output
+        r1 = self.charging_bays_release_vehicles_and_add_to_output()
+        r2 = self.queue_release_vehicles_and_add_to_output()
         logging.debug("vehicles released for charging station {}".format(self.ChargingStationId))
         released_Vehicles = r1 + r2
         
         # write vehicle states before releasing them (to have final SOC)
         for x in r1:
             possiblePower = x.getMaxChargingPower(timestep)
-            self.ResultWriter.updateVehicleStates(
+            self.ResultWriter.update_vehicle_states(
                     t_act=self.SimBroker.t_act + timestep, vehicle=x, ChargingStationId=self.ChargingStationId, QueueOrBay=False, ChargingPower=0, possiblePower=possiblePower)
         for x in r2:
             possiblePower = x.getMaxChargingPower(timestep)
-            self.ResultWriter.updateVehicleStates(
+            self.ResultWriter.update_vehicle_states(
                     t_act=self.SimBroker.t_act + timestep, vehicle=x, ChargingStationId=self.ChargingStationId, QueueOrBay=True, ChargingPower=0, possiblePower=possiblePower)
 
         # add release events
         for x in released_Vehicles:
-            self.ResultWriter.releaseEvent(
+            self.ResultWriter.release_event(
                 self.SimBroker.t_act + timestep, x, self.ChargingStationId)
         logging.debug("vehicle release events written for charging station {}".format(self.ChargingStationId))
 

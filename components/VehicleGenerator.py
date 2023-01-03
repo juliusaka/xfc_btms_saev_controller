@@ -38,7 +38,7 @@ class VehicleGenerator:
 
         pass
 
-    def generateVehicleSO(self, df_slice: pd.DataFrame):
+    def generate_vechicle_from_df_slice(self, df_slice: pd.DataFrame):
         # for the Stand-Alone (SO) version
         # generate here the vehicle, based on the df_slice with "ChargingPlugInEvent"
         # (the slice of the event) which is given by the SimBroker.
