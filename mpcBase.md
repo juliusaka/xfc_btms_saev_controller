@@ -94,10 +94,10 @@ P_{Charge}(k) - P_{Shift}(k) &= P_{Grid}(k) - P_{BTMS}(k) \quad &\forall k \in [
 P_{BTMS}(k) &= P_{BTMS,Ch}(k) + P_{BTMS,DCh}(k) \quad &\forall k \in [0,T]\\
 P_{BTMS,Ch}(k) &\geq 0 \quad &\forall k \in [0,T]\\
 P_{BTMS,DCh}(k) &\leq 0 \quad &\forall k \in [0,T]\\
-t_{wait}(k) &\geq dt \cdot (n_a(k) +n_b(k)) &\forall k \in [0,T] \\
-n_a(k) &\geq \frac{E_{Shift}(k)}{P_{ch,avg} \cdot dt} &\forall k \in [0,T] \\
+t_{wait}(k) &\geq dt \cdot (n_a(k) +n_b(k)) &\forall k \in [0,T+1] \\
+n_a(k) &\geq \frac{E_{Shift}(k)}{P_{ch,avg} \cdot dt} &\forall k \in [0,T+1] \\
 n_b(k) &\geq \frac{P_{Shift}(k)}{P_{ch,avg}} &\forall k \in [0,T] \\
-n_b(k) &\geq 0 &\forall k \in [0,T]\\
+n_b(k) &\geq 0 &\forall k \in [0,T+1]\\
 E_{BTMS}(k) &\geq 0 \quad &\forall k \in [0,T+1]\\
 E_{BTMS}(k) &\leq \Delta E_{BTMS} \quad &\forall k \in [0,T+1] \\
 E_{Shift}(k) &\geq 0 \quad &\forall k \in [0,T+1]\\
@@ -243,7 +243,7 @@ in *step()*:
 
 $\begin{equation}
 \begin{aligned}
-\min \quad A \cdot \Sigma_{k=-1}^{N}P_{Grid}(k)^2 + B \cdot \Sigma_{k=0}^{N}(E_{BTMS}(k) - E_{BTMS,planned}(k))^2 + M_1 \Sigma_{k=0}^{N} t_1^2(k)
+\min \quad  \Sigma_{k=0}^{N}(\frac{P_{Grid}(k)-P_{Grid}(k-1)}{\Delta t \max(P_{Grid,planning}(i))})^2 + \rho \cdot \Sigma_{k=0}^{N}(\frac{E_{BTMS}(k) - E_{BTMS,planned}(k)}{\Delta E_{BTMS}})^2 + M_1 \Sigma_{k=0}^{N} t^2(k)
 \end{aligned}
 \end{equation}$
 
@@ -251,22 +251,18 @@ Here, $N$ is the prediction horizon of the short horizoned MPC, $M_1$ is a big n
 
 subject to:
 $\begin{align}
-E_{BTMS}(k+1) &= E_{BTMS}(k) + dt \cdot (\eta \cdot P_{BTMS,Ch}(k) + \frac{1}{\eta}P_{BTMS,DCh}(k)) \quad &\forall k \in [0,N]\\
+E_{BTMS}(k+1) &= E_{BTMS}(k) + dt \cdot P_{BTMS}(k) \quad &\forall k \in [0,N]\\
 E_{V}(k+1) &= E_{V}(k) + dt \cdot P_{Charge}(k) \quad &\forall k \in [0,N]\\
 P_{Charge}(k) &= P_{Grid}(k) - P_{BTMS}(k) \quad &\forall k \in [0,N]  \\
-P_{BTMS}(k) &= P_{BTMS,Ch}(k) + P_{BTMS,DCh}(k) \quad &\forall k \in [0,N]\\
 P_{Grid}(k) &\leq \max (P_{Grid,planning}(i)) \quad &\forall k \in [0,N]\\
-P_{Grid}(k) &\leq P_{Grid,DERMS} \quad &\forall k \in [0,N]\\
-P_{BTMS,Ch}(k) &\geq 0 \quad &\forall k \in [0,N]\\
-P_{BTMS,DCh}(k) &\leq 0 \quad &\forall k \in [0,N]\\
 P_{Charge}(k) &\geq 0 \quad &\forall k \in [0,N]\\
-t_1(k) &\geq 0 \quad &\forall k \in [0,N]\\
 E_{BTMS}(k) &\geq 0 \quad &\forall k \in [0,N+1]\\
 E_{BTMS}(k) &\leq \Delta E_{BTMS} \quad &\forall k \in [0,N+1] \\
+t_1(k) &\geq 0 \quad &\forall k \in [0,N+1]\\
 E_{V}(k) &\geq E_{V,lower}(k) - t_1(k) \quad &\forall k \in [1,N+1]\\
 E_{V}(k) &\leq E_{V,upper}(k) \quad &\forall k \in [1,N+1]\\
-E_{BTMS}(0) &= E_{BTMS,PhySim}\\
 E_{V}(0) &= 0 \\
+P_{Grid}(k) &\leq P_{Grid,DERMS} \quad &\forall k \in [0,N]\\
 \end{align}$
 
 Compared to the fomulations before, $P_{Charge}(k)$ is now a variable determined to satisfy the charging demand for Vehicles $E_{V,lower}(k)$ and $E_{V,upper}(k)$, which are determined as the sum of the vehicle object function *determineChargingTrajectory()*. The function returns an upper and lower bound for the necessary energy transfered to each vehicle. The lower bound is a trajectory which need to be fullfilled to reach the desired end in time, the upper bound is a trajectory which resemble the fastet possible charge. The time in between is allowed flexibility. Likewise, we added a differntial equaiton for the aggregated energy level in the vehicles $E_{V}(k)$.  
@@ -278,7 +274,7 @@ We initialize each run of the short horizoned MPC with the energy level of the B
 To summarize the variables, we have:
 $\begin{align}
 x(k) &= [E_{BTMS}(k), E_{V}(k)]\\
-u(k) &= [P_{Grid}(k), P_{BTMS}(k), P_{BTMS,Ch}(k), P_{BTMS,DCh}(k), P_{Charge}(k)] \\
+u(k) &= [P_{Grid}(k), P_{BTMS}(k), P_{Charge}(k)] \\
 t_1
 \end{align}$
 inputs to our algortihm are

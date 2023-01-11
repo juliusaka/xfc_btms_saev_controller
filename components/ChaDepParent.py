@@ -84,6 +84,7 @@ class ChaDepParent:
         return self.BtmsEn/self.BtmsSize
     
     def get_btms_max_power(self, timestep):
+        # This is just for maximum power when charging, not for maximum power when discharging
         # TODO: implement efficiency
         x = min([self.BtmsMaxPower, (self.BtmsSize * self.BtmsMaxSoc - self.BtmsEn) / (timestep/3.6e3)])
         if x<0:
@@ -215,24 +216,24 @@ class ChaDepParent:
             self.ResultWriter.arrival_event(t_act, vehicle, self.ChargingStationId)
             self.ResultWriter.release_event(t_act, vehicle, self.ChargingStationId)
         
-    def departure(self, vehicleIds, t_act):
-        # TODO: Did I use this?
-        # vehicleIds is a list of vehicleIds which should be released
-        # for vehicles in charging bay
-        for i in range(0, len(self.ChBaVehicles)):
-            if self.ChBaVehicles[i] != False: # if a vehicle is in bay
-                if np.isin(self.ChBaVehicles[i].VehicleId, vehicleIds).any(): # if the vehicleId of this vehicle was not released before
-                    self.ResultWriter.forced_release_event(t_act, self.ChBaVehicles[i], self.ChargingStationId)
-                    self.ChBaVehicles[i] = False # release Vehicle
-        # for vehicles in Queue
-        out = []
-        for i in range(0, len(self.Queue)):
-            if np.isin(self.Queue[i].VehicleId, vehicleIds).any(): # if the vehicleId of this vehicle was not released before
-                out.append(i)
-                self.ResultWriter.forced_release_event(t_act, self.Queue[i], self.ChargingStationId)
-        # pop this vehicles out
-        for i in range(0, len(out)):
-            self.Queue.pop(out[i]-i)
+    # def departure(self, vehicleIds, t_act):
+    #     # TODO: I did not use this
+    #     # vehicleIds is a list of vehicleIds which should be released
+    #     # for vehicles in charging bay
+    #     for i in range(0, len(self.ChBaVehicles)):
+    #         if self.ChBaVehicles[i] != False: # if a vehicle is in bay
+    #             if np.isin(self.ChBaVehicles[i].VehicleId, vehicleIds).any(): # if the vehicleId of this vehicle was not released before
+    #                 self.ResultWriter.forced_release_event(t_act, self.ChBaVehicles[i], self.ChargingStationId)
+    #                 self.ChBaVehicles[i] = False # release Vehicle
+    #     # for vehicles in Queue
+    #     out = []
+    #     for i in range(0, len(self.Queue)):
+    #         if np.isin(self.Queue[i].VehicleId, vehicleIds).any(): # if the vehicleId of this vehicle was not released before
+    #             out.append(i)
+    #             self.ResultWriter.forced_release_event(t_act, self.Queue[i], self.ChargingStationId)
+    #     # pop this vehicles out
+    #     for i in range(0, len(out)):
+    #         self.Queue.pop(out[i]-i)
 
     def repark(self):
         # class method to repark the vehicles, based on their charging desire
@@ -329,30 +330,30 @@ class ChaDepParent:
         for i in range(0, len(self.ChBaVehicles)):
             if isinstance(self.ChBaVehicles[i], components.Vehicle):
                 # calculate maximum charging power possible in period under energy conservation
-                possiblePower = self.ChBaVehicles[i].getMaxChargingPower(
+                possiblePower = self.ChBaVehicles[i].get_max_charging_power(
                     timestep)
                 # save vehicle state of current time step
                 self.ResultWriter.update_vehicle_states(
                     t_act=self.SimBroker.t_act, vehicle=self.ChBaVehicles[i], ChargingStationId=self.ChargingStationId, QueueOrBay=False, ChargingPower=ChBaPower[i], possiblePower=possiblePower)
                 # add energy to the vehicle - this is the state for t_act + timestep
-                self.ChBaVehicles[i].addPower(ChBaPower[i], timestep)
+                self.ChBaVehicles[i].add_power(ChBaPower[i], timestep)
                 # update energy and time lag for the next time step
-                self.EnergyLagSum += self.ChBaVehicles[i].updateEnergyLag(
+                self.EnergyLagSum += self.ChBaVehicles[i].update_energy_lag(
                     self.SimBroker.t_act + timestep)
-                self.TimeLagSum += self.ChBaVehicles[i].updateTimeLag(
+                self.TimeLagSum += self.ChBaVehicles[i].update_time_lag(
                     self.SimBroker.t_act + timestep)
 
         for x in self.Queue:
             # calculate maximum charging power possible in period under energy conservation
-            possiblePower = self.ChBaVehicles[i].getMaxChargingPower(
+            possiblePower = self.ChBaVehicles[i].get_max_charging_power(
                 timestep)
             # save vehicle state of current time step
             self.ResultWriter.update_vehicle_states(
                 t_act=self.SimBroker.t_act, vehicle=self.ChBaVehicles[i], ChargingStationId=self.ChargingStationId, QueueOrBay=False, ChargingPower=ChBaPower[i], possiblePower=possiblePower)
             # update energy and time lag
-            self.EnergyLagSum += x.updateEnergyLag(
+            self.EnergyLagSum += x.update_energy_lag(
                 self.SimBroker.t_act + timestep)
-            self.TimeLagSum += self.ChBaVehicles[i].updateTimeLag(
+            self.TimeLagSum += self.ChBaVehicles[i].update_time_lag(
                 self.SimBroker.t_act + timestep)
 
     def distribute_charging_power_to_vehicles(self, timestep, P_max):
@@ -368,7 +369,7 @@ class ChaDepParent:
 
         for j in idx_Bays: # go through charging bays sorted by their charging desire 
             if isinstance(self.ChBaVehicles[j], components.Vehicle): # only assign charging power, if a vehicle is in the bay
-                maxPower = min([self.ChBaMaxPower[j], self.ChBaVehicles[j].getMaxChargingPower(timestep)]) # the maximum power of the current bay is the minimum of the chargingbay max power and the vehicle max power
+                maxPower = min([self.ChBaMaxPower[j], self.ChBaVehicles[j].get_max_charging_power(timestep)]) # the maximum power of the current bay is the minimum of the chargingbay max power and the vehicle max power
                 sumPowers = sum(self.ChBaPower)
                 if  sumPowers + maxPower <= P_max: # test if maxPower of current bay can be fully added
                     self.ChBaPower[j] = maxPower
@@ -411,7 +412,7 @@ class ChaDepParent:
         PowerDesire = 0
         for i in range(0,len(self.ChBaVehicles)):
             if self.ChBaVehicles[i] != False:
-                PowerDesire += min([self.ChBaVehicles[i].getMaxChargingPower(timestep), self.ChBaMaxPower[i]])
+                PowerDesire += min([self.ChBaVehicles[i].get_max_charging_power(timestep), self.ChBaMaxPower[i]])
 
         self.PowerDesire = PowerDesire
         self.BtmsPowerDesire = self.get_btms_max_power(timestep)

@@ -24,6 +24,7 @@ class Vehicle:
 
     def get_max_charging_power(self, timestep, inverse = False, maxPowerPlug = float('inf')):
         maxPowerVehicle = min([self.VehicleMaxPower, maxPowerPlug])
+        # here you could also implement a charging power function based on the SOC of the vehicle
         if not inverse:
             maxPowerForDesEngy = max([0, (self.VehicleDesEngy - self.VehicleEngy)/(timestep/3.6e3)]) # maximum power should be no less than 0
             power = min([maxPowerVehicle, maxPowerForDesEngy]) # the smaller value is the max power.
@@ -139,8 +140,7 @@ class Vehicle:
                     traj_lower[i] = traj_lower[i] - self.VehicleEngy
                 traj_upper = self.get_charging_trajectory_upper(t_act, timestep, N, maxPowerPlug=maxPowerPlug)
 
-            # check that traj_lower isn't higher than the upper trajectory 
-            # (left here because of coder's suspicion that there is a bug, but the coder is pretty sure that is not the case)
+            # check that traj_lower isn't higher than the upper trajectory (this should never happen)
             for i in range(N+1):
                 if traj_lower[i] > traj_upper[i] + 0.01:
                     raise ValueError("Lower charging trajectory is higher than upper charging trajectory")
