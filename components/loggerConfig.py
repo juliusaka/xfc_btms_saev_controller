@@ -2,9 +2,9 @@
 import logging
 import sys
 
-def loggerConfig():
+def loggerConfig(filename = "debug.log"):
     # create Handlers
-    fileHandler = logging.FileHandler("debug.log")
+    fileHandler = logging.FileHandler(filename)
     streamHandler = logging.StreamHandler(sys.stdout)
     logging.basicConfig(
         level=logging.INFO,

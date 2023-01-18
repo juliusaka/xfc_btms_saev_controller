@@ -435,19 +435,19 @@ class ChaDepMpcBase(ChaDepParent):
                 lower, upper = self.ChBaVehicles[i].get_charging_trajectories(SimBroker.t_act, timestep, N, maxPowerPlug = self.ChBaMaxPower[i])
                 E_V_upper = np.add(E_V_upper, upper)
                 E_V_lower = np.add(E_V_lower, lower)
-        # calculate average of the last arrivals
-        upper = np.zeros(N+1)
-        lower = np.zeros(N+1)
-        divider = 0
-        for i in range(max([0, self.SimBroker.iteration - self.avgHorizon]), self.SimBroker.iteration):
-            upper = np.add(upper, self.E_V_Upper_lastArrivals[i])
-            lower = np.add(lower, self.E_V_Lower_lastArrivals[i])
-            divider += 1
-        upper = np.divide(upper, max([1, divider])) # to prevent dividing by zero
-        lower = np.divide(lower, max([1, divider]))
-        for i in range(1, N+1):
-            E_V_upper[i] = E_V_upper[i] + sum(upper[0:i])
-            E_V_lower[i] = E_V_lower[i] + sum(lower[0:i])
+        # calculate average of the last arrivals - simple forecast method
+        # upper = np.zeros(N+1)
+        # lower = np.zeros(N+1)
+        # divider = 0
+        # for i in range(max([0, self.SimBroker.iteration - self.avgHorizon]), self.SimBroker.iteration):
+        #     upper = np.add(upper, self.E_V_Upper_lastArrivals[i])
+        #     lower = np.add(lower, self.E_V_Lower_lastArrivals[i])
+        #     divider += 1
+        # upper = np.divide(upper, max([1, divider])) # to prevent dividing by zero
+        # lower = np.divide(lower, max([1, divider]))
+        # for i in range(1, N+1):
+        #     E_V_upper[i] = E_V_upper[i] + sum(upper[0:i])
+        #     E_V_lower[i] = E_V_lower[i] + sum(lower[0:i])
         #parameters
         ts = timestep / 3.6e3
         eta = self.BtmsEfficiency
