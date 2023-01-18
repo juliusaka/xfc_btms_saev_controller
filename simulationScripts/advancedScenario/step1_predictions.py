@@ -5,6 +5,7 @@ from config import *
 sys.path.append('../')
 sys.path.append('../../')
 import components
+import components.ChaDepMpcBase as chargingStationClass
 from simulationScripts import createChargingStations
 import pandas as pd
 import numpy as np
@@ -24,3 +25,32 @@ logging.info("VehicleGenerator initialized")
 # result writer
 ResultWriter = components.ResultWriter(result_directory)
 logging.info("ResultWriter initialized")
+
+#%% create charging stations
+chargingStations = createChargingStations.createChargingStations(path_infrastructure, chargingStationClass, ResultWriter, SimBroker)
+
+
+#%% initialize simulation
+
+'''Simulation settings:'''
+logging.info("timestep is set to " + str(timestep) + " seconds")
+
+PhySimDummy = components.PhySimDummy(chargingStations)
+logging.info("PhySimDummy initialized")
+DermsDummy  = components.DermsDummy(chargingStations)
+logging.info("DermsDummy initialized")
+
+# %% generate predictions
+
+# generate predictions of power usage at charging stations
+if chargingStationClass == components.ChaDepMpcBase:
+    for x in chargingStations:
+        x.generate_prediction(path_BeamPredictionFile = path_Sim, dtype = dtype_Sim, path_DataBase = path_DataBase, timestep = timestep, addNoise = prediction_add_noise)
+        logging.info("generated predictions for " + str(x.ChargingStationId))
+# plot predictions
+if plotPrediction:
+    for x in chargingStations:
+        ax = x.plot_prediction(directory_figures)
+        logging.info("plotted predictions for " + str(x.ChargingStationId))
+if showPlots:
+    plt.show()

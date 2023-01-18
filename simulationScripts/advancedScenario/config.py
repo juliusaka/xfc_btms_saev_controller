@@ -1,14 +1,14 @@
 import os
 '''Simulation Name'''
 sim_name = "advancedScenario7"
-result_directory = "results" + os.sep + sim_name
+result_directory = '..' + os.sep + '..' + os.sep +"results" + os.sep + sim_name
 os.makedirs(result_directory, exist_ok=True)
 
 '''Infrastructure Creation Mode'''
-infrastructure_creation_mode = "numberPlugs" # or taz
+infrastructure_creation_mode = "taz" # or numberplugs
 
 '''Simulation'''
-timestep = 1 * 60  # in seconds
+timestep = 20 * 60  # in seconds
 
 
 '''Predictions'''
@@ -29,8 +29,7 @@ c_cost_sizing = 0.15
 ## Plots ##
 ###########################################
 showPlots = False
-os.makedirs(directory_figures, exist_ok=True)
-plotPrediction = True
+plotPrediction = False
 plotSizing = True
 
 ###########################################
@@ -38,14 +37,15 @@ plotSizing = True
 ###########################################
 #'''Simulation Broker'''
 directory_figures = result_directory + os.sep + "figures"
-path_Sim = "test_data" + os.sep + "advancedScenario7" + os.sep + "rhev-siting.6.events.7Advanced.csv"
+os.makedirs(directory_figures, exist_ok=True)
+path_Sim = '..' + os.sep + '..' + os.sep + "test_data" + os.sep + "advancedScenario7" + os.sep + "rhev-siting.6.events.7Advanced.csv"
 dtype_Sim = {
-       'time': 'int64', 'type': 'category', 'vehicle': 'int64', 'parkingTaz': 'category','chargingPointType': 'category', 
+       'time': 'int64', 'type': 'category', 'vehicle': 'string', 'parkingTaz': 'category','chargingPointType': 'category', 
        'primaryFuelLevel': 'float64', 'mode': 'category', 'currentTourMode': 'category', 'vehicleType': 'category', 
        'arrivalTime': 'float64', 'departureTime': 'float64', 'linkTravelTime': 'string', 'primaryFuelType': 'category', 
        'parkingZoneId': 'category','duration': 'float64' 
         }
 #'''Vehicle Generator'''
-path_DataBase = "test_data" + os.sep + "advancedScenario7" + os.sep + "vehicletypes-HighEV2040_2021620.csv"
+path_DataBase = '..' + os.sep + '..' + os.sep + "test_data" + os.sep + "advancedScenario7" + os.sep + "vehicletypes-HighEV2040_2021620.csv"
 #'''Infrastructure File'''
-path_infrastructure = "test_data" + os.sep + "advancedScenario7" + os.sep + "taz-parking_S80_P300_R250_F35k_Scenario7.csv"
+path_infrastructure = '..' + os.sep + '..' + os.sep + "test_data" + os.sep + "advancedScenario7" + os.sep + "taz-parking_S80_P300_R250_F35k_Scenario7.csv"

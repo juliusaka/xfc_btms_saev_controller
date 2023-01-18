@@ -73,9 +73,9 @@ class ChaDepMpcBase(ChaDepParent):
         while not PredBroker.eol():
             slice = PredBroker.step(timestep)
             for i in range(0, len(slice)):
-                if slice.iloc[i]["type"] == "ChargingPlugInEvent":
+                if slice.iloc[i]["type"] == "RefuelSessionEvent":
                     vehicle = VehicleGenerator.generate_vechicle_from_df_slice(slice.iloc[i])
-                    if np.isin(element=self.ChBaParkingZoneId, test_elements=vehicle.BeamDesignatedParkingZoneId).any():
+                    if np.isin(element=self.ChargingStationId, test_elements=[slice.iloc[i].parkingTaz]).any():
                         Queue.append(vehicle)
             # add vehicle to charging bays if possible
             while len(ChBaVehicles) < self.ChBaNum and len(Queue) > 0:
