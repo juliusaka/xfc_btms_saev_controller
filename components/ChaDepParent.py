@@ -10,7 +10,7 @@ class ChaDepParent:
     def __init__(self, ChargingStationId, ResultWriter: ResultWriter, SimBroker: SimBroker, ChBaMaxPower, ChBaParkingZoneId, ChBaNum: int, BtmsSize = 100, BtmsC = 1, BtmsMaxSoc = 1.0, BtmsMinSOC = 0.0, BtmsSoc0 = 0.50, calcBtmsGridProp = False, GridPowerMax_Nom = 1 , GridPowerLower = -1, GridPowerUpper = 1):
 
         '''ChargingStationIdentity'''
-        self.ChargingStationId  = ChargingStationId
+        self.ChargingStationId  = str(ChargingStationId)
 
         '''Result Writer''' # reference to result writer object
         self.ResultWriter       = ResultWriter

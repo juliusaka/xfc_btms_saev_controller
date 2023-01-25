@@ -45,7 +45,7 @@ logging.info("DermsDummy initialized")
 # generate predictions of power usage at charging stations
 if chargingStationClass == components.ChaDepMpcBase:
     for x in chargingStations:
-        x.generate_prediction(path_BeamPredictionFile = path_Sim, dtype = dtype_Sim, path_DataBase = path_DataBase, timestep = timestep, addNoise = prediction_add_noise)
+        x.generate_prediction(path_BeamPredictionFile = path_Sim, dtype = dtype_Sim, path_DataBase = path_DataBase, timestep = timestep, addNoise = prediction_add_noise, noise_param = noise_param)
         logging.info("generated predictions for " + str(x.ChargingStationId))
 # plot predictions
 if plotPrediction:
@@ -54,3 +54,4 @@ if plotPrediction:
         logging.info("plotted predictions for " + str(x.ChargingStationId))
 if showPlots:
     plt.show()
+# %%

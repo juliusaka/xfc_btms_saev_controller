@@ -52,7 +52,7 @@ class ChaDepMpcBase(ChaDepParent):
         self.avgHorizon             = 2         # average horizon of charging demand in horizon in steps
 
 
-    def generate_prediction(self, path_BeamPredictionFile, dtype, path_DataBase, timestep=5*60, addNoise = True):
+    def generate_prediction(self, path_BeamPredictionFile, dtype, path_DataBase, timestep=5*60, addNoise = True, noise_param = 0.2):
         # generate a prediction for the charging station
         # neglection of charging desire, make this not too good
         ChBaVehicles = []
@@ -105,7 +105,7 @@ class ChaDepMpcBase(ChaDepParent):
         # add noise to produce prediction:
         self.power_sum_original = power_sum.copy()
         if addNoise:
-            param = 0.4
+            param = noise_param
             avg = np.average(power_sum)
             # seed random variable
             np.random.seed(1)
@@ -138,7 +138,7 @@ class ChaDepMpcBase(ChaDepParent):
         df = pd.DataFrame({ key:pd.Series(value) for key, value in dict.items() })
         dir         = os.path.join(self.ResultWriter.directory,'generatePredictions')
         os.makedirs(dir, exist_ok=True) 
-        filename    = self.ChargingStationId + ".csv"
+        filename    = str(self.ChargingStationId) + ".csv"
         df.to_csv(os.path.join(dir, filename))
 
     def plot_prediction(self, directory):

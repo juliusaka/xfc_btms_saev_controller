@@ -12,7 +12,7 @@ def createChargingStations(path_infrastructure, chargingStationClass, ResultWrit
     logging.info("creating charging stations of type " + str(chargingStationClass))
     usecols_infrastructure = ["taz", "parkingType",
                             "chargingPointType", "parkingZoneId", "numStalls"]
-    dtype_infrastructure = {"taz": "int64", "parkingType": "category",
+    dtype_infrastructure = {"taz": "string", "parkingType": "category",
                             "chargingPointType": "category", "parkingZoneId": "string", "numStalls": "int64"}
     df_infrastructure = pd.read_csv(
         path_infrastructure, dtype=dtype_infrastructure, usecols=usecols_infrastructure)
