@@ -52,7 +52,7 @@ class ChaDepMpcBase(ChaDepParent):
         self.avgHorizon             = 2         # average horizon of charging demand in horizon in steps
 
 
-    def generate_prediction(self, path_BeamPredictionFile, dtype, path_DataBase, timestep=5*60, addNoise = True, noise_param = 0.2):
+    def generate_prediction(self, path_BeamPredictionFile, dtype, path_DataBase, timestep=5*60, addNoise = True, noise_param = 0.2, prediction_directory = None):
         # generate a prediction for the charging station
         # neglection of charging desire, make this not too good
         ChBaVehicles = []
@@ -136,7 +136,10 @@ class ChaDepMpcBase(ChaDepParent):
             'PredictionGridLower': self.PredictionGridLower,
         }
         df = pd.DataFrame({ key:pd.Series(value) for key, value in dict.items() })
-        dir         = os.path.join(self.ResultWriter.directory,'generatePredictions')
+        if prediction_directory is None:
+            dir         = os.path.join(self.ResultWriter.directory, 'generatePredictions')
+        else:
+            dir         = prediction_directory
         os.makedirs(dir, exist_ok=True) 
         filename    = str(self.ChargingStationId) + ".csv"
         df.to_csv(os.path.join(dir, filename))

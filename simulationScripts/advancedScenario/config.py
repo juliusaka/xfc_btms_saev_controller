@@ -1,8 +1,8 @@
 import os
 '''Simulation Name'''
 sim_name = "advancedScenario7"
-result_directory = "results" + os.sep + sim_name
-os.makedirs(result_directory, exist_ok=True)
+result_parent_directory = "results" + os.sep + sim_name
+os.makedirs(result_parent_directory, exist_ok=True)
 
 '''Infrastructure Creation Mode'''
 infrastructure_creation_mode = "taz" # or numberplugs
@@ -34,6 +34,8 @@ plotPrediction = False
 plotSizing = True
 plotSizeX = 3.61
 plotSizeY = 1.2
+plotSizeX2col = 6.6
+plotSizeY2col = 2.7
 pltFontSize = 7
 def pltSettings():
         import matplotlib.pyplot as plt
@@ -44,8 +46,6 @@ def pltSettings():
 ## FILEPATHS Files ##
 ###########################################
 #'''Simulation Broker'''
-directory_figures = result_directory + os.sep + "figures"
-os.makedirs(directory_figures, exist_ok=True)
 path_Sim_original_data = '..' + os.sep + '..' + os.sep + "test_data" + os.sep + "advancedScenario7" + os.sep + "rhev-siting.6.events.7Advanced.csv"
 path_Sim = '..' + os.sep + '..' + os.sep + "test_data" + os.sep + "advancedScenario7" + os.sep + "rhev-siting.6.events.7Advanced_filtered.csv"
 dtype_Sim = {
@@ -58,3 +58,6 @@ dtype_Sim = {
 path_DataBase = '..' + os.sep + '..' + os.sep + "test_data" + os.sep + "advancedScenario7" + os.sep + "vehicletypes-HighEV2040_2021620.csv"
 #'''Infrastructure File'''
 path_infrastructure = '..' + os.sep + '..' + os.sep + "test_data" + os.sep + "advancedScenario7" + os.sep + "taz-parking_S80_P300_R250_F35k_Scenario7.csv"
+# '''generated predictions''':
+prediction_directory = result_parent_directory + os.sep + 'step1_predictions'
+os.makedirs(prediction_directory, exist_ok=True)
