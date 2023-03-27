@@ -28,7 +28,7 @@ class ChaDepParent:
         #variables:
         self.BtmsEn             = BtmsSoc0 * self.BtmsSize # BTMS energy content at initialization [kWh]
         self.P_BTMS             = 0                 # actual charging power of the btms
-        self.BtmsEfficiency     = 0.95              # efficiency per charge/decharge
+        self.BtmsEfficiency     = 0.922             # efficiency per charge/decharge
         '''Charging Bays'''
         #properties
         self.ChBaNum            = ChBaNum           # number of charging bays determined by ChBaMaxPower vector

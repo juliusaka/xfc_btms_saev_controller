@@ -7,3 +7,5 @@ results/**
 debug.log
 
 test_data/advancedScenario7/rhev-siting.6.events.7Advanced.csv
+rhev-siting.6.events.7Advanced.csv
+/simulationScripts/advancedScenario/test_data/rhev-siting.6.events.7Advanced.csv

@@ -143,6 +143,19 @@ class ChaDepMpcBase(ChaDepParent):
         os.makedirs(dir, exist_ok=True) 
         filename    = str(self.ChargingStationId) + ".csv"
         df.to_csv(os.path.join(dir, filename))
+    
+    def load_prediction(self, path):
+        df = pd.read_csv(path)
+        self.PredictionTime = df['time'].to_numpy()
+        self.PredictionPower = df['Power_noise'].to_numpy()
+        self.PredictionTimeLag = df['TimeLag'].to_numpy()
+        self.PredictionEnergyLag = df['EnergyLag'].to_numpy()
+        self.PredictionGridUpper = df['PredictionGridUpper'].to_numpy()
+        self.PredictionGridLower = df['PredictionGridLower'].to_numpy()
+        self.power_sum_original = df['Power_original'].to_numpy()
+        # turn off noise
+        self.PredictionPower = self.power_sum_original.copy()
+
 
     def plot_prediction(self, directory):
         time = self.PredictionTime
@@ -183,7 +196,7 @@ class ChaDepMpcBase(ChaDepParent):
         constr = []
         # define constraints
         for k in range(T):
-            constr += [x[:,k+1] == x[:,k] + ts * eta * u[2,k] + ts * 1/eta * u[3,k], # btms charging equation
+            constr += [x[:,k+1] == x[:,k] + ts * eta * u[2,k] + ts * u[3,k], # btms charging equation
                         u[0,k] - u[1,k] == i_power[k], # energy flow equation
                         u[1,k] == u[2,k] + u[3,k], # P_BTMS is sum of charge and discharge
                         u[2,k] >= 0, # charging power always positive
@@ -222,6 +235,7 @@ class ChaDepMpcBase(ChaDepParent):
         self.determinedBtmsSize = btms_size
         self.BtmsSize = btms_size
         self.determinedMaxPower = max(abs(P_BTMS))
+        self.sizing_cost = cost
 
         #save results to csv-file
         param_vec = np.zeros_like(time)
@@ -242,9 +256,9 @@ class ChaDepMpcBase(ChaDepParent):
             'param: btms size, a,b,c': param_vec,
         }
         df = pd.DataFrame({ key:pd.Series(value) for key, value in dict.items() })
-        dir         = os.path.join(self.ResultWriter.directory,'determineBtmsSize')
+        dir         = self.ResultWriter.directory
         os.makedirs(dir, exist_ok=True) 
-        filename    = self.ChargingStationId + ".csv"
+        filename    = 'btms_sizing_' + self.ChargingStationId + ".csv"
         df.to_csv(os.path.join(dir, filename))
 
         return time, time_x, btms_size, P_Grid, P_BTMS, P_BTMS_Ch, P_BTMS_DCh, E_BTMS, P_Charge, cost
@@ -291,7 +305,7 @@ class ChaDepMpcBase(ChaDepParent):
         constr = []
         for k in range(T):
             constr += [
-                        x[0, k+1] == x[0, k] + ts * eta * u[2, k] + ts * 1/eta * u[3, k],    # BTMS equation
+                        x[0, k+1] == x[0, k] + ts * eta * u[2, k] + ts * u[3, k],    # BTMS equation
                        # shifted energy equation
                        x[1, k+1] == x[1, k] + ts * u[4, k],
                        # energy flow equation
