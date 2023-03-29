@@ -84,8 +84,7 @@ def do_sizing(iterable):
 if __name__ == '__main__':
     
     #a_cost_sizing = np.arange(0, 21, 1) / (365/12)
-    a_cost_sizing = np.array([15]) / (365/12)
-    #a_cost_sizing = np.array([2,3,4,6,7,8,9,11,12,13,14,15,16,17,18,19, 20]) / (365/12)
+    a_cost_sizing = np.array([2, 3, 4, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]) / (365/12)
     b_cost_sizing = [b_cost_sizing]
     c_cost_sizing = [c_cost_sizing]
     path = result_parent_directory + os.sep + 'step4_btms_sizing_sensitivity' + os.sep + 'sizing_results' 
