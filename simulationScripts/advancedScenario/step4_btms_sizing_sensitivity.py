@@ -64,7 +64,7 @@ def main(result_directory, a, b, c):
     
     # define function to be used in multiprocessing with a, b, c as parameters inherited from main function call
     
-    pool = mp.Pool(4)
+    pool = mp.Pool(3)
     result_list_tqdm = []
     # make iterable
     iterables = [[x, a, b, c] for x in chargingStations]
@@ -73,11 +73,20 @@ def main(result_directory, a, b, c):
     chargingStations = result_list_tqdm
     pool.close()
 
+    # calculate factor
+    factor = calc_factor(a,b,c)
+    # save factor and a, b, c in csv file
+    df = pd.DataFrame({'a': [a], 'b': [b], 'c': [c], 'factor': [factor]})
+    df.to_csv(result_directory + os.sep + 'a_b_c_factor.csv', index=False)
+
     os.chdir('C://Users//akaju//Documents//GitHub//xfc_btms_saev_controller')
 
 def do_sizing(iterable):
     iterable[0].determine_btms_size(iterable[0].SimBroker.t_act, iterable[0].SimBroker.t_max, timestep, iterable[1], iterable[2], iterable[3], 0)
     return iterable[0]
+
+def calc_factor(a, b, c):
+    return (b + (1-btms_efficiency)*c) / (a)
 
 #%% main
 
@@ -88,15 +97,8 @@ if __name__ == '__main__':
     b_cost_sizing = [b_cost_sizing]
     c_cost_sizing = [c_cost_sizing]
     path = result_parent_directory + os.sep + 'step4_btms_sizing_sensitivity' + os.sep + 'sizing_results' 
-    def calc_factor(a, b, c):
-        return (b + (1-btms_efficiency)*c) / (a)
     for x in a_cost_sizing:
         for y in b_cost_sizing:
             for z in c_cost_sizing:
-                result_directory = os.path.join(path, uuid.uuid4())
+                result_directory = os.path.join(path, str(uuid.uuid4()))
                 main(result_directory, x, y, z)
-                # calculate factor
-                factor = calc_factor(x, y, z)
-                # save factor and a, b, c in csv file
-                df = pd.DataFrame({'a': [x], 'b': [y], 'c': [z], 'factor': [factor]})
-                df.to_csv(os.path.join(result_directory, 'a_b_c_factor.csv'), index=False)
