@@ -19,12 +19,11 @@ noise_param = 0.2
 '''Sizing of Charging Stations'''
 # demand charge in $/kWh amortized per day
 a_cost_sizing = 20 / (365/12)
-# free power demand as ratio to max charging power
-P_free_Ratio_sizing = 0.0
 # btms cost per cycle in $/kWh
-b_cost_sizing = 220/5400
-c_cost_sizing = 0.12
-btms_efficiency = 0.85
+b_cap_cost_sizing_mid = 125/5400 # amortized per cycle
+b_sys_cost_sizing_mid = 186/(15*365) # amortized to one day, lifetime 15 years
+c_cost_sizing = 0.12 # electricity price in $/kWh
+btms_efficiency = 0.85  # efficiency of btms
 
 '''Creating optimal day ahead plan'''
 

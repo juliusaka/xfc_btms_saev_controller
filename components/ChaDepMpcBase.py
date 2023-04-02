@@ -14,9 +14,9 @@ import matplotlib.pyplot as plt
 class ChaDepMpcBase(ChaDepParent):
     '''see mpcBase.md for explanations'''
 
-    def __init__(self, ChargingStationId, ResultWriter: components.ResultWriter, SimBroker: components.SimBroker, ChBaMaxPower, ChBaParkingZoneId, ChBaNum, BtmsSize=100, BtmsC=1, BtmsMaxSoc=1.0, BtmsMinSOC=0.0, BtmsSoc0=0.5, calcBtmsGridProp=False, GridPowerMax_Nom=1, GridPowerLower=-1, GridPowerUpper=1):
+    def __init__(self, ChargingStationId, ResultWriter: components.ResultWriter, SimBroker: components.SimBroker, ChBaMaxPower, ChBaParkingZoneId, ChBaNum, BtmsSize=100, BtmsC=1, BtmsMaxSoc=1.0, BtmsMinSOC=0.0, BtmsSoc0=0.5, calcBtmsGridProp=False, GridPowerMax_Nom=1, GridPowerLower=-1, GridPowerUpper=1, BtmsEfficiency = 0.85):
 
-        super().__init__(ChargingStationId, ResultWriter, SimBroker, ChBaMaxPower, ChBaParkingZoneId, ChBaNum, BtmsSize, BtmsC, BtmsMaxSoc, BtmsMinSOC, BtmsSoc0, calcBtmsGridProp, GridPowerMax_Nom, GridPowerLower, GridPowerUpper)
+        super().__init__(ChargingStationId, ResultWriter, SimBroker, ChBaMaxPower, ChBaParkingZoneId, ChBaNum, BtmsSize, BtmsC, BtmsMaxSoc, BtmsMinSOC, BtmsSoc0, calcBtmsGridProp, GridPowerMax_Nom, GridPowerLower, GridPowerUpper, BtmsEfficiency)
 
         '''additional parameters for results of btms size optimization'''
         self.determinedBtmsSize     = None
@@ -169,64 +169,71 @@ class ChaDepMpcBase(ChaDepParent):
         # return fig
         return ax
         
-    def determine_btms_size(self, t_act, t_max, timestep, a, b, c, P_free):
+    def determine_btms_size(self, t_act, t_max, timestep, a, b_sys, b_cap, c):
         '''see mpcBase.md for explanations'''
         # vector lengthes
         T = int(np.ceil((t_max - t_act) / timestep))
 
         # define variables 
-        x = cp.Variable((1, T+1))
-        u = cp.Variable((4, T))
-        p_gridSlack = cp.Variable((1,1)) # slack variable to determine demand charge with free demand charge level, e.g. if p_max > 20kW, demand charge applied
+        E_BTMS = cp.Variable((1, T+1))
+
+        P_Grid = cp.Variable((1, T))
+        P_BTMS = cp.Variable((1, T))
+        P_BTMS_Charge = cp.Variable((1, T))
+        P_BTMS_Discharge = cp.Variable((1, T)) # is defined positive and negative values are taken into account in the constraints
+        P_Grid_max = cp.Variable((1, 1))
+        P_Btms_max = cp.Variable((1, 1))
         
-        # define disturbance i_power, which is the charging power demand
+        # define disturbance P_Charge, which is the charging power demand
         time = np.array(self.PredictionTime)
         power = np.array(self.PredictionPower)
         idx = np.logical_and(time >=t_act, time <= t_act + T*timestep)
         time = time[idx]
-        i_power = power[idx]
-        if len(i_power) != T:
-            logging.warning("length of i_power does not match T, length of i_power: " + str(len(i_power)) + ", T: " + str(T))
-            raise ValueError("length T and length of vector i_power are unequal, i_power: " + str(len(i_power)) + ", T: " + str(T))
+        P_Charge = power[idx]
+        if len(P_Charge) != T:
+            logging.warning("length of i_power does not match T, length of i_power: " + str(len(P_Charge)) + ", T: " + str(T))
+            raise ValueError("length T and length of vector i_power are unequal, i_power: " + str(len(P_Charge)) + ", T: " + str(T))
 
         #parameters
         ts = timestep / 3.6e3
         eta = self.BtmsEfficiency
 
-        constr = []
         # define constraints
+        constr = []
         for k in range(T):
-            constr += [x[:,k+1] == x[:,k] + ts * eta * u[2,k] + ts * u[3,k], # btms charging equation
-                        u[0,k] - u[1,k] == i_power[k], # energy flow equation
-                        u[1,k] == u[2,k] + u[3,k], # P_BTMS is sum of charge and discharge
-                        u[2,k] >= 0, # charging power always positive
-                        u[3,k] <= 0, # discharge power always negative
+            constr += [
+                        E_BTMS[0,k+1] == E_BTMS[0,k] + ts * eta * P_BTMS_Charge[0,k] - ts * P_BTMS_Discharge[0,k], # btms charging equation
+                        P_Grid[0,k] - P_BTMS[0,k] == P_Charge[k] , # energy flow equation
+                        P_BTMS[0,k] == P_BTMS_Charge[0,k] - P_BTMS_Discharge[0,k], # P_BTMS is sum of charge and discharge
+                        P_BTMS_Charge[0,k] >= 0, # charge power always positive
+                        P_BTMS_Discharge[0,k] >= 0, # discharge power always negative
                         ]
-        # insert initial constraint, bound BTMS size and define free power level
-        constr +=  [x[:,0]== 0,
-                    x[:,0] == x[:,T],
-                    p_gridSlack >= cpmax(u[0,:]),
-                    p_gridSlack >= P_free,
+        # insert initial constraint, bound BTMS size
+        constr +=  [E_BTMS[0,0] == 0.0, # initial condition
+                    E_BTMS[0,0] == E_BTMS[0,T], # ensure cyclic behaviour
+                    P_Btms_max[0,0] >= cp.max(P_BTMS_Charge[0,:]), # get max btms power
+                    P_Btms_max[0,0] >= cp.max(P_BTMS_Discharge[0,:]), # get max btms power
+                    P_Grid_max[0,0] >= cp.max(P_Grid[0,:]), # get max grid power
                     ]
         
         # define cost-funciton
-        cost = a * (p_gridSlack - P_free) # demand charge
+        cost = a * P_Grid_max[0,0]  # demand charge
+        cost += b_sys * cpmax(cp.abs(P_BTMS[:,k])) # power cost of btms
         for k in range(T):       # cost of btms degradation and cost of energy loss
-            cost += (b+c) * u[2,k] * ts + c * u[3,k] * ts # u[3,k] is always negative
-
+            cost += (b_cap + (1-eta) * c) * P_BTMS_Charge[:,k] * ts # cost of btms capacity and cost of charging losses
         # solve the problem
         logging.info("\n----- \n btms size optimization for charging station %s \n-----" % self.ChargingStationId)
         prob = cp.Problem(cp.Minimize(cost), constr)
         components.solver_algorithm(prob)
         
         # determine BTMS size and unpack over values
-        btms_size = np.max(x.value) - np.min(x.value)
-        P_Grid = u[0,:].value
-        P_BTMS = u[1,:].value
-        E_BTMS = x[0,:].value
-        P_Charge = i_power
-        P_BTMS_Ch = u[2,:].value
-        P_BTMS_DCh = u[3,:].value
+        btms_size = np.max(E_BTMS.value) - np.min(E_BTMS.value)
+        P_Grid = P_Grid.value.reshape(-1)
+        P_BTMS = P_BTMS.value.reshape(-1)
+        E_BTMS = E_BTMS.value.reshape(-1)
+        P_Charge = P_Charge
+        P_BTMS_Ch = P_BTMS_Charge.value.reshape(-1)
+        P_BTMS_DCh = P_BTMS_Discharge.value.reshape(-1)
         cost = prob.value
         time_x = time.tolist()
         time_x.append(time[-1]+timestep)
@@ -234,7 +241,8 @@ class ChaDepMpcBase(ChaDepParent):
 
         self.determinedBtmsSize = btms_size
         self.BtmsSize = btms_size
-        self.determinedMaxPower = max(abs(P_BTMS))
+        self.determinedMaxPowerBTMS = max(abs(P_BTMS))
+        self.determinedMaxPowerGrid = max(abs(P_Grid))
         self.sizing_cost = cost
 
         #save results to csv-file
@@ -242,8 +250,9 @@ class ChaDepMpcBase(ChaDepParent):
         param_vec = param_vec.tolist()
         param_vec[0] = self.determinedBtmsSize
         param_vec[1] = a
-        param_vec[2] = b
-        param_vec[3] = c
+        param_vec[2] = b_sys
+        param_vec[3] = b_cap
+        param_vec[4] = c
         dict = {
             'time': time,
             'time_x': time_x,
@@ -253,7 +262,7 @@ class ChaDepMpcBase(ChaDepParent):
             'P_Charge': P_Charge,
             'P_BTMS_Ch': P_BTMS_Ch,
             'P_BTMS_DCh': P_BTMS_DCh,
-            'param: btms size, a,b,c': param_vec,
+            'param: btms size, a,b_sys,b_cap,c': param_vec,
         }
         df = pd.DataFrame({ key:pd.Series(value) for key, value in dict.items() })
         dir         = self.ResultWriter.directory

@@ -42,7 +42,7 @@ def main():
 
     #%% create charging stations
     path_infrastructure = os.path.join(result_parent_directory, 'step2_k_means_clustering', 'infrastructure_removed_zeros.csv')
-    chargingStations = createChargingStations.createChargingStations(path_infrastructure, chargingStationClass, ResultWriter, SimBroker)
+    chargingStations = createChargingStations.createChargingStations(path_infrastructure, chargingStationClass, ResultWriter, SimBroker, btms_effiency=btms_efficiency)
 
 
     #%% initialize simulation
@@ -61,8 +61,11 @@ def main():
             taz_name = str(x.ChargingStationId)
             x.load_prediction(os.path.join(prediction_directory, taz_name + '.csv'))
     # %% perform btms sizing
-    # for x in tqdm(chargingStations):
-    #     x.determine_btms_size(SimBroker.t_act, SimBroker.t_max, timestep, a_cost_sizing, b_cost_sizing, c_cost_sizing, 0)
+    if True: # for testing
+        for x in tqdm(chargingStations):
+                do_sizing(x)
+
+    
     pool = mp.Pool(4)
     result_list_tqdm = []
     for result in tqdm(pool.imap(func=do_sizing, iterable=chargingStations), total=len(chargingStations)):
@@ -74,7 +77,7 @@ def main():
 #%% do this with multiprocessing
 
 def do_sizing(x):
-    x.determine_btms_size(x.SimBroker.t_act, x.SimBroker.t_max, timestep, a_cost_sizing, b_cost_sizing, c_cost_sizing, 0)
+    x.determine_btms_size(x.SimBroker.t_act, x.SimBroker.t_max, timestep, a_cost_sizing, b_sys_cost_sizing_mid, b_cap_cost_sizing_mid, c_cost_sizing)
     return x
 
 if __name__ == '__main__':

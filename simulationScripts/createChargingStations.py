@@ -7,7 +7,7 @@ def createMaps(path_infrastructure, mode = 'numberPlugs'):
     pass
 
 # create the actual charging station objects
-def createChargingStations(path_infrastructure, chargingStationClass, ResultWriter, SimBroker):
+def createChargingStations(path_infrastructure, chargingStationClass, ResultWriter, SimBroker, btms_effiency = 0.85):
 
     logging.info("creating charging stations of type " + str(chargingStationClass))
     usecols_infrastructure = ["taz", "parkingType",
@@ -32,7 +32,7 @@ def createChargingStations(path_infrastructure, chargingStationClass, ResultWrit
         ChBaNum = len(ChBaMaxPower)
 
         # create charging station
-        container = chargingStationClass(ChargingStationId=ChargingStationId, ResultWriter=ResultWriter, SimBroker=SimBroker,ChBaMaxPower=ChBaMaxPower, ChBaParkingZoneId=ChBaParkingZoneId, ChBaNum=ChBaNum, calcBtmsGridProp=True)
+        container = chargingStationClass(ChargingStationId=ChargingStationId, ResultWriter=ResultWriter, SimBroker=SimBroker,ChBaMaxPower=ChBaMaxPower, ChBaParkingZoneId=ChBaParkingZoneId, ChBaNum=ChBaNum, calcBtmsGridProp=True, BtmsEfficiency = btms_effiency)
 
         chargingStations.append(container)
         logging.info(str(ChargingStationId) + " was created with " + str(container.ChBaNum) +

@@ -19,9 +19,10 @@ import logging
 import multiprocessing as mp
 import uuid
 
-def main(result_directory, a, b, c):
+def main(result_directory, a, b_sys, b_cap, c):
     #%% import packages
     streamHandler = components.loggerConfig()
+    old_directory = os.getcwd()
     os.chdir('simulationScripts\\advancedScenario')
 
     os.makedirs(result_directory, exist_ok=True)
@@ -40,7 +41,7 @@ def main(result_directory, a, b, c):
 
     #%% create charging stations
     path_infrastructure = os.path.join(result_parent_directory, 'step2_k_means_clustering', 'infrastructure_removed_zeros.csv')
-    chargingStations = createChargingStations.createChargingStations(path_infrastructure, chargingStationClass, ResultWriter, SimBroker)
+    chargingStations = createChargingStations.createChargingStations(path_infrastructure, chargingStationClass, ResultWriter, SimBroker, btms_effiency=btms_efficiency)
 
 
     #%% initialize simulation
@@ -64,10 +65,10 @@ def main(result_directory, a, b, c):
     
     # define function to be used in multiprocessing with a, b, c as parameters inherited from main function call
     
-    pool = mp.Pool(3)
+    pool = mp.Pool(processes=mp.cpu_count())
     result_list_tqdm = []
     # make iterable
-    iterables = [[x, a, b, c] for x in chargingStations]
+    iterables = [[x, a, b_sys, b_cap, c] for x in chargingStations]
     for result in tqdm(pool.imap(func=do_sizing, iterable=iterables), total=len(chargingStations)):
         result_list_tqdm.append(result)
     chargingStations = result_list_tqdm
@@ -79,10 +80,10 @@ def main(result_directory, a, b, c):
     df = pd.DataFrame({'a': [a], 'b': [b], 'c': [c], 'factor': [factor]})
     df.to_csv(result_directory + os.sep + 'a_b_c_factor.csv', index=False)
 
-    os.chdir('C://Users//akaju//Documents//GitHub//xfc_btms_saev_controller')
+    os.chdir(old_directory)
 
 def do_sizing(iterable):
-    iterable[0].determine_btms_size(iterable[0].SimBroker.t_act, iterable[0].SimBroker.t_max, timestep, iterable[1], iterable[2], iterable[3], 0)
+    iterable[0].determine_btms_size(iterable[0].SimBroker.t_act, iterable[0].SimBroker.t_max, timestep, iterable[1], iterable[2], iterable[3], iterable[4])
     return iterable[0]
 
 def calc_factor(a, b, c):
@@ -92,13 +93,9 @@ def calc_factor(a, b, c):
 
 if __name__ == '__main__':
     
-    #a_cost_sizing = np.arange(0, 21, 1) / (365/12)
-    a_cost_sizing = np.array([2, 3, 4, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]) / (365/12)
-    b_cost_sizing = [b_cost_sizing]
-    c_cost_sizing = [c_cost_sizing]
+    a_cost_sizing = np.arange(0, 21, 1) / (365/12)
+    #a_cost_sizing = np.array([2, 3, 4, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]) / (365/12)
     path = result_parent_directory + os.sep + 'step4_btms_sizing_sensitivity' + os.sep + 'sizing_results' 
     for x in a_cost_sizing:
-        for y in b_cost_sizing:
-            for z in c_cost_sizing:
-                result_directory = os.path.join(path, str(uuid.uuid4()))
-                main(result_directory, x, y, z)
+        result_directory = os.path.join(path, str(uuid.uuid4()))
+        main(result_directory, x, b_sys_cost_sizing_mid, b_cap_cost_sizing_mid, c_cost_sizing)
