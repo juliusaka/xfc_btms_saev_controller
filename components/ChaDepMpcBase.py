@@ -169,7 +169,7 @@ class ChaDepMpcBase(ChaDepParent):
         # return fig
         return ax
         
-    def determine_btms_size(self, t_act, t_max, timestep, a, b_sys, b_cap, c):
+    def determine_btms_size(self, t_act, t_max, timestep, a, b_sys, b_cap, b_loan, c):
         '''see mpcBase.md for explanations'''
         # vector lengthes
         T = int(np.ceil((t_max - t_act) / timestep))
@@ -183,6 +183,7 @@ class ChaDepMpcBase(ChaDepParent):
         P_BTMS_Discharge = cp.Variable((1, T)) # is defined positive and negative values are taken into account in the constraints
         P_Grid_max = cp.Variable((1, 1))
         P_Btms_max = cp.Variable((1, 1))
+        E_Btms_max = cp.Variable((1, 1))
         
         # define disturbance P_Charge, which is the charging power demand
         time = np.array(self.PredictionTime)
@@ -214,11 +215,13 @@ class ChaDepMpcBase(ChaDepParent):
                     P_Btms_max[0,0] >= cp.max(P_BTMS_Charge[0,:]), # get max btms power
                     P_Btms_max[0,0] >= cp.max(P_BTMS_Discharge[0,:]), # get max btms power
                     P_Grid_max[0,0] >= cp.max(P_Grid[0,:]), # get max grid power
+                    E_Btms_max[0,0] >= cp.max(E_BTMS[0,:]), # get max btms energy
                     ]
         
         # define cost-funciton
         cost = a * P_Grid_max[0,0]  # demand charge
         cost += b_sys * cpmax(cp.abs(P_BTMS[:,k])) # power cost of btms
+        cost += b_loan * E_Btms_max[0,0] # cost of btms loan
         for k in range(T):       # cost of btms degradation and cost of energy loss
             cost += (b_cap + (1-eta) * c) * P_BTMS_Charge[:,k] * ts # cost of btms capacity and cost of charging losses
         # solve the problem
@@ -252,7 +255,8 @@ class ChaDepMpcBase(ChaDepParent):
         param_vec[1] = a
         param_vec[2] = b_sys
         param_vec[3] = b_cap
-        param_vec[4] = c
+        param_vec[4] = b_loan
+        param_vec[5] = c
         dict = {
             'time': time,
             'time_x': time_x,
@@ -262,7 +266,7 @@ class ChaDepMpcBase(ChaDepParent):
             'P_Charge': P_Charge,
             'P_BTMS_Ch': P_BTMS_Ch,
             'P_BTMS_DCh': P_BTMS_DCh,
-            'param: btms size, a,b_sys,b_cap,c': param_vec,
+            'param: btms size, a,b_sys,b_cap,b_loan,c': param_vec,
         }
         df = pd.DataFrame({ key:pd.Series(value) for key, value in dict.items() })
         dir         = self.ResultWriter.directory

@@ -16,12 +16,19 @@ simulation_end_time = 24*60*60 # in seconds
 prediction_add_noise = True
 noise_param = 0.2
 
+def calculate_interest_cost(investion, payback_time, interest_rate):
+    # payback time in months, interest rate per month
+    monthly_payment = investion * interest_rate * (1 + interest_rate) ** payback_time / ((1 + interest_rate) ** payback_time - 1)
+    interest_paid = monthly_payment * payback_time - investion
+    return interest_paid
+
 '''Sizing of Charging Stations'''
 # demand charge in $/kWh amortized per day
 a_cost_sizing = 20 / (365/12)
 # btms cost per cycle in $/kWh
 b_cap_cost_sizing_mid = 125/5400 # amortized per cycle
-b_sys_cost_sizing_mid = 186/(15*365) # amortized to one day, lifetime 15 years
+b_sys_cost_sizing_mid = (186  + calculate_interest_cost(186, 10*12, 0.05/12)) /(15*365) # amortized to one day, lifetime 15 years
+b_loan_cost_sizing_mid = calculate_interest_cost(investion=b_cap_cost_sizing_mid*5400, payback_time=10*12, interest_rate=0.05/12)/(10*365) # capital cost per kWh amortized to one day
 c_cost_sizing = 0.12 # electricity price in $/kWh
 btms_efficiency = 0.85  # efficiency of btms
 

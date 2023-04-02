@@ -21,9 +21,9 @@ import logging
 import multiprocessing as mp
 import uuid
 
-def main(result_directory, a, b_sys, b_cap, c):
+def main(result_directory, a, b_sys, b_cap, b_loan, c):
     #%% import packages
-    streamHandler = components.loggerConfig()
+    #streamHandler = components.loggerConfig()
     old_directory = os.getcwd()
     os.chdir('simulationScripts'+os.sep+ 'advancedScenario')
 
@@ -70,26 +70,17 @@ def main(result_directory, a, b_sys, b_cap, c):
     pool = mp.Pool(processes=mp.cpu_count())
     result_list_tqdm = []
     # make iterable
-    iterables = [[x, a, b_sys, b_cap, c] for x in chargingStations]
-    for result in tqdm(pool.imap(func=do_sizing, iterable=iterables), total=len(chargingStations)):
+    iterables = [[x, a, b_sys, b_cap, b_loan, c] for x in chargingStations]
+    for result in tqdm(pool.imap(func=do_sizing, iterable=iterables), total=len(chargingStations), leave = False):
         result_list_tqdm.append(result)
     chargingStations = result_list_tqdm
     pool.close()
 
-    # # calculate factor
-    # factor = calc_factor(a,b,c)
-    # # save factor and a, b, c in csv file
-    # df = pd.DataFrame({'a': [a], 'b': [b], 'c': [c], 'factor': [factor]})
-    # df.to_csv(result_directory + os.sep + 'a_b_c_factor.csv', index=False)
-
     os.chdir(old_directory)
 
 def do_sizing(iterable):
-    iterable[0].determine_btms_size(iterable[0].SimBroker.t_act, iterable[0].SimBroker.t_max, timestep, iterable[1], iterable[2], iterable[3], iterable[4])
+    iterable[0].determine_btms_size(iterable[0].SimBroker.t_act, iterable[0].SimBroker.t_max, timestep, iterable[1], iterable[2], iterable[3], iterable[4], iterable[5])
     return iterable[0]
-
-def calc_factor(a, b, c):
-    return (b + (1-btms_efficiency)*c) / (a)
 
 #%% main
 
@@ -98,6 +89,6 @@ if __name__ == '__main__':
     a_cost_sizing = np.arange(1, 21, 1) / (365/12)
     #a_cost_sizing = np.array([2, 3, 4, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]) / (365/12)
     path = result_parent_directory + os.sep + 'step4_btms_sizing_sensitivity' + os.sep + 'sizing_results' 
-    for x in a_cost_sizing:
+    for x in tqdm(a_cost_sizing):
         result_directory = os.path.join(path, str(uuid.uuid4()))
-        main(result_directory, x, b_sys_cost_sizing_mid, b_cap_cost_sizing_mid, c_cost_sizing)
+        main(result_directory, x, b_sys_cost_sizing_mid, b_cap_cost_sizing_mid, b_loan_cost_sizing_mid, c_cost_sizing)
