@@ -198,7 +198,7 @@ class ChaDepMpcBase(ChaDepParent):
         #parameters
         ts = timestep / 3.6e3
         eta = self.BtmsEfficiency
-
+        c_rate = 2.0
         # define constraints
         constr = []
         for k in range(T):
@@ -216,6 +216,7 @@ class ChaDepMpcBase(ChaDepParent):
                     P_Btms_max[0,0] >= cp.max(P_BTMS_Discharge[0,:]), # get max btms power
                     P_Grid_max[0,0] >= cp.max(P_Grid[0,:]), # get max grid power
                     E_Btms_max[0,0] >= cp.max(E_BTMS[0,:]), # get max btms energy
+                    #P_Btms_max[0,0] <= c_rate * E_Btms_max[0,0], # c_rate enforcement
                     ]
         
         # define cost-funciton
