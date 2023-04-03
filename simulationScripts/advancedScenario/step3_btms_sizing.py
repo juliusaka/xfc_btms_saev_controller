@@ -61,7 +61,7 @@ def main():
             taz_name = str(x.ChargingStationId)
             x.load_prediction(os.path.join(prediction_directory, taz_name + '.csv'))
     # %% perform btms sizing
-    if True: # for testing
+    if False: # for testing
         for x in tqdm(chargingStations):
                 if x.ChargingStationId == '1403':
                     x.determine_btms_size(x.SimBroker.t_act, x.SimBroker.t_max, timestep, 3/(365/12), b_sys_cost_sizing_mid, b_cap_cost_sizing_mid, b_loan_cost_sizing_mid, c_cost_sizing)
@@ -69,7 +69,7 @@ def main():
                 # do_sizing(x)
 
     
-    pool = mp.Pool(processes=mp.cpu_count())
+    pool = mp.Pool(processes=6)
     result_list_tqdm = []
     for result in tqdm(pool.imap(func=do_sizing, iterable=chargingStations), total=len(chargingStations)):
         result_list_tqdm.append(result)

@@ -170,6 +170,9 @@ class ChaDepMpcBase(ChaDepParent):
         return ax
         
     def determine_btms_size(self, t_act, t_max, timestep, a, b_sys, b_cap, b_loan, c):
+        include_max_c_rate = False
+        max_c_rate = 2
+
         '''see mpcBase.md for explanations'''
         # vector lengthes
         T = int(np.ceil((t_max - t_act) / timestep))
@@ -181,9 +184,9 @@ class ChaDepMpcBase(ChaDepParent):
         P_BTMS = cp.Variable((1, T))
         P_BTMS_Charge = cp.Variable((1, T))
         P_BTMS_Discharge = cp.Variable((1, T)) # is defined positive and negative values are taken into account in the constraints
-        P_Grid_max = cp.Variable((1, 1))
-        P_Btms_max = cp.Variable((1, 1))
-        E_Btms_max = cp.Variable((1, 1))
+        if include_max_c_rate:
+            P_Btms_max = cp.Variable((1, 1))
+            E_Btms_max = cp.Variable((1, 1))
         
         # define disturbance P_Charge, which is the charging power demand
         time = np.array(self.PredictionTime)
@@ -198,33 +201,36 @@ class ChaDepMpcBase(ChaDepParent):
         #parameters
         ts = timestep / 3.6e3
         eta = self.BtmsEfficiency
-        c_rate = 2.0
+        
         # define constraints
         constr = []
         for k in range(T):
             constr += [
-                        E_BTMS[0,k+1] == E_BTMS[0,k] + ts * eta * P_BTMS_Charge[0,k] - ts * P_BTMS_Discharge[0,k], # btms charging equation
-                        P_Grid[0,k] - P_BTMS[0,k] == P_Charge[k] , # energy flow equation
-                        P_BTMS[0,k] == P_BTMS_Charge[0,k] - P_BTMS_Discharge[0,k], # P_BTMS is sum of charge and discharge
+                        E_BTMS[0,k+1] == E_BTMS[0,k] + ts * eta * P_BTMS_Charge[0,k] + ts * P_BTMS_Discharge[0,k], # btms charging equation
+                        P_Grid[0,k] == P_Charge[k] + P_BTMS[0,k] , # energy flow equation
+                        P_BTMS[0,k] == P_BTMS_Charge[0,k] + P_BTMS_Discharge[0,k], # P_BTMS is sum of charge and discharge
                         P_BTMS_Charge[0,k] >= 0, # charge power always positive
-                        P_BTMS_Discharge[0,k] >= 0, # discharge power always negative
+                        P_BTMS_Discharge[0,k] <= 0, # discharge power always negative
+                        P_Grid[0,k] >= 0, # grid power always positive
                         E_BTMS[0,k] >= 0, # btms energy always positive
                         ]
         # insert initial constraint, bound BTMS size
         constr +=  [E_BTMS[0,0] == E_BTMS[0,T], # ensure cyclic behaviour
-                    #P_Btms_max[0,0] >= cp.max(P_BTMS_Charge[0,:]), # get max btms power
-                    #P_Btms_max[0,0] >= cp.max(P_BTMS_Discharge[0,:]), # get max btms power
-                    P_Grid_max[0,0] >= cp.max(P_Grid[0,:]), # get max grid power
-                    E_Btms_max[0,0] >= cp.max(E_BTMS[0,:]), # get max btms energy
-                    #P_Btms_max[0,0] <= c_rate * E_Btms_max[0,0], # c_rate enforcement
+                    E_BTMS[0,T] >= 0, # btms energy always positive, also at T+1
                     ]
-        
+        if include_max_c_rate:
+            constr += [
+                E_Btms_max[0,0] >= cp.max(E_BTMS[0,:]), # get max btms energy
+                P_Btms_max[0,0] >= cp.max(P_BTMS_Charge[0,:]), # get max btms power
+                P_Btms_max[0,0] >= -1 * cp.max(P_BTMS_Discharge[0,:]), # get max btms power
+                P_Btms_max[0,0] <= max_c_rate * E_Btms_max[0,0], # c_rate enforcement
+                ]
         # define cost-funciton
-        cost = a * P_Grid_max[0,0]  # demand charge
+        cost = a * cp.max(P_Grid[0,:])  # demand charge
         cost += b_sys * cpmax(cp.abs(P_BTMS[:,k])) # power cost of btms
-        cost += b_loan * E_Btms_max[0,0] # cost of btms loan
-        for k in range(T):       # cost of btms degradation and cost of energy loss
-            cost += (b_cap + (1-eta) * c) * P_BTMS_Charge[:,k] * ts # cost of btms capacity and cost of charging losses
+        cost += b_loan * cp.max(E_BTMS[0,:]) # cost of btms loan
+        #for k in range(T):       # cost of btms degradation and cost of energy loss
+        cost += (b_cap + (1-eta) * c) * cp.sum(P_BTMS_Charge[:,:]) * ts # cost of btms capacity and cost of charging losses
         # solve the problem
         logging.info("\n----- \n btms size optimization for charging station %s \n-----" % self.ChargingStationId)
         prob = cp.Problem(cp.Minimize(cost), constr)
