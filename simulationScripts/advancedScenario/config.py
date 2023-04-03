@@ -18,6 +18,7 @@ noise_param = 0.2
 
 def calculate_interest_cost(investion, payback_time, interest_rate):
     # payback time in months, interest rate per month
+    # url https://en.wikipedia.org/wiki/Mortgage_calculator
     monthly_payment = investion * interest_rate * (1 + interest_rate) ** payback_time / ((1 + interest_rate) ** payback_time - 1)
     interest_paid = monthly_payment * payback_time - investion
     return interest_paid

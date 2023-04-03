@@ -208,12 +208,12 @@ class ChaDepMpcBase(ChaDepParent):
                         P_BTMS[0,k] == P_BTMS_Charge[0,k] - P_BTMS_Discharge[0,k], # P_BTMS is sum of charge and discharge
                         P_BTMS_Charge[0,k] >= 0, # charge power always positive
                         P_BTMS_Discharge[0,k] >= 0, # discharge power always negative
+                        E_BTMS[0,k] >= 0, # btms energy always positive
                         ]
         # insert initial constraint, bound BTMS size
-        constr +=  [E_BTMS[0,0] == 0.0, # initial condition
-                    E_BTMS[0,0] == E_BTMS[0,T], # ensure cyclic behaviour
-                    P_Btms_max[0,0] >= cp.max(P_BTMS_Charge[0,:]), # get max btms power
-                    P_Btms_max[0,0] >= cp.max(P_BTMS_Discharge[0,:]), # get max btms power
+        constr +=  [E_BTMS[0,0] == E_BTMS[0,T], # ensure cyclic behaviour
+                    #P_Btms_max[0,0] >= cp.max(P_BTMS_Charge[0,:]), # get max btms power
+                    #P_Btms_max[0,0] >= cp.max(P_BTMS_Discharge[0,:]), # get max btms power
                     P_Grid_max[0,0] >= cp.max(P_Grid[0,:]), # get max grid power
                     E_Btms_max[0,0] >= cp.max(E_BTMS[0,:]), # get max btms energy
                     #P_Btms_max[0,0] <= c_rate * E_Btms_max[0,0], # c_rate enforcement
