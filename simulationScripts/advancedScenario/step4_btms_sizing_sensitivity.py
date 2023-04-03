@@ -87,8 +87,10 @@ def do_sizing(iterable):
 if __name__ == '__main__':
     
     a_cost_sizing = np.arange(1, 21, 1) / (365/12)
+    keep_old_files = False
     #a_cost_sizing = np.array([2, 3, 4, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]) / (365/12)
     path = result_parent_directory + os.sep + 'step4_btms_sizing_sensitivity' + os.sep + 'sizing_results' 
+    print('Did you delete old files?')
     for x in tqdm(a_cost_sizing):
         result_directory = os.path.join(path, str(uuid.uuid4()))
         main(result_directory, x, b_sys_cost_sizing_mid, b_cap_cost_sizing_mid, b_loan_cost_sizing_mid, c_cost_sizing)
