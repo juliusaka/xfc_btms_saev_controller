@@ -3,7 +3,7 @@
 # pick 2,3 examples for thesis later to show working principle of BTMS
 # show with them the effect of flexible energy price (and flexible demand charge))
 import os
-os.chdir('/workspaces/xfc_btms_saev_controller/')
+#os.chdir('/workspaces/xfc_btms_saev_controller/')
 import sys
 sys.path.append(os.getcwd())
 from config import *
@@ -61,11 +61,13 @@ def main(result_directory, a, b_sys, b_cap, b_loan, c):
         for x in chargingStations:
             taz_name = str(x.ChargingStationId)
             x.load_prediction(os.path.join(prediction_directory, taz_name + '.csv'))
-    # %% perform btms sizing
+
+    #%% perform btms sizing
     # for x in tqdm(chargingStations):
-    #     x.determine_btms_size(SimBroker.t_act, SimBroker.t_max, timestep, a_cost_sizing, b_cost_sizing, c_cost_sizing, 0)
+    #     a = 20/(365/12)
+    #     x.determine_btms_size(SimBroker.t_act, SimBroker.t_max, timestep, a, b_sys, b_cap, b_loan, c, include_max_c_rate = True, max_c_rate = max_c_rate)
     
-    # define function to be used in multiprocessing with a, b, c as parameters inherited from main function call
+    #define function to be used in multiprocessing with a, b, c as parameters inherited from main function call
     
     pool = mp.Pool(processes=mp.cpu_count())
     result_list_tqdm = []
