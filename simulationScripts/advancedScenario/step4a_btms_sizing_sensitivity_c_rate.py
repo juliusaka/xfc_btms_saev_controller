@@ -3,7 +3,7 @@
 # pick 2,3 examples for thesis later to show working principle of BTMS
 # show with them the effect of flexible energy price (and flexible demand charge))
 import os
-#os.chdir('/workspaces/xfc_btms_saev_controller/')
+os.chdir('/workspaces/xfc_btms_saev_controller/')
 import sys
 sys.path.append(os.getcwd())
 from config import *
