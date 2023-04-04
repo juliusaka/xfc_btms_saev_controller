@@ -209,7 +209,7 @@ class ChaDepMpcBase(ChaDepParent):
                 P_BTMS[0,k] == P_BTMS_Charge[0,k] - P_BTMS_Discharge[0,k], # P_BTMS is sum of charge and discharge
                 P_BTMS_Charge[0,k] >= 0, # charge power always positive
                 P_BTMS_Discharge[0,k] >= 0, # discharge power always negative
-                #P_Grid[0,k] >= 0, # grid power always positive
+                P_Grid[0,k] >= 0, # grid power always positive
             ]
         for k in range(T+1):
             constr += [
