@@ -32,6 +32,7 @@ b_sys_cost_sizing_mid = (186  + calculate_interest_cost(186, 10*12, 0.05/12)) /(
 b_loan_cost_sizing_mid = calculate_interest_cost(investion=b_cap_cost_sizing_mid*5400, payback_time=10*12, interest_rate=0.05/12)/(10*365) # capital cost per kWh amortized to one day
 c_cost_sizing = 0.12 # electricity price in $/kWh
 btms_efficiency = 0.85  # efficiency of btms
+max_c_rate = 2
 
 '''Creating optimal day ahead plan'''
 

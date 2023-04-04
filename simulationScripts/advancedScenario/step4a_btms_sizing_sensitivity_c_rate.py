@@ -79,16 +79,17 @@ def main(result_directory, a, b_sys, b_cap, b_loan, c):
     os.chdir(old_directory)
 
 def do_sizing(iterable):
-    iterable[0].determine_btms_size(iterable[0].SimBroker.t_act, iterable[0].SimBroker.t_max, timestep, iterable[1], iterable[2], iterable[3], iterable[4], iterable[5])
+    iterable[0].determine_btms_size(iterable[0].SimBroker.t_act, iterable[0].SimBroker.t_max, timestep, iterable[1], iterable[2], iterable[3], iterable[4], iterable[5], include_max_c_rate = True, max_c_rate = max_c_rate)
     return iterable[0]
 
 #%% main
 
 if __name__ == '__main__':
     
-    a_cost_sizing = np.arange(0, 1, 1) / (365/12)
-    #a_cost_sizing = np.array([2, 3, 4, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]) / (365/12)
-    path = result_parent_directory + os.sep + 'step4_btms_sizing_sensitivity' + os.sep + 'sizing_results' 
+    #a_cost_sizing = np.concatenate([np.arange(0, 8, 1), np.arange(8,21,2)]) / (365/12)
+    a_cost_sizing = np.array([0,1,2,3,4,5,6,7,8,10,12,14,16,18,20]) / (365/12)
+    path = result_parent_directory + os.sep + 'step4a_btms_sizing_sensitivity_c_rate' + os.sep + 'sizing_results'
+    os.makedirs(path, exist_ok=True) 
     print('Did you delete old files?')
     for x in tqdm(a_cost_sizing):
         result_directory = os.path.join(path, str(uuid.uuid4()))
