@@ -69,7 +69,7 @@ def main(result_directory, a, b_sys, b_cap, b_loan, c):
     
     #define function to be used in multiprocessing with a, b, c as parameters inherited from main function call
     
-    pool = mp.Pool(processes=3)
+    pool = mp.Pool(processes=mp.cpu_count())
     result_list_tqdm = []
     # make iterable
     iterables = [[x, a, b_sys, b_cap, b_loan, c] for x in chargingStations]
