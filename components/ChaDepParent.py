@@ -7,7 +7,7 @@ import numpy as np
 
 class ChaDepParent:
     # TODO get rid of SimBroker and exchange with actual time t_act
-    def __init__(self, ChargingStationId, ResultWriter: ResultWriter, SimBroker: SimBroker, ChBaMaxPower, ChBaParkingZoneId, ChBaNum: int, BtmsSize = 100, BtmsC = 1, BtmsMaxSoc = 1.0, BtmsMinSOC = 0.0, BtmsSoc0 = 0.50, calcBtmsGridProp = False, GridPowerMax_Nom = 1 , GridPowerLower = -1, GridPowerUpper = 1, BtmsEfficiency = 0.85):
+    def __init__(self, ChargingStationId, ResultWriter: ResultWriter, SimBroker: SimBroker, ChBaMaxPower, ChBaParkingZoneId, ChBaNum: int, BtmsSize = 100, BtmsC = 1, BtmsMaxSoc = 1.0, BtmsMinSOC = 0.0, BtmsSoc0 = 0.80, calcBtmsGridProp = False, GridPowerMax_Nom = 1 , GridPowerLower = -1, GridPowerUpper = 1, BtmsEfficiency = 0.85):
 
         '''ChargingStationIdentity'''
         self.ChargingStationId  = str(ChargingStationId)

@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 class ChaDepMpcBase(ChaDepParent):
     '''see mpcBase.md for explanations'''
 
-    def __init__(self, ChargingStationId, ResultWriter: components.ResultWriter, SimBroker: components.SimBroker, ChBaMaxPower, ChBaParkingZoneId, ChBaNum, BtmsSize=100, BtmsC=1, BtmsMaxSoc=1.0, BtmsMinSOC=0.0, BtmsSoc0=0.5, calcBtmsGridProp=False, GridPowerMax_Nom=1, GridPowerLower=-1, GridPowerUpper=1, BtmsEfficiency = 0.85):
+    def __init__(self, ChargingStationId, ResultWriter: components.ResultWriter, SimBroker: components.SimBroker, ChBaMaxPower, ChBaParkingZoneId, ChBaNum, BtmsSize=100, BtmsC=1, BtmsMaxSoc=1.0, BtmsMinSOC=0.0, BtmsSoc0=0.8, calcBtmsGridProp=False, GridPowerMax_Nom=1, GridPowerLower=-1, GridPowerUpper=1, BtmsEfficiency = 0.85):
 
         super().__init__(ChargingStationId, ResultWriter, SimBroker, ChBaMaxPower, ChBaParkingZoneId, ChBaNum, BtmsSize, BtmsC, BtmsMaxSoc, BtmsMinSOC, BtmsSoc0, calcBtmsGridProp, GridPowerMax_Nom, GridPowerLower, GridPowerUpper, BtmsEfficiency)
 
@@ -31,9 +31,11 @@ class ChaDepMpcBase(ChaDepParent):
         self.power_sum_original     = []    # predicted, unconstrained power, with no noise applied
         self.PredictionGridUpper    = []    # TODO used so far?
         self.PredictionGridLower    = []    # TODO used so far?
+
         self.E_BtmsLower            = []    # btms energy from planning
         self.E_BtmsUpper            = []    # btms energy from planning
         self.E_BtmsPlanned          = []    # btms energy from planning
+
         self.E_V_Upper_lastArrivals = []    # energy trajectories of last arrivals   
         self.E_V_Lower_lastArrivals = []    # energy trajectories of last arrivals 
 
@@ -286,6 +288,15 @@ class ChaDepMpcBase(ChaDepParent):
         df.to_csv(os.path.join(dir, filename))
 
         return time, time_x, btms_size, P_Grid, P_BTMS, P_BTMS_Ch, P_BTMS_DCh, E_BTMS, P_Charge, cost
+    
+    def load_determine_btms_size_results(self, filename):
+        df = pd.read_csv(filename)
+        self.determinedBtmsSize = df['param: btms size, a,b_sys,b_cap,b_loan,c'][0]
+        self.BtmsSize = df['param: btms size, a,b_sys,b_cap,b_loan,c'][0]
+        self.determinedMaxPowerBTMS = max(abs(df['P_BTMS']))
+        self.determinedMaxPowerGrid = max(abs(df['P_Grid']))
+        self.sizing_cost = df['param: btms size, a,b_sys,b_cap,b_loan,c'][6]
+        return df
 
     def day_planning(self, t_act, t_max, timestep, a, b, c, d_param, P_free, P_ChargeAvg, beta, cRating=None, verbose=True):
         time_start = time_module.time() # timing
@@ -535,7 +546,7 @@ class ChaDepMpcBase(ChaDepParent):
         cost =  cp.square((P_GridLast - u[0, 0])/(ts*P_GridMaxPlanning))
         for k in range(1, N-1):
             cost += cp.square((u[0, k+1] - u[0, k])/(ts*P_GridMaxPlanning))
-        for k in range(N):
+        for k in range(N): 
             #cost += A * cp.square(u[0,k])
             cost += rho * cp.square((x[0,k] - self.E_BtmsPlanned[i_act + k])/btms_size) 
         
@@ -558,7 +569,7 @@ class ChaDepMpcBase(ChaDepParent):
         self.VectorT1               = t.value
         self.VectorT2               = 0 #t2.value
         self.ResultWriter.update_mpc_stats(SimBroker.t_act, self, prob, t, t)
-
+        # should return P_Grid
         return P_BTMS, P_ChargeGranted
 
     def step(self, timestep, verbose = False):
@@ -620,7 +631,7 @@ class ChaDepMpcBase(ChaDepParent):
         self.BtmsPowerDesire = self.get_btms_max_power(timestep) # TODO this should be changed for DERMS to MPC output
         logging.debug("power desires updated for charging station {}".format(self.ChargingStationId))
 
-        '''release vehicles when fully charged, but this is already at the next timestep'''
+        '''release vehicles when fully charged, this is already at the next timestep k+1'''
         self.reset_output() # here we reset the control output
         r1 = self.charging_bays_release_vehicles_and_add_to_output()
         r2 = self.queue_release_vehicles_and_add_to_output()

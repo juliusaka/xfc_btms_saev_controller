@@ -7,7 +7,7 @@ def createMaps(path_infrastructure, mode = 'numberPlugs'):
     pass
 
 # create the actual charging station objects
-def createChargingStations(path_infrastructure, chargingStationClass, ResultWriter, SimBroker, btms_effiency = 0.85):
+def createChargingStations(path_infrastructure, chargingStationClass: components.ChaDepParent, ResultWriter, SimBroker, btms_effiency = 0.85):
 
     logging.info("creating charging stations of type " + str(chargingStationClass))
     usecols_infrastructure = ["taz", "parkingType",
