@@ -35,6 +35,7 @@ class ChaDepMpcBase(ChaDepParent):
         self.E_BtmsLower            = []    # btms energy from planning
         self.E_BtmsUpper            = []    # btms energy from planning
         self.E_BtmsPlanned          = []    # btms energy from planning
+        self.E_BtmsReference        = []    # btms reference energy
 
         self.E_V_Upper_lastArrivals = []    # energy trajectories of last arrivals   
         self.E_V_Lower_lastArrivals = []    # energy trajectories of last arrivals 
@@ -50,7 +51,6 @@ class ChaDepMpcBase(ChaDepParent):
         self.P_ChargeDelivered      = 0         # power delivered to vehicles
         self.P_BTMSGranted          = 0         # power granted by MPC to BTMS
         self.P_BTMSDeliverable      = 0         # power deliverable by BTMS
-        self.N                      = 4         # number of short horizoned steps in MPC
         self.avgHorizon             = 2         # average horizon of charging demand in horizon in steps
 
 
@@ -465,124 +465,115 @@ class ChaDepMpcBase(ChaDepParent):
 
         return time, time_x, P_Grid, P_BTMS, P_BTMS_Ch, P_BTMS_DCh, E_BTMS, E_Shift, P_Charge, P_Shift, t_wait_val, cost_t_wait, cost
 
-    def run_mpc(self, timestep, N, SimBroker: components.SimBroker, rho=5000, M1 = 200, verbose = False):
-        # N is the MPC optimization horizon
+    def init_mpc_problem(self, timestep, N, rho=5000, M1 = 200, E_btms_reference=0.8):
+        self.warm_start = False
+        self.N_mpc = N
+        # cvxpy parameters         
+        self.P_GridLast_param    = cp.Parameter(1)
+        self.E_Btms0_param       = cp.Parameter(1)
+        self.E_Vehicles_lower_param = cp.Parameter(N+1)
+        self.E_Vehicles_upper_param = cp.Parameter(N+1)
 
-        # obtain inputs
-        P_GridLast          = cp.Parameter(value=self.P_GridLast)
-        i_act               = SimBroker.iteration         # actual iteration to read out from planning results
-        P_GridMaxPlanning   = cp.Parameter(value=self.P_GridMaxPlanning )
-        P_GridUpper         = cp.Parameter(value=self.GridPowerUpper)   
-        btms_size           = self.BtmsSize
-        # this is a bit harder to implement for parameters
-        E_BtmsLower         = self.E_BtmsLower
-        E_BtmsUpper         = self.E_BtmsUpper
-        E_Btms              = self.BtmsEn
+        # constants
+        P_Grid_max_constant   = cp.Constant(self.determinedMaxPowerGrid)
+        P_Btms_max_constant   = cp.Constant(self.determinedMaxPowerBTMS)
+        btms_size_constant           = cp.Constant(self.BtmsSize)
+        E_Btms_reference_constant    = cp.Constant(E_btms_reference)
+        ts_constant = cp.Constant(timestep / 3.6e3)
 
-        # charging trajectories from cars
-        E_V_lower = np.zeros(N+1)
-        E_V_upper = np.zeros(N+1)
-        for i in range(len(self.ChBaVehicles)):
-            if self.ChBaVehicles[i] != False:
-                lower, upper = self.ChBaVehicles[i].get_charging_trajectories(SimBroker.t_act, timestep, N, maxPowerPlug = self.ChBaMaxPower[i])
-                E_V_upper = np.add(E_V_upper, upper)
-                E_V_lower = np.add(E_V_lower, lower)
-        # calculate average of the last arrivals - simple forecast method
-        # upper = np.zeros(N+1)
-        # lower = np.zeros(N+1)
-        # divider = 0
-        # for i in range(max([0, self.SimBroker.iteration - self.avgHorizon]), self.SimBroker.iteration):
-        #     upper = np.add(upper, self.E_V_Upper_lastArrivals[i])
-        #     lower = np.add(lower, self.E_V_Lower_lastArrivals[i])
-        #     divider += 1
-        # upper = np.divide(upper, max([1, divider])) # to prevent dividing by zero
-        # lower = np.divide(lower, max([1, divider]))
-        # for i in range(1, N+1):
-        #     E_V_upper[i] = E_V_upper[i] + sum(upper[0:i])
-        #     E_V_lower[i] = E_V_lower[i] + sum(lower[0:i])
-        #parameters
-        ts = timestep / 3.6e3
-        eta = self.BtmsEfficiency
+        # variables 
+        self.E_BTMS_opti = cp.Variable((1, N+1))
+        self.E_Vehicles_opti = cp.Variable((1, N+1))
 
-        # set up control problem
-
-        # define variables 
-        x = cp.Variable((2, N+1))
-        u = cp.Variable((3, N))
-        t = cp.Variable((1,N)) # this goes from [0, N]: for control output variable
+        self.P_Grid_opti = cp.Variable((1, N))
+        self.P_BTMS_opti = cp.Variable((1, N))
+        self.P_Charge_opti = cp.Variable((1, N))
+        self.t_opti = cp.Variable((1,N)) # this goes from [0, N]: for control output variable
 
         constr = []
-
+        
+        # system dynamics and control variable constraints
         for k in range(N):
-            # system dynamics and control variable constraints
-            constr += [
-                        x[0, k+1] == x[0, k] + ts * u[1,k], #+ ts * (eta * u[2,k] + 1/eta * u[3, k]),   # system dynamic btms 
-                        x[1, k+1] == x[1, k] + ts * u[2, k],    # system dynamic charged energy to vehicles
-                        u[2, k] == u[0, k] - u[1, k],   # energy flow at station
-                        u[0, k] <= P_GridMaxPlanning,  # grid power smaller than value from planning
-                        u[0, k] <= P_GridUpper, # upper bound from derms
-                        u[2, k] >= 0,
-                        t[0, k] >= 0,
+            constr += [self.E_BTMS_opti[0, k+1] == self.E_BTMS_opti[0, k] + ts_constant * self.P_BTMS_opti[0,k],   # system dynamic btms 
+                self.E_Vehicles_opti[0, k+1] == self.E_Vehicles_opti[0, k] + ts_constant * self.P_Charge_opti[0, k],    # system dynamic charged energy to vehicles
+                self.P_Grid_opti[0,k] == self.P_Charge_opti[0,k]  + self.P_BTMS_opti[0,k], # grid power is sum of btms and vehicle power
+                self.P_Grid_opti[0,k] <= P_Grid_max_constant,
+                self.P_Grid_opti[0,k] >= 0,
+                self.P_BTMS_opti[0,k] <= P_Btms_max_constant,
+                self.P_BTMS_opti[0,k] >= -1 * P_Btms_max_constant,
+                self.P_Charge_opti[0,k] >= 0,
+                self.t_opti[0, k] >= 0,
             ]
+        # state constraints
         for k in range(N+1):
-            # state constraints
             constr += [
-                        x[0, k] >= 0,
-                        x[0, k] <= btms_size,
+                        self.E_BTMS_opti[0, k] >= 0,
+                        self.E_BTMS_opti[0, k] <= btms_size_constant,
             ]
         # define these constraints from 1 on to reduce the number of redundant constraints
         for k in range(1, N+1):
             constr += [
-                        x[1, k] >= E_V_lower[k]  - t[0, k-1], # we defined t1 as a vector of length N+1-1, so we need to subtract 1 to get the correct index
-                        x[1, k] <= E_V_upper[k] ,#- t[0, k-1],            
+                        self.E_Vehicles_opti[0, k] >= self.E_Vehicles_lower_param[k] - self.t_opti[0, k-1], # we defined t1 as a vector of length N+1-1, so we need to subtract 1 to get the correct index
+                        self.E_Vehicles_opti[0, k] <= self.E_Vehicles_upper_param[k] ,#- t[0, k-1],            
             ]
         # initial constraints
         constr += [
-            x[0, 0] == E_Btms,
-            x[1, 0] == 0,
+            self.E_BTMS_opti[0, 0] == self.E_Btms0_param,
+            self.E_Vehicles_opti[0, 0] == 0,
         ]
 
         # objective function
-        cost =  cp.square((P_GridLast - u[0, 0])/(ts*P_GridMaxPlanning))
+        # last grid power gradient cost
+        self.cost_mpc =  cp.square((self.P_Grid_opti[0,0]- self.P_GridLast_param)/(ts_constant*P_Grid_max_constant))
+        # grid power gradient cost
         for k in range(1, N-1):
-            cost += cp.square((u[0, k+1] - u[0, k])/(ts*P_GridMaxPlanning))
+            self.cost_mpc += cp.square((self.P_Grid_opti[0, k+1] - self.P_Grid_opti[0, k])/(ts_constant*P_Grid_max_constant))
+        # reference btms energy tracking cost
         for k in range(N): 
-            #cost += A * cp.square(u[0,k])
-            cost += rho * cp.square((x[0,k] - self.E_BtmsPlanned[i_act + k])/btms_size) 
-        
-        cost += M1 * cp.sum(cp.square(t[0, :] ))
+            self.cost_mpc += rho * cp.square((self.E_BTMS_opti[0,k] - E_Btms_reference_constant)/btms_size_constant) 
+        # penalty variable cost
+        self.cost_mpc += M1 * cp.sum(cp.square(self.t_opti[0, :] ))
 
-        # solve control problem and print outputs
-        prob = cp.Problem(cp.Minimize(cost), constr)
-        components.solver_algorithm(prob)
-        logging.info("vector t1: %s |--|" % (t.value))
+        # set up problem
+        self.mpc_problem = cp.Problem(cp.Minimize(self.cost_mpc), constr)
+
+    def run_mpc(self, timestep, SimBroker: components.SimBroker, verbose = False):
         
-        #TODO add routine to deal with infeasibilty 
-            
-        # return control action
-        '''our control outputs are P_BTMS  and P_ChargeGranted, P_Grid is the sum of both'''
-        P_BTMS = u[1, 0].value
-        P_ChargeGranted = u[2, 0].value
+        # initialize problem parameters
+        self.P_GridLast_param.value=np.array([self.P_GridLast])
+        self.E_Btms0_param.value = np.array([self.BtmsEn])
+        # charging trajectories from cars
+        E_V_lower = np.zeros(self.N_mpc+1)
+        E_V_upper = np.zeros(self.N_mpc+1)
+        for i in range(len(self.ChBaVehicles)):
+            if self.ChBaVehicles[i] != False:
+                lower, upper = self.ChBaVehicles[i].get_charging_trajectories(SimBroker.t_act, timestep, self.N_mpc, maxPowerPlug = self.ChBaMaxPower[i])
+                E_V_upper = np.add(E_V_upper, upper)
+                E_V_lower = np.add(E_V_lower, lower)
+        self.E_Vehicles_lower_param.value = E_V_lower
+        self.E_Vehicles_upper_param.value = E_V_upper
+
+        # solve problem
+        try:
+            self.mpc_problem.solve(solver=cp.ECOS, verbose=verbose, warm_start=self.warm_start)
+            self.warm_start = True
+        except:
+            logging.warning("MPC Solver failed at iteration %s. Using fallback solver." % SimBroker.iteration)
+            components.solver_algorithm(self.mpc_problem)
 
         # note optimal value and slack variables
-        self.OptimalValues          = prob.value
-        self.VectorT1               = t.value
-        self.VectorT2               = 0 #t2.value
-        self.ResultWriter.update_mpc_stats(SimBroker.t_act, self, prob, t, t)
-        # should return P_Grid
+        self.OptimalValues          = self.mpc_problem.value
+        self.VectorT1               = self.t_opti.value
+        self.VectorT2               = 0
+        self.ResultWriter.update_mpc_stats(SimBroker.t_act, self, self.mpc_problem, self.t_opti, self.t_opti)
+        
+        # return control action
+        P_BTMS = self.P_BTMS_opti[0,0].value
+        P_ChargeGranted = self.P_Charge_opti[0,0].value
+        P_Grid = self.P_Grid_opti[0,0].value
         return P_BTMS, P_ChargeGranted
 
     def step(self, timestep, verbose = False):
-        '''get charging trajectories of new arrived vehicles'''
-        E_V_lower = np.zeros(self.N+1)
-        E_V_upper = np.zeros(self.N+1)
-        for i in range(len(self.Queue)):
-            if self.Queue[i] != False:
-                lower, upper = self.Queue[i].get_charging_trajectories(self.SimBroker.t_act, timestep, self.N, maxPowerPlug = self.ChBaMaxPower_abs)
-                E_V_upper = np.add(E_V_upper, upper)
-                E_V_lower = np.add(E_V_lower, lower)
-        self.E_V_Lower_lastArrivals.append(E_V_lower)
-        self.E_V_Upper_lastArrivals.append(E_V_upper)
         
         '''repark vehicles based on their charging desire with the parent method'''
         self.repark()
@@ -591,7 +582,7 @@ class ChaDepMpcBase(ChaDepParent):
         ''' get control action'''
         # run MPC to obtain max power for charging vehicles and charging power for BTMS
         self.P_GridLast = self.P_Grid
-        self.P_BTMSGranted, P_Charge_Granted = self.run_mpc(timestep, self.N, self.SimBroker, verbose = verbose)
+        self.P_BTMSGranted, P_Charge_Granted = self.run_mpc(timestep, self.SimBroker, verbose = verbose)
 
         # distribute MPC powers to vehicles (by charging desire)
         self.P_ChargeDelivered = self.distribute_charging_power_to_vehicles(timestep, P_Charge_Granted)

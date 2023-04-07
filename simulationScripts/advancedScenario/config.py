@@ -58,7 +58,7 @@ def pltSettings():
 #'''Simulation Broker'''
 test_data_path = 'test_data'
 path_Sim_original_data = test_data_path + os.sep + "rhev-siting.6.events.7Advanced.csv"
-path_Sim = test_data_path + os.sep + "rhev-siting.6.events.7Advanced_filtered.csv"
+path_Sim = test_data_path + os.sep + "rhev-siting.6.events.7Advanced_filtered_time_adjusted.csv"
 dtype_Sim = {
        'time': 'int64', 'type': 'category', 'vehicle': 'string', 'parkingTaz': 'category','chargingPointType': 'category', 
        'primaryFuelLevel': 'float64', 'mode': 'category', 'currentTourMode': 'category', 'vehicleType': 'category', 

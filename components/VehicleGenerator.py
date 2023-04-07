@@ -29,7 +29,7 @@ class VehicleGenerator:
         
         VehicleId           = df_slice["vehicle"]
         VehicleType         = df_slice["vehicleType"] # use map to find out the vehicleType
-        VehicleArrival      = df_slice.name - df_slice["duration"]
+        VehicleArrival      = df_slice.name
         VehicleEngy         = 0 # we don't know the energy level at arrival, see above.
         VehicleMaxEngy      = self.DataBase.loc[VehicleType, "primaryFuelCapacityInJoule"] / 3.6e6 # conversion to kWh
         # generate here the maximum power of the vehicle:
@@ -40,7 +40,7 @@ class VehicleGenerator:
         # this is after ChargingPlugInEvent.
         # therfore: time must be greater equals than VehicleArrival Time, type must be RefuelSessionEvent, VehicleId must be the same. Furthermore, this must be the first entry. 
         try:
-            VehicleDesEnd       = df_slice.name # this is the time at which refuel session event is finished
+            VehicleDesEnd       = df_slice.name + df_slice["duration"]# this is the time at which refuel session event is finished
             VehicleDesEngy      = df_slice["fuel"] / 3.6e6 + VehicleEngy # this is the desired state of energy at the end of the charging event
             BeamDesignatedParkingZoneId = df_slice["parkingZoneId"]
         except: # if we are at the end of the file, we don't want errors from events which aren't finished.

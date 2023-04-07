@@ -21,52 +21,53 @@ from tqdm import tqdm
 import logging
 import multiprocessing as mp
 
-def main(SOC_start):
-    # required filepaths
-    streamHandler = components.loggerConfig()
-    os.chdir('simulationScripts\\advancedScenario')
+# required filepaths
+streamHandler = components.loggerConfig()
+#os.chdir('simulationScripts\\advancedScenario')
+path_at_front = os.getcwd() + os.sep + 'simulationScripts'+ os.sep +'advancedScenario'
+result_parent_directory = path_at_front + os.sep + result_parent_directory
+path_Sim = path_at_front + os.sep + path_Sim
+prediction_directory = path_at_front + os.sep + prediction_directory
+path_DataBase = path_at_front + os.sep + path_DataBase
 
-    path = result_parent_directory + os.sep + 'step6_MPC_simulation_own_charging_events'
-    
-    result_directory = path + os.sep + 'simulation_results'
-    os.makedirs(result_directory, exist_ok=True)
-    figure_directory = path + os.sep + 'figures'
-    os.makedirs(figure_directory, exist_ok=True)
+path = result_parent_directory + os.sep + 'step6_MPC_simulation_own_charging_events'
 
-    sizing_results_stats_and_selected_stations_path = os.path.join(result_parent_directory, 'step4_btms_sizing_sensitivity', 'analysis', 'step4_used_charging_depots_for_control_with_stats_a_5.0.csv')
-    a_value_selected = 5.0
-    sizing_results_parent_directory = os.path.join(result_parent_directory, 'step4_btms_sizing_sensitivity', 'sizing_results')
-    # find out in which folder the results for the selected a value are stored
-    for folder in os.listdir(sizing_results_parent_directory):
-        _path = os.path.join(sizing_results_parent_directory, folder)
-        _path = os.listdir(_path)[0]
-        _path = os.path.join(sizing_results_parent_directory, folder, _path)
-        df = pd.read_csv(_path, index_col=0)
-        if df['param: btms size, a,b_sys,b_cap,b_loan,c'].iloc[1] *365/12 == a_value_selected:
-            sizing_results_directory = os.path.join(sizing_results_parent_directory, folder)
-            break
-    
+result_directory = path + os.sep + 'simulation_results'
+os.makedirs(result_directory, exist_ok=True)
+figure_directory = path + os.sep + 'figures'
+os.makedirs(figure_directory, exist_ok=True)
+
+sizing_results_stats_and_selected_stations_path = os.path.join(result_parent_directory, 'step4_btms_sizing_sensitivity', 'analysis', 'step4_used_charging_depots_for_control_with_stats_a_5.0.csv')
+a_value_selected = 5.0
+sizing_results_parent_directory = os.path.join(result_parent_directory, 'step4_btms_sizing_sensitivity', 'sizing_results')
+
+# find out in which folder the results for the selected a value are stored
+for folder in os.listdir(sizing_results_parent_directory):
+    _path = os.path.join(sizing_results_parent_directory, folder)
+    _path = os.listdir(_path)[0]
+    _path = os.path.join(sizing_results_parent_directory, folder, _path)
+    df = pd.read_csv(_path, index_col=0)
+    if df['param: btms size, a,b_sys,b_cap,b_loan,c'].iloc[1] *365/12 == a_value_selected:
+        sizing_results_directory = os.path.join(sizing_results_parent_directory, folder)
+        break
+
+path_infrastructure = os.path.join(result_parent_directory, 'step2_k_means_clustering', 'infrastructure_removed_zeros.csv')
+
+
+
+def main(chargingStationId, SOC_start, SOC_reference, N_mpc, rho_mpc, M1_mpc, use_events_of_charging_station):
+    '''
+    if chargingStationId is None, then all charging stations are simulated
+    else only the charging station with the given id is simulated (for multiprocessing)
+    '''
     #intialize helper objects to create charging stations, but this are dummy objects and we will overwrite them later, because of multiprocessing
     # simulation broker
-    _SimBroker = components.SimBroker(path_Sim, dtype_Sim)
+    SimBroker = components.SimBroker(path_Sim, dtype_Sim)
     # result writer
-    _ResultWriter = components.ResultWriter(result_directory)
+    ResultWriter = components.ResultWriter(result_directory)
 
     # create charging stations with create charging stations script
-    path_infrastructure = os.path.join(result_parent_directory, 'step2_k_means_clustering', 'infrastructure_removed_zeros.csv')
-    chargingStations = createChargingStations.createChargingStations(path_infrastructure, chargingStationClass, _ResultWriter, _SimBroker, btms_effiency=btms_efficiency)
-
-    # delete charging stations which we want to exclude
-    sizing_results_stats_and_selected_stations = pd.read_csv(sizing_results_stats_and_selected_stations_path, index_col=0)
-    sizing_results_stats_and_selected_stations.index.name = 'taz'
-    sizing_results_stats_and_selected_stations.index.astype(str)
-    chargingStations_to_include = sizing_results_stats_and_selected_stations.index.values.astype(str)
-    idx_station_to_include = []
-    for i in range(len(chargingStations)):
-        if chargingStations[i].ChargingStationId in chargingStations_to_include:
-            idx_station_to_include.append(i)
-            logging.info('Charging station ' + str(chargingStations[i].ChargingStationId) + ' included in simulation')
-    chargingStations = [chargingStations[i] for i in idx_station_to_include]
+    chargingStations = createChargingStations.createChargingStations(path_infrastructure, chargingStationClass, ResultWriter, SimBroker, btms_effiency=btms_efficiency, create_only_this_id=chargingStationId)
 
     # load predictions 
     # load sizing results
@@ -78,11 +79,11 @@ def main(SOC_start):
             x.load_determine_btms_size_results(os.path.join(sizing_results_directory, 'btms_sizing_' + taz_name + '.csv'))
             logging.info('Sizing results for charging station ' + taz_name + ' loaded')
 
-    def simulation_for_one_charging_station(chargingStation: chargingStationClass, result_directory: str, use_events_of_charging_station: str):
+    def simulation_for_one_charging_station(chargingStation: chargingStationClass):
         logging.info('Simulation for charging station ' + str(chargingStation.ChargingStationId) + ' started')
         # make own result directory
-        result_directory = os.path.join(result_directory, str(chargingStation.ChargingStationId))
-        os.makedirs(result_directory, exist_ok=True)
+        result_directory_one_simulation = os.path.join(result_directory, str(chargingStation.ChargingStationId))
+        os.makedirs(result_directory_one_simulation, exist_ok=True)
 
         #intialize helper objects
         '''Initialize helper classes'''
@@ -94,7 +95,7 @@ def main(SOC_start):
         VehicleGenerator = components.VehicleGenerator(path_Sim, dtype_Sim, path_DataBase)
         logging.info("Charging station " + str(chargingStation.ChargingStationId) + ": VehicleGenerator initialized")
         # result writer
-        ResultWriter = components.ResultWriter(result_directory)
+        ResultWriter = components.ResultWriter(result_directory_one_simulation)
         logging.info("Charging station " + str(chargingStation.ChargingStationId) + ": ResultWriter initialized")
 
         # overwrite SimBroker and ResultWriter of charging station for multiprocessing
@@ -108,13 +109,16 @@ def main(SOC_start):
         logging.info("Charging station " + str(chargingStation.ChargingStationId) + ": DermsDummy initialized")
 
         # initialize BTMS SOC
-        chargingStation.BtmsEn = chargingStation.BtmsEn * SOC_start
-
+        chargingStation.BtmsEn = chargingStation.BtmsSize * SOC_start
+        # initialze the control problem
+        E_btms_reference = chargingStation.BtmsSize * SOC_reference
+        chargingStation.init_mpc_problem(timestep, N = N_mpc, rho=rho_mpc, M1 = M1_mpc, E_btms_reference=E_btms_reference)
         # start simulation
         max_iter = np.ceil((SimBroker.SimRes.index[-1] - SimBroker.SimRes.index[0])/timestep)
-        progress_bar = tqdm(desc = 'MPC Sim @ Charging station ' + str(chargingStation.ChargingStationId), total = max_iter)
+        progress_bar = tqdm(desc = 'MPC Sim @ Charging station ' + str(chargingStation.ChargingStationId), total = max_iter, disable=True )
         logging.info("Charging station " + str(chargingStation.ChargingStationId) + ": Simulation started")
 
+        #logging.getLogger().setLevel(logging.WARNING)
         while not SimBroker.eol():
             # Sim Broker Step
             slice = SimBroker.step(timestep)
@@ -122,13 +126,13 @@ def main(SOC_start):
             # GridPowerLower, GridPowerUpper = DermsDummy.output(chargingStation.ChargingStationId)
             # chargingStation.update_from_derms(GridPowerLower, GridPowerUpper)
             # chargingStation.update_from_grid_simulation(PhySimDummy.output(chargingStation.ChargingStationId))
-            for i in range(len(slice)):
-                # TODO test here dataypes
-                rows_of_interest = slice.loc[slice["parkingTaz"] == int(use_events_of_charging_station)]
-                rows_of_interest = rows_of_interest.loc[rows_of_interest["type"] == "ChargingPlugInEvent"]
-                for row in rows_of_interest.iterrows():
-                        vehicle = VehicleGenerator.generate_vechicle_from_df_slice(row)
-                        chargingStation.arrival(vehicle, SimBroker.t_act)
+            # TODO test here dataypes
+            rows_of_interest = slice.loc[slice["parkingTaz"] == str(use_events_of_charging_station)]
+            rows_of_interest = rows_of_interest.loc[rows_of_interest["type"] == "RefuelSessionEvent"]                    
+            for i in range(len(rows_of_interest)):
+                row = rows_of_interest.iloc[i]
+                vehicle = VehicleGenerator.generate_vechicle_from_df_slice(row)
+                chargingStation.arrival(vehicle, SimBroker.t_act)
             # charging station step
             chargingStation.step(timestep)
             progress_bar.update(1)
@@ -140,22 +144,39 @@ def main(SOC_start):
         # write results
         ResultWriter.save()
 
-
-    # launch multiprocessing
-
     for x in chargingStations:
-        simulation_for_one_charging_station(x, result_directory, use_events_of_charging_station = x.ChargingStationId)
+        simulation_for_one_charging_station(x)
 
-    # pool = mp.Pool(processes=6)
-    # result_list_tqdm = []
-    # for result in tqdm(pool.imap(func=do_sizing, iterable=chargingStations), total=len(chargingStations)):
-    #     result_list_tqdm.append(result)
-    # chargingStations = result_list_tqdm
-    # pool.close()
-
+def doSimulation(iterable):
+    chargingStationId, SOC_start, SOC_reference, N_mpc, rho_mpc, M1_mpc, use_events_of_charging_station = iterable
+    main(chargingStationId, SOC_start, SOC_reference, N_mpc, rho_mpc, M1_mpc, use_events_of_charging_station)
 
 if __name__ == '__main__':
 
     SOC_start = 0.8
 
-    main(SOC_start=SOC_start)
+    SOC_reference = 0.8
+    N = 30
+    rho_mpc = 1000
+    M1_mpc = 200
+
+    # get list of charging stations we want to simulate
+    sizing_results_stats_and_selected_stations = pd.read_csv(sizing_results_stats_and_selected_stations_path, index_col=0)
+    sizing_results_stats_and_selected_stations.index.name = 'taz'
+    taz_list = sizing_results_stats_and_selected_stations.index.astype(str).to_list()
+
+    #taz_list = taz_list[22:-1]
+
+    # make iterable for multiprocessing
+
+    iterable = [[taz, SOC_start, SOC_reference, N, rho_mpc, M1_mpc, taz ]for taz in taz_list]
+
+    # for iter in tqdm(iterable):
+    #     doSimulation(iter)
+
+    pool = mp.Pool(processes=4)
+    result_list_tqdm = []
+    for result in tqdm(pool.imap(func=doSimulation, iterable=iterable), total=len(taz_list)):
+        result_list_tqdm.append(result)
+    #chargingStations = result_list_tqdm
+    pool.close()
