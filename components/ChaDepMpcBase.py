@@ -489,6 +489,7 @@ class ChaDepMpcBase(ChaDepParent):
         self.P_BTMS_opti = cp.Variable((1, N))
         self.P_Charge_opti = cp.Variable((1, N))
         self.t_opti = cp.Variable((1,N)) # this goes from [0, N]: for control output variable
+        self.t_opti2 = cp.Variable((1,N-1)) # this goes from [0, N-1]: for control output variable
 
         constr = []
         
@@ -524,13 +525,13 @@ class ChaDepMpcBase(ChaDepParent):
         # power gradient constraints
         for k in range(1, N):
             constr += [
-                (self.P_Grid_opti[0,k] - self.P_Grid_opti[0,k-1])/ts_constant <=     (P_Grid_max_constant-0)/(15*ts_constant),
-                (self.P_Grid_opti[0,k] - self.P_Grid_opti[0,k-1])/ts_constant >= -1* (P_Grid_max_constant-0)/(15*ts_constant),
+                (self.P_Grid_opti[0,k] - self.P_Grid_opti[0,k-1])/ts_constant <=     ((P_Grid_max_constant-0)/(15*ts_constant) + self.t_opti2[0,k-1]),
+                (self.P_Grid_opti[0,k] - self.P_Grid_opti[0,k-1])/ts_constant >= -1* ((P_Grid_max_constant-0)/(15*ts_constant) + self.t_opti2[0,k-1]),
             ]
         # initial power gradient constraint
         constr += [
-            (self.P_Grid_opti[0,0] - self.P_GridLast_param)/ts_constant <=     (P_Grid_max_constant-0)/(15*ts_constant),
-            (self.P_Grid_opti[0,0] - self.P_GridLast_param)/ts_constant >= -1* (P_Grid_max_constant-0)/(15*ts_constant),
+            (self.P_Grid_opti[0,0] - self.P_GridLast_param)/ts_constant <=     ((P_Grid_max_constant-0)/(15*ts_constant) + self.t_opti2[0,0]),
+            (self.P_Grid_opti[0,0] - self.P_GridLast_param)/ts_constant >= -1* ((P_Grid_max_constant-0)/(15*ts_constant) + self.t_opti2[0,0]),
         ]
         # objective function
         # last grid power gradient cost
@@ -544,6 +545,8 @@ class ChaDepMpcBase(ChaDepParent):
             self.cost_mpc += rho * cp.square((self.E_BTMS_opti[0,k] - E_Btms_reference_constant)/btms_size_constant) 
         # penalty variable cost
         self.cost_mpc += M1 * cp.sum(cp.square(self.t_opti[0, :] ))
+        # penalty variable cost
+        self.cost_mpc += M1 * cp.sum(cp.square(self.t_opti2[0, :] ))
 
         # set up problem
         self.mpc_problem = cp.Problem(cp.Minimize(self.cost_mpc), constr)
