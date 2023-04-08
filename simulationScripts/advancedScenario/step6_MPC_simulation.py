@@ -37,9 +37,9 @@ os.makedirs(result_directory, exist_ok=True)
 figure_directory = path + os.sep + 'figures'
 os.makedirs(figure_directory, exist_ok=True)
 
-sizing_results_stats_and_selected_stations_path = os.path.join(result_parent_directory, 'step4_btms_sizing_sensitivity', 'analysis', 'step4_used_charging_depots_for_control_with_stats_a_5.0.csv')
+sizing_results_stats_and_selected_stations_path = os.path.join(result_parent_directory, 'step4a_btms_sizing_sensitivity_c_rate', 'analysis', 'step4a_used_charging_depots_for_control_with_stats_a_5.0.csv')
 a_value_selected = 5.0
-sizing_results_parent_directory = os.path.join(result_parent_directory, 'step4_btms_sizing_sensitivity', 'sizing_results')
+sizing_results_parent_directory = os.path.join(result_parent_directory, 'step4a_btms_sizing_sensitivity_c_rate', 'sizing_results')
 
 # find out in which folder the results for the selected a value are stored
 for folder in os.listdir(sizing_results_parent_directory):
@@ -109,6 +109,7 @@ def main(chargingStationId, SOC_start, SOC_reference, N_mpc, rho_mpc, M1_mpc, us
         logging.info("Charging station " + str(chargingStation.ChargingStationId) + ": DermsDummy initialized")
 
         # initialize BTMS SOC
+        #chargingStation.BtmsSize = chargingStation.BtmsSize * 1.5
         chargingStation.BtmsEn = chargingStation.BtmsSize * SOC_start
         # initialze the control problem
         E_btms_reference = chargingStation.BtmsSize * SOC_reference
@@ -153,11 +154,11 @@ def doSimulation(iterable):
 
 if __name__ == '__main__':
 
-    SOC_start = 0.8
+    SOC_start = 1.0
 
-    SOC_reference = 0.8
+    SOC_reference = 0.95
     N = 30
-    rho_mpc = 1000
+    rho_mpc = 2500
     M1_mpc = 200
 
     # get list of charging stations we want to simulate
@@ -165,18 +166,18 @@ if __name__ == '__main__':
     sizing_results_stats_and_selected_stations.index.name = 'taz'
     taz_list = sizing_results_stats_and_selected_stations.index.astype(str).to_list()
 
-    #taz_list = taz_list[22:-1]
+    taz_list = ['435']
 
     # make iterable for multiprocessing
 
     iterable = [[taz, SOC_start, SOC_reference, N, rho_mpc, M1_mpc, taz ]for taz in taz_list]
-
-    # for iter in tqdm(iterable):
-    #     doSimulation(iter)
-
-    pool = mp.Pool(processes=4)
-    result_list_tqdm = []
-    for result in tqdm(pool.imap(func=doSimulation, iterable=iterable), total=len(taz_list)):
-        result_list_tqdm.append(result)
-    #chargingStations = result_list_tqdm
-    pool.close()
+    if True:
+        for iter in tqdm(iterable):
+            doSimulation(iter)
+    else:
+        pool = mp.Pool(processes=4)
+        result_list_tqdm = []
+        for result in tqdm(pool.imap(func=doSimulation, iterable=iterable), total=len(taz_list)):
+            result_list_tqdm.append(result)
+        #chargingStations = result_list_tqdm
+        pool.close()

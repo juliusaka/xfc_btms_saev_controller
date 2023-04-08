@@ -63,7 +63,7 @@ class Vehicle:
         return self.EnergyLag
 
     def update_time_lag(self, t_act): 
-        if self.VehicleDesEnd < t_act:
+        if self.VehicleDesEnd > t_act:
             self.TimeLag = 0
         else:
             self.TimeLag = t_act - self.VehicleDesEnd
@@ -102,6 +102,7 @@ class Vehicle:
         if t_act >= v.VehicleDesEnd:
             traj_lower = self.get_charging_trajectory_upper(t_act, timestep, N, maxPowerPlug=maxPowerPlug)
             traj_upper = traj_lower.copy()
+
         else:
             traj_lower = [] #trajectory is inversed if we go back in time
             k = int(np.ceil((self.VehicleDesEnd - t_act)/timestep)) # number of timestep from end to charging to beginning, must go back this steps
@@ -147,4 +148,11 @@ class Vehicle:
         del v
         traj_lower = np.array(traj_lower)
         traj_upper = np.array(traj_upper)
+
+        # # numerical issues: add 0.2 kWh to the lower trajectory to make sure that the gained charging speed is high enough
+        # traj_lower[1:-1] = traj_lower[1:-1] + 0.2
+        # # make sure that lower trajectory is always lower than upper trajectory
+        # for i in range(N+1):
+        #     if traj_lower[i] > traj_upper[i]:
+        #         traj_lower[i] = traj_upper[i]
         return traj_lower, traj_upper

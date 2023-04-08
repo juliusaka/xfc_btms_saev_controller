@@ -571,6 +571,14 @@ class ChaDepMpcBase(ChaDepParent):
         P_BTMS = self.P_BTMS_opti[0,0].value
         P_ChargeGranted = self.P_Charge_opti[0,0].value
         P_Grid = self.P_Grid_opti[0,0].value
+
+        # deal with numerical issues
+        eps = 0.2
+        eps_E_Vehicles = self.E_Vehicles_opti[0,1].value - self.E_Vehicles_lower_param[1].value # E_Vehicles should be greate than E_Vehicles_lower
+        if eps_E_Vehicles < 0 and eps_E_Vehicles > - eps: # if E_Vehicles is eps close to E_Vehicles_lower, recalculate P_Charge
+            _P_ChargeGranted = (self.E_Vehicles_lower_param[1].value - self.E_Vehicles_lower_param[0].value)/(timestep/3600)
+            P_BTMS = P_BTMS + P_ChargeGranted - _P_ChargeGranted
+            P_ChargeGranted = _P_ChargeGranted
         return P_BTMS, P_ChargeGranted
 
     def step(self, timestep, verbose = False):
