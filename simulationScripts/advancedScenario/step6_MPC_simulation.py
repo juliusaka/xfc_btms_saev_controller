@@ -154,12 +154,12 @@ def doSimulation(iterable):
 
 if __name__ == '__main__':
 
-    SOC_start = 1.0
+    SOC_start = 0.8
 
-    SOC_reference = 1.0
+    SOC_reference = 0.8
     N = 30
-    rho_mpc = 1
-    M1_mpc = 1000
+    rho_mpc = 2500
+    M1_mpc = 200
 
     # get list of charging stations we want to simulate
     sizing_results_stats_and_selected_stations = pd.read_csv(sizing_results_stats_and_selected_stations_path, index_col=0)
@@ -175,7 +175,7 @@ if __name__ == '__main__':
         for iter in tqdm(iterable):
             doSimulation(iter)
     else:
-        pool = mp.Pool(processes=mp.cpu_count())
+        pool = mp.Pool(processes=mp.cpu_count()
         result_list_tqdm = []
         for result in tqdm(pool.imap(func=doSimulation, iterable=iterable), total=len(taz_list)):
             result_list_tqdm.append(result)
