@@ -521,13 +521,24 @@ class ChaDepMpcBase(ChaDepParent):
             self.E_BTMS_opti[0, 0] == self.E_Btms0_param,
             self.E_Vehicles_opti[0, 0] == 0,
         ]
-
+        # power gradient constraints
+        for k in range(1, N):
+            constr += [
+                (self.P_Grid_opti[0,k] - self.P_Grid_opti[0,k-1])/ts_constant <=     (P_Grid_max_constant-0)/(15*ts_constant),
+                (self.P_Grid_opti[0,k] - self.P_Grid_opti[0,k-1])/ts_constant >= -1* (P_Grid_max_constant-0)/(15*ts_constant),
+            ]
+        # initial power gradient constraint
+        constr += [
+            (self.P_Grid_opti[0,0] - self.P_GridLast_param)/ts_constant <=     (P_Grid_max_constant-0)/(15*ts_constant),
+            (self.P_Grid_opti[0,0] - self.P_GridLast_param)/ts_constant >= -1* (P_Grid_max_constant-0)/(15*ts_constant),
+        ]
         # objective function
         # last grid power gradient cost
-        self.cost_mpc =  cp.square((self.P_Grid_opti[0,0]- self.P_GridLast_param)/(ts_constant*P_Grid_max_constant))
+        self.cost_mpc = 0
+        #self.cost_mpc =  cp.square((self.P_Grid_opti[0,0]- self.P_GridLast_param)/(ts_constant*P_Grid_max_constant))
         # grid power gradient cost
-        for k in range(1, N-1):
-            self.cost_mpc += cp.square((self.P_Grid_opti[0, k+1] - self.P_Grid_opti[0, k])/(ts_constant*P_Grid_max_constant))
+        #for k in range(1, N-1):
+        #    self.cost_mpc += cp.square((self.P_Grid_opti[0, k+1] - self.P_Grid_opti[0, k])/(ts_constant*P_Grid_max_constant))
         # reference btms energy tracking cost
         for k in range(N): 
             self.cost_mpc += rho * cp.square((self.E_BTMS_opti[0,k] - E_Btms_reference_constant)/btms_size_constant) 
