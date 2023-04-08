@@ -5,12 +5,14 @@ We only used the charging depots which determined at the end of step 4.
 Then, we run the simulation and save the results.
 '''
 
-import sys
 import os
+os.chdir('/workspaces/xfc_btms_saev_controller/')
+import sys
+sys.path.append(os.getcwd())
 from config import *
 sys.path.append('../')
 sys.path.append('../../')
-sys.path.append('c:\\Users\\akaju\\Documents\\GitHub\\xfc_btms_saev_controller')
+#sys.path.append('c:\\Users\\akaju\\Documents\\GitHub\\xfc_btms_saev_controller')
 import components
 import components.ChaDepMpcBase as chargingStationClass
 from simulationScripts import createChargingStations
@@ -166,7 +168,7 @@ if __name__ == '__main__':
     sizing_results_stats_and_selected_stations.index.name = 'taz'
     taz_list = sizing_results_stats_and_selected_stations.index.astype(str).to_list()
 
-    taz_list = ['18']
+    #taz_list = ['18']
 
     # make iterable for multiprocessing
 
