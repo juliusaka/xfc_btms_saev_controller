@@ -1,46 +1,33 @@
 # xfc-btms-saev-controller
 
+The paper to this project, a project-thesis with Hamburg University of Technology, Transportation Sustainibilty Research Center at University of California Berkeley and Lawrence Berkeley National Laboratory, can be found here and contains the most up-to-date documenation of this project: (insert link)
+
+The main contributions are: 
+
+- Economic Storage Sizing for simulation purposes.
+- Insights into the Reasoning of the sizing process.
+- Impact of Demand Charges on Grid Connection Characteristics and BTMS storage sizes.
+- Storage Capacity Values for a 2040-scenario.
+- Simulation Framework to model and test controllers at Fast Charging Stations.
+- Simple Model Predictive Control to control charging at Fast-Charging-Site with BTMS.
+- Integration of the control into the \gemini{} co-simulation project.
+
+I refrained from bringing this repository to a publishable state, because it is not clear if it is going to be used in the future. If you are interested in using this code, please contact me at: julius.aka(at)tuhh.de. I'm more than happy to help you with re-using my work!
+
+All the calculations presented in the paper and its result are stored in "simulationScripts/Scenario". All the code contained in this directory is up-to-date and running. Simulation Scripts in other scripts are not up-to-date and may not run. 
+
+The most important programming concepts are explained in 2.4 of the paper. The detailed simulation routine of the MPC and the sizing optimization problem is mainly implemented in components/ChaDepMpcBase and called in simulationScripts\advancedScenario\ step3 and step6.
+
+----
 Developement of a controller for an extreme-fast-charging (XFC) depot with behind-the-meter storage (BTMS) for shared autonomous electric vehicle (SAEV) fleets in the project GEMINI-XFC with the transportation simulation software BEAM. This controller can be connected with HELICS to BEAM, PyDSS etc. Within the GEMINI-XFC project, we talk about Site Power Management Controllers (SPMC). Their task is to control charging power of a BTMS and the charging power of vehicles with low grid impact and high charging speed, constrained by grid power limits. The major difference of a SPMC for a SAEV-fleet compared to a SPMC for normal EVs is that its control strategy can influence the availability of ride-hailing services and should therefore work differently than a normal SPMC for private EVs. 
 
 This code is set up so that it can be tested in a stand-alone version (without connection to other parts of the GEMINI-XFC framework), and also implemented in the GEMINI-XFC framework. The reason for this is, that the stand-alone version shall allow the user to quickly test changes of the control scheme, without waiting for results of the long-lasting BEAM simulation.
-
-## python environment
-
-this framework was developed using python 3.7.11. There is an Andaconda-Image, which can be used to import a fitting environment. Please make sure, that this environment is used.
-
-*first, I couldn't run python with anaconda on my PC. I then added path variables like described in this [video](https://www.youtube.com/watch?v=3Wt00qGlh3s). I also had to change the execution policy of Windows Powershell to RemoteSigned (Open PowerShell, Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser*
-
-below, there is a list of important used packages:
-
-- **dask**: used for processing the large output-csv for the independent controller developement framework
-- **numpy**
-- **cvxopt**:
-
 
 ## Units
 
 - time is in seconds [s]
 - energy is in kilowatthours [kWh] - Beam is in J, must be convert with 3.6e6 J/kWh
 - power is in kilowatt [kW]
-
-## Installing with pip
-
-run the following with pip to install the package:
-
-    pip install git+https://github.com/juliusaka/xfc_btms_saev_controller.git@main#egg=xfccontroller
-
-you can now just use
-
-    import components
-
-within your script to import the package.
-
-packaging based on [this](https://packaging.python.org/tutorials/packaging-projects/) tutorial and installing with pip based on [this](https://packaging.python.org/tutorials/installing-packages/) tutorial. I added requirements for the needed pandas, numpy and cvxpy packages in "pyproject.toml". To find out which packages are used, you can use "pipreqs".
-
-to create the wheel for the package: modify the version number in pyproject.toml and run in python terminal:
-    
-    pip install build
-    python -m build
     
 ## components
 
