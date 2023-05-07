@@ -70,9 +70,11 @@ class ControlWrapper:
         # make a list of vehicle ids which are in the charging station
         vehicleInDepot = []
         for vehicle in self.ChargingStation.ChBaVehicles:
-            vehicleInDepot.append(vehicle.vehicleId)
+            if vehicle != False:
+                vehicleInDepot.append(vehicle.vehicleId)
         for vehicle in self.ChargingStation.Queue:
-            vehicleInDepot.append(vehicle.vehicleId)
+            if vehicle != False:
+                vehicleInDepot.append(vehicle.vehicleId)
         
         for vehicle in vehicleIdsAtStation:
             # make a list of vehicles which are not in the charging station and need to be popped out

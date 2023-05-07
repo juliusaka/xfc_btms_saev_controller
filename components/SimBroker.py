@@ -30,7 +30,7 @@ class SimBroker:
         self.SimRes     = self.SimRes.sort_index()  # make sure that inputs are ascending
         self.length     = len(self.SimRes)     # save length of pd dataframe
         self.i          = 0                    # line in result dataframe which is currently read
-        self.t_act      = self.SimRes.index[self.i]
+        self.t_act      = 0
         self.t_max      = max(self.SimRes.index)
         self.iteration  = -1                    # number of iteration which in terms of steps of timestep, first call of step will set timestep to 0 for first simulation iteration.
         '''
