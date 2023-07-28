@@ -313,9 +313,9 @@ class ChaDepMpcBase(ChaDepParent):
             'P_BTMS_DCh': P_BTMS_DCh,
         }
         if d_wait_cost != None:
-            dict['param: btms size, a,b_sys,b_cap,b_loan,c,d_wait_cost': param_vec]
+            dict['param: btms size, a,b_sys,b_cap,b_loan,c,d_wait_cost'] = param_vec
         else:
-            dict['param: btms size, a,b_sys,b_cap,b_loan,c': param_vec]
+            dict['param: btms size, a,b_sys,b_cap,b_loan,c'] = param_vec
         if d_wait_cost != None:
             dict['E_Shift'] = E_Shift[:-1]
             dict['P_Shift'] = P_Shift

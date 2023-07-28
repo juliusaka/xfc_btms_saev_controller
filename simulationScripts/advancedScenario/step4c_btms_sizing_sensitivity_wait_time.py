@@ -3,7 +3,7 @@
 # pick 2,3 examples for thesis later to show working principle of BTMS
 # show with them the effect of flexible energy price (and flexible demand charge))
 import os
-os.chdir('/workspaces/xfc_btms_saev_controller/')
+#os.chdir('/workspaces/xfc_btms_saev_controller/')
 import sys
 sys.path.append(os.getcwd())
 from config import *
@@ -68,8 +68,13 @@ def main(result_directory, a, b_sys, b_cap, b_loan, c, d_wait_cost):
     # # test without multiprocessing
     # for iterable in tqdm(iterables):
     #     do_sizing(iterable)
-
-    pool = mp.Pool(processes=mp.cpu_count())
+    # count only half of the cores if on windows
+    if os.name == 'nt':
+        pool = mp.Pool(processes=int(mp.cpu_count()/2))
+        print(' pool initiliazed with ' + str(int(mp.cpu_count()/2)) + ' cores')
+    else:
+        pool = mp.Pool(processes=mp.cpu_count())
+        print(' pool initiliazed with ' + str(mp.cpu_count()) + ' cores')
     result_list_tqdm = []
     for result in tqdm(pool.imap(func=do_sizing, iterable=iterables), total=len(chargingStations), leave = False):
         result_list_tqdm.append(result)
@@ -87,7 +92,8 @@ def do_sizing(iterable):
 if __name__ == '__main__':
     
     a_cost_sizing = np.array([2, 5, 8, 10, 15]) / (365/12)
-    d_wait_cost = np.array([1, 5, 10, 15, 20])
+    #d_wait_cost = np.array([1, 5, 10, 15, 20])
+    d_wait_cost = np.array([3, 1e6])
     
     path = result_parent_directory + os.sep + 'step4c_btms_sizing_sensitivity_wait_time' + os.sep + 'sizing_results' 
     print(path)
