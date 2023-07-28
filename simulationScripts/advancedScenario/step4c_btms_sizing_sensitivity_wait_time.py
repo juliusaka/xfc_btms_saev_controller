@@ -66,8 +66,8 @@ def main(result_directory, a, b_sys, b_cap, b_loan, c, d_wait_cost):
     iterables = [[x, a, b_sys, b_cap, b_loan, c, d_wait_cost] for x in chargingStations]
     
     # # test without multiprocessing
-    for iterable in tqdm(iterables):
-        do_sizing(iterable)
+    # for iterable in tqdm(iterables):
+    #     do_sizing(iterable)
     # count only half of the cores if on windows
     if os.name == 'nt':
         pool = mp.Pool(processes=int(mp.cpu_count()/2))
