@@ -33,7 +33,7 @@ def stats_sizing_function_wait_time(df, timestep):
     cost_b_loan = df['param: btms size, a,b_sys,b_cap,b_loan,c,d_wait_cost'].iloc[4] * sum(df['P_BTMS_Ch'][:-2].abs() * timestep/3600)
     cost_b = cost_b_sys + cost_b_cap
     cost_c = df['param: btms size, a,b_sys,b_cap,b_loan,c,d_wait_cost'].iloc[5] * (sum(df['P_BTMS_Ch'][:-2].abs() * timestep/3600) - sum(df['P_BTMS_DCh'][:-2].abs() * timestep/3600))
-    cost_d = float('inf')
+    cost_d = 0
     cost_total = cost_a + cost_b + cost_c + cost_d
     share_cost_a = cost_a / cost_total
     share_cost_b_sys = cost_b_sys / cost_total
