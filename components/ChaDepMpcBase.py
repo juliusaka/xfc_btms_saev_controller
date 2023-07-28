@@ -178,6 +178,13 @@ class ChaDepMpcBase(ChaDepParent):
         T = int(np.ceil((t_max - t_act) / timestep))
 
         # define time-varying d_wait_cost
+        if d_wait_cost == 1e6:
+            d_wait_cost = None
+            flag_d_wait_cost_active = True
+        elif d_wait_cost != None:
+            flag_d_wait_cost_active = True
+        else:
+            flag_d_wait_cost_active = False
         if d_wait_cost != None:
             if d_wait_cost == 'varying':
                 d_wait_cost = []
@@ -293,8 +300,9 @@ class ChaDepMpcBase(ChaDepParent):
         P_BTMS = P_BTMS.value.reshape(-1)
         E_BTMS = E_BTMS.value.reshape(-1)
         P_Charge = P_Charge
-        E_Shift = E_Shift.value.reshape(-1)
-        P_Shift = P_Shift.value.reshape(-1)
+        if d_wait_cost != None:
+            E_Shift = E_Shift.value.reshape(-1)
+            P_Shift = P_Shift.value.reshape(-1)
         P_BTMS_Ch = P_BTMS_Charge.value.reshape(-1)
         P_BTMS_DCh = P_BTMS_Discharge.value.reshape(-1)
         cost = prob.value
@@ -329,7 +337,7 @@ class ChaDepMpcBase(ChaDepParent):
             'P_BTMS_Ch': P_BTMS_Ch,
             'P_BTMS_DCh': P_BTMS_DCh,
         }
-        if d_wait_cost != None:
+        if flag_d_wait_cost_active:
             dict['param: btms size, a,b_sys,b_cap,b_loan,c,d_wait_cost'] = param_vec
         else:
             dict['param: btms size, a,b_sys,b_cap,b_loan,c'] = param_vec
