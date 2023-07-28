@@ -66,8 +66,8 @@ def main(result_directory, a, b_sys, b_cap, b_loan, c, d_wait_cost):
     iterables = [[x, a, b_sys, b_cap, b_loan, c, d_wait_cost] for x in chargingStations]
     
     # # test without multiprocessing
-    # for iterable in tqdm(iterables):
-    #     do_sizing(iterable)
+    for iterable in tqdm(iterables):
+        do_sizing(iterable)
     # count only half of the cores if on windows
     if os.name == 'nt':
         pool = mp.Pool(processes=int(mp.cpu_count()/2))
@@ -91,9 +91,9 @@ def do_sizing(iterable):
 
 if __name__ == '__main__':
     
-    a_cost_sizing = np.array([2, 5, 8, 10, 15]) / (365/12)
+    a_cost_sizing = np.array([8, 10]) / (365/12)
     #d_wait_cost = np.array([1, 5, 10, 15, 20])
-    d_wait_cost = np.array([3, 1e6])
+    d_wait_cost = np.array(['varying'])
     
     path = result_parent_directory + os.sep + 'step4c_btms_sizing_sensitivity_wait_time' + os.sep + 'sizing_results' 
     print(path)

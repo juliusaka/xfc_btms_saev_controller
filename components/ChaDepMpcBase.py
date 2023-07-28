@@ -177,6 +177,23 @@ class ChaDepMpcBase(ChaDepParent):
         # vector lengthes
         T = int(np.ceil((t_max - t_act) / timestep))
 
+        # define time-varying d_wait_cost
+        if d_wait_cost != None:
+            if d_wait_cost == 'varying':
+                d_wait_cost = []
+                for i in range(T+1):
+                    if i * timestep >= 6*3600 and  10*3600 >= i * timestep:
+                        d_wait_cost.append(20)
+                    elif i * timestep >= 15*3600 and  19*3600 >= i * timestep:
+                        d_wait_cost.append(20)
+                    else:
+                        d_wait_cost.append(0)
+            else:
+                d = d_wait_cost
+                d_wait_cost = []
+                for i in range(T+1):
+                    d_wait_cost.append(d)
+
         # define variables 
         E_BTMS = cp.Variable((1, T+1))
         P_Grid = cp.Variable((1, T))
@@ -263,7 +280,7 @@ class ChaDepMpcBase(ChaDepParent):
         # wait time integration
         if d_wait_cost != None:
             for k in range(T+1):
-                cost += d_wait_cost * t_wait[0,k]
+                cost += d_wait_cost[k] * t_wait[0,k]
         
         # solve the problem
         logging.info("\n----- \n btms size optimization for charging station %s \n-----" % self.ChargingStationId)
@@ -301,7 +318,7 @@ class ChaDepMpcBase(ChaDepParent):
         param_vec[4] = b_loan
         param_vec[5] = c
         if d_wait_cost != None:
-            param_vec[6] = d_wait_cost
+            param_vec[6] = d_wait_cost if type(d_wait_cost) != list else 0
         dict = {
             'time': time,
             'time_x': time_x,
