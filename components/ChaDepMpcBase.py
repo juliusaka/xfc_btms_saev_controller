@@ -252,7 +252,7 @@ class ChaDepMpcBase(ChaDepParent):
         for k in range(T):
             constr += [
                 E_BTMS[0,k+1] == E_BTMS[0,k] + ts_in_h * eta * P_BTMS_Charge[0,k] - ts_in_h * P_BTMS_Discharge[0,k], # btms charging equation
-                P_Grid[0,k] == P_Charge[k] + P_BTMS[0,k], # grid power equation
+                P_Grid[0,k] == P_Charge[0,k] + P_BTMS[0,k], # grid power equation
                 P_Charge[0,k] == P_Charge_0[k] if d_wait_cost == None else P_Charge[0,k] == (E_Charge[0,k+1] - E_Charge[0,k])/ts_in_h, # charging power equation
                 P_BTMS[0,k] == P_BTMS_Charge[0,k] - P_BTMS_Discharge[0,k], # P_BTMS is sum of charge and discharge
                 P_BTMS_Charge[0,k] >= 0, # charge power always positive
@@ -300,7 +300,7 @@ class ChaDepMpcBase(ChaDepParent):
         # wait time integration
         if d_wait_cost != None:
             for k in range(T):
-                cost += d_wait_cost[k] * P_Shift[0,k] / P_Charge_avg # cost of waiting
+                cost += d_wait_cost[k] * ts_in_h * P_Shift[0,k] / P_Charge_avg # cost of waiting
         
         # solve the problem
         logging.info("\n----- \n btms size optimization for charging station %s \n-----" % self.ChargingStationId)
@@ -317,6 +317,7 @@ class ChaDepMpcBase(ChaDepParent):
             E_Shift = E_Shift.value.reshape(-1)
             P_Shift = P_Shift.value.reshape(-1)
             E_Charge = E_Charge.value.reshape(-1)
+            P_Charge = P_Charge.value.reshape(-1)
         P_BTMS_Ch = P_BTMS_Charge.value.reshape(-1)
         P_BTMS_DCh = P_BTMS_Discharge.value.reshape(-1)
         cost = prob.value
@@ -356,6 +357,7 @@ class ChaDepMpcBase(ChaDepParent):
             dict['E_Shift'] = E_Shift[:-1]
             dict['P_Shift'] = P_Shift
             dict['E_Charge'] = E_Charge[:-1]
+            dict['P_Charge'] = P_Charge
             dict['wait cost'] = d_wait_cost
 
         df = pd.DataFrame({ key:pd.Series(value) for key, value in dict.items() })
