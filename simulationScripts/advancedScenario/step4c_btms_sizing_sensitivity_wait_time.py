@@ -92,10 +92,11 @@ def do_sizing(iterable):
 if __name__ == '__main__':
     
     #a_cost_sizing = np.array([2,5,8, 10]) / (365/12)
-    a_cost_sizing = np.array([10]) / (365/12)
+    a_cost_sizing = np.array([5]) / (365/12)
     #d_wait_cost = np.array([1, 5, 10, 15, 20])
     #d_wait_cost = np.array(['varying'])
-    d_wait_cost = np.array([100])
+    d_wait_cost = np.array([5])
+    #d_wait_cost = [None]
     
     path = result_parent_directory + os.sep + 'step4c_btms_sizing_sensitivity_wait_time' + os.sep + 'sizing_results' 
     print(path)

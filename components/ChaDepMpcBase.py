@@ -176,6 +176,9 @@ class ChaDepMpcBase(ChaDepParent):
         '''see mpcBase.md for explanations'''
         # vector lengthes
         T = int(np.ceil((t_max - t_act) / timestep))
+        T = int(T/2)
+        print('debugging: T = ', T)
+        
         #parameters
         ts_in_h = timestep / 3.6e3 # energy timestep in hours, energy is kWh
         eta = self.BtmsEfficiency
@@ -226,11 +229,13 @@ class ChaDepMpcBase(ChaDepParent):
         E_Btms_max = cp.Variable((1, 1))
         P_Btms_max = cp.Variable((1, 1))
         P_Grid_max = cp.Variable((1, 1))
-        P_Charge = cp.Variable((1, T))
+        #P_Charge = cp.Variable((1, T))
         if d_wait_cost != None: # wait cost specific variables
             E_Shift = cp.Variable((1, T+1))
-            P_Shift = cp.Variable((1, T))
-            E_Charge = cp.Variable((1, T+1))
+            P_Shift = cp.Variable((3, T)) # P_Shift[0] is the charging power, P_Shift[1] is the positive shift power, P_Shift[2] is the negative shift power
+            #E_Charge = cp.Variable((1, T+1)) 
+            n1 = cp.Variable((2, T), integer = True) # n1[0] is the number of new delayed charging processes, n1[1] is the slack variable n1a
+            n2 = cp.Variable((2, T), integer = True) # n2[0] is the number of ended delayed charging processes, n2[1] is the slack variable n2a
         
         
         # define disturbance P_Charge_0, which is the charging power demand without any energy shifting
@@ -238,22 +243,17 @@ class ChaDepMpcBase(ChaDepParent):
         power = np.array(self.PredictionPower)
         idx = np.logical_and(time >=t_act, time <= t_act + T*timestep)
         time = time[idx]
-        P_Charge_0 = power[idx]
-        if len(P_Charge_0) != T:
-            logging.warning("length of i_power does not match T, length of i_power: " + str(len(P_Charge_0)) + ", T: " + str(T))
-            raise ValueError("length T and length of vector i_power are unequal, i_power: " + str(len(P_Charge_0)) + ", T: " + str(T))
-        # calculate the unmodififed energy trajectory E_Charge_0
-        E_Charge_0 = np.zeros(T+1)
-        for k in range(T):
-            E_Charge_0[k+1] = E_Charge_0[k] + ts_in_h * P_Charge_0[k]
+        P_Charge = power[idx]
+        if len(P_Charge) != T:
+            logging.warning("length of i_power does not match T, length of i_power: " + str(len(P_Charge)) + ", T: " + str(T))
+            raise ValueError("length T and length of vector i_power are unequal, i_power: " + str(len(P_Charge)) + ", T: " + str(T))
         
         # define constraints
         constr = []
         for k in range(T):
             constr += [
                 E_BTMS[0,k+1] == E_BTMS[0,k] + ts_in_h * eta * P_BTMS_Charge[0,k] - ts_in_h * P_BTMS_Discharge[0,k], # btms charging equation
-                P_Grid[0,k] == P_Charge[0,k] + P_BTMS[0,k], # grid power equation
-                P_Charge[0,k] == P_Charge_0[k] if d_wait_cost == None else P_Charge[0,k] == (E_Charge[0,k+1] - E_Charge[0,k])/ts_in_h, # charging power equation
+                P_Grid[0,k] == P_Charge[k] + P_BTMS[0,k] if d_wait_cost == None else P_Grid[0,k] == P_Charge[k] - P_Shift[0,k] + P_BTMS[0,k], # grid power equation
                 P_BTMS[0,k] == P_BTMS_Charge[0,k] - P_BTMS_Discharge[0,k], # P_BTMS is sum of charge and discharge
                 P_BTMS_Charge[0,k] >= 0, # charge power always positive
                 P_BTMS_Discharge[0,k] >= 0, # discharge power always negative
@@ -280,15 +280,32 @@ class ChaDepMpcBase(ChaDepParent):
         if d_wait_cost != None:
             for k in range(T):
                 constr += [
-                    E_Shift[0,k+1] >= E_Shift[0,k], # shifted energy can only increase
-                    P_Shift[0,k] == (E_Shift[0,k+1] - E_Shift[0,k])/ts_in_h, # shifted power is the difference of shifted energy
+                    E_Shift[0,k+1] == E_Shift[0,k] + ts_in_h * P_Shift[0,k], # shifted energy
+                    P_Shift[0,k] == P_Shift[1,k] + P_Shift[2,k], # P_Shift is sum of positive and negative shift
+                    P_Shift[1,k] >= 0, # positive shift power always positive
+                    P_Shift[2,k] <= 0, # negative shift power always negative
+                    n1[1,k] >= 0, # slack variable n1a always positive
+                    n2[1,k] >= 0, # slack variable n2a always positive
+                    n1[0,k] >= n2[0,k], # enforce that n1 is always greater than n2
+                    E_Shift[0,k] <= 100 * (n1[0,k] - n2[0,k]), # enforce that E_Shift is 0 when n1 = n2
+                ]
+            for k in range(1,T):
+                constr += [
+                    n1[1,k] >= (P_Shift[1,k] - P_Shift[1,k-1]) / P_Charge_avg,
+                    n1[0,k] == n1[0,k-1] + n1[1,k], # number of new delayed charging processes
+                    n2[1,k] >= (P_Shift[2,k] - P_Shift[2,k-1]) / P_Charge_avg,
+                    n2[0,k] == n2[0,k-1] + n2[1,k], # number of ended delayed charging processes
                 ]
             for k in range(T+1):
                 constr += [
-                    E_Charge[0,k] == E_Charge_0[k] - E_Shift[0,k], # shifted energy is added to the original energy
+                    E_Shift[0,k] >= 0, # shifted energy always positive
                 ]
+            # final and initial conditions
             constr += [
                 E_Shift[0,0] == 0, # initial condition
+                E_Shift[0,T] == 0, # final condition
+                n1[0,0] == 0, # initial condition
+                n2[0,0] == 0, # initial condition
                 ]
         
         # define cost-funciton
@@ -300,24 +317,37 @@ class ChaDepMpcBase(ChaDepParent):
         # wait time integration
         if d_wait_cost != None:
             for k in range(T):
-                cost += d_wait_cost[k] * ts_in_h * P_Shift[0,k] / P_Charge_avg # cost of waiting
+                cost += d_wait_cost[k] * ts_in_h * (n1[0,k] - n2[0,k]) # cost of waiting
         
         # solve the problem
         logging.info("\n----- \n btms size optimization for charging station %s \n-----" % self.ChargingStationId)
         prob = cp.Problem(cp.Minimize(cost), constr)
-        components.solver_algorithm(prob)
+        prob.solve(verbose = True) #solver = 'ECOS', abstol = 1e-6, reltol = 1e-6, feastol = 1e-6, max_iters = 10000)
+        #components.solver_algorithm(prob)
+
+        if d_wait_cost != None:
+            # calculate the unmodififed energy trajectory E_Charge_0
+            E_Charge_0 = np.zeros(T+1)
+            for k in range(T):
+                E_Charge_0[k+1] = E_Charge_0[k] + ts_in_h * P_Charge[k]
+
+            # calculate the modified energy trajectory E_Charge
+            E_Charge = np.zeros(T+1)
+            for k in range(T):
+                E_Charge[k+1] = E_Charge[k] + ts_in_h * P_Charge[k] + ts_in_h * P_Shift.value[0,k]
         
         # determine BTMS size and unpack over values
         btms_size = E_Btms_max.value[0,0] #np.max(E_BTMS.value) - np.min(E_BTMS.value)
         P_Grid = P_Grid.value.reshape(-1)
         P_BTMS = P_BTMS.value.reshape(-1)
         E_BTMS = E_BTMS.value.reshape(-1)
-        P_Charge_0 = P_Charge_0
+        P_Charge = P_Charge
         if d_wait_cost != None:
             E_Shift = E_Shift.value.reshape(-1)
-            P_Shift = P_Shift.value.reshape(-1)
-            E_Charge = E_Charge.value.reshape(-1)
-            P_Charge = P_Charge.value.reshape(-1)
+            P_Shift_tot = P_Shift.value[0,:].reshape(-1)
+            E_Charge = E_Charge.reshape(-1)
+            E_Charge_0 = E_Charge_0.reshape(-1)
+            P_Charge = P_Charge.reshape(-1)
         P_BTMS_Ch = P_BTMS_Charge.value.reshape(-1)
         P_BTMS_DCh = P_BTMS_Discharge.value.reshape(-1)
         cost = prob.value
@@ -348,15 +378,16 @@ class ChaDepMpcBase(ChaDepParent):
             'P_Grid': P_Grid,
             'P_BTMS': P_BTMS,
             'E_BTMS': E_BTMS[:-1],
-            'P_Charge': P_Charge_0,
+            'P_Charge': P_Charge,
             'P_BTMS_Ch': P_BTMS_Ch,
             'P_BTMS_DCh': P_BTMS_DCh,
             'param: btms size, a,b_sys,b_cap,b_loan,c': param_vec
         }
         if d_wait_cost != None:
             dict['E_Shift'] = E_Shift[:-1]
-            dict['P_Shift'] = P_Shift
+            dict['P_Shift'] = P_Shift_tot
             dict['E_Charge'] = E_Charge[:-1]
+            dict['E_Charge_0'] = E_Charge_0[:-1]
             dict['P_Charge'] = P_Charge
             dict['wait cost'] = d_wait_cost
 
@@ -366,7 +397,7 @@ class ChaDepMpcBase(ChaDepParent):
         filename    = 'btms_sizing_' + self.ChargingStationId + ".csv"
         df.to_csv(os.path.join(dir, filename))
 
-        return time, time_x, btms_size, P_Grid, P_BTMS, P_BTMS_Ch, P_BTMS_DCh, E_BTMS, P_Charge_0, cost
+        return time, time_x, btms_size, P_Grid, P_BTMS, P_BTMS_Ch, P_BTMS_DCh, E_BTMS, P_Charge, cost
     
     def load_determine_btms_size_results(self, filename):
         df = pd.read_csv(filename)
